@@ -33,3 +33,9 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local-only agent docs and skills
+/.agents/
+
+# Visual Studio temp something
+.vs/
