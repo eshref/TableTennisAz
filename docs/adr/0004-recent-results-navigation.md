@@ -1,0 +1,19 @@
+# Open Results as a recent-match feed
+
+After comparing interactive prototypes, the project owner chose a recent-results
+feed with an optional event filter for Q14. This makes match results directly
+visible on entering Results, with links to match details and player profiles.
+The alternative required choosing an event before viewing matches. Rankings
+remains the app's launch screen.
+
+The feed includes event matches and duels, with an All results / Tournament
+matches / Duels selection filter. Event matches can also be filtered by event.
+
+The website's inspected results navigation is event-based, so a cross-event
+feed requires aggregation when accessing it directly from Android. A complete
+recent-match API has not been identified. Load results in batches with a Load
+more button. The first batch is partial and may not include every recent match;
+batch sizes remain to be determined. The prototype's sample data does not
+establish production completeness. The agreed refresh policy shows saved data
+first and checks for updates when a screen opens if its data is over 15 minutes
+old, with manual refresh available when online.

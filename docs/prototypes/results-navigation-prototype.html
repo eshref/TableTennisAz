@@ -1,0 +1,237 @@
+<!-- Throwaway prototype: compare event-first and recent-results navigation. All records are illustrative. No live requests or writes. -->
+<div id="tt-results-prototype">
+  <style>
+    #tt-results-prototype .tt-preview-switcher { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; padding:12px 0; }
+    #tt-results-prototype [data-preview-panel][hidden] { display:none !important; }
+    #tt-results-prototype .tt-stage { display:flex; justify-content:center; align-items:flex-start; min-height:1020px; padding:20px 8px 28px; box-sizing:border-box; }
+    #tt-results-prototype .tt-phone { --tt-bg:light-dark(#f8f9ff,#15171f); --tt-panel:light-dark(#ffffff,#21242e); --tt-text:light-dark(#202331,#f0f1f8); --tt-sub:light-dark(#5b6073,#afb5cb); --tt-line:light-dark(#e1e4ef,#383d4f); --tt-accent:light-dark(#3848a8,#bac3ff); --tt-tonal:light-dark(#e9edff,#303957); --tt-pill:light-dark(#eff1f8,#2b303e); width:100%; max-width:390px; min-height:960px; display:flex; flex-direction:column; color:var(--tt-text); background:var(--tt-bg); border:1px solid var(--tt-line); border-radius:28px; overflow:hidden; font:400 14px/1.5 system-ui,sans-serif; box-shadow:0 12px 38px light-dark(#20233112,#00000035); }
+    #tt-results-prototype .tt-phone * { box-sizing:border-box; }
+    #tt-results-prototype .tt-phone button, #tt-results-prototype .tt-phone input, #tt-results-prototype .tt-phone select { font:inherit; color:inherit; }
+    #tt-results-prototype .tt-phone button { cursor:var(--cursor-interaction,pointer); }
+    #tt-results-prototype .tt-status { display:flex; justify-content:space-between; align-items:center; padding:13px 22px 5px; font-size:12px; font-weight:500; }
+    #tt-results-prototype .tt-status-icons { display:flex; gap:7px; align-items:center; }
+    #tt-results-prototype .tt-demo { text-align:center; font-size:11px; letter-spacing:1px; color:var(--tt-sub); padding:7px 12px; }
+    #tt-results-prototype .tt-header { padding:12px 20px 14px; }
+    #tt-results-prototype .tt-brand { color:var(--tt-accent); font-weight:500; font-size:13px; margin-bottom:7px; }
+    #tt-results-prototype .tt-title-row { display:flex; align-items:center; gap:10px; }
+    #tt-results-prototype h2 { font:500 25px/1.25 system-ui,sans-serif; margin:0; overflow-wrap:anywhere; }
+    #tt-results-prototype h3 { font:500 18px/1.4 system-ui,sans-serif; margin:0; }
+    #tt-results-prototype p { margin:0; }
+    #tt-results-prototype .tt-meta { color:var(--tt-sub); font-size:12px; }
+    #tt-results-prototype .tt-freshness { display:flex; align-items:center; gap:6px; color:var(--tt-sub); font-size:12px; margin-top:9px; }
+    #tt-results-prototype .tt-content { flex:1; padding:0 16px 20px; }
+    #tt-results-prototype .tt-section-label { margin:3px 4px 12px; color:var(--tt-sub); font-size:12px; }
+    #tt-results-prototype .tt-event { width:100%; text-align:left; padding:18px 16px; border:1px solid var(--tt-line); background:var(--tt-panel); border-radius:18px; display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    #tt-results-prototype .tt-event-date { flex:0 0 43px; display:flex; flex-direction:column; align-items:center; color:var(--tt-accent); background:var(--tt-tonal); border-radius:12px; padding:7px 3px; font-size:11px; }
+    #tt-results-prototype .tt-event-date strong { font-size:21px; font-weight:500; }
+    #tt-results-prototype .tt-event-title { font-weight:500; display:block; margin-bottom:5px; }
+    #tt-results-prototype .tt-grow { flex:1; min-width:0; overflow-wrap:anywhere; }
+    #tt-results-prototype .tt-arrow { color:var(--tt-sub); flex-shrink:0; }
+    #tt-results-prototype .tt-match { display:block; width:100%; background:var(--tt-panel); border:1px solid var(--tt-line); padding:14px; border-radius:16px; text-align:left; margin-bottom:10px; }
+    #tt-results-prototype .tt-match-top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; color:var(--tt-sub); font-size:11px; }
+    #tt-results-prototype .tt-match-event { font-size:12px; color:var(--tt-accent); display:block; margin-bottom:9px; }
+    #tt-results-prototype .tt-side { display:flex; justify-content:space-between; gap:12px; margin:5px 0; align-items:center; }
+    #tt-results-prototype .tt-side-name { display:block; min-width:0; overflow-wrap:anywhere; }
+    #tt-results-prototype .tt-score { font-size:18px; font-weight:500; font-variant-numeric:tabular-nums; flex-shrink:0; }
+    #tt-results-prototype .tt-winner { font-weight:500; }
+    #tt-results-prototype .tt-field { display:block; margin:0 4px 16px; font-size:12px; color:var(--tt-sub); }
+    #tt-results-prototype .tt-field select, #tt-results-prototype .tt-field input { width:100%; background:var(--tt-panel); border:1px solid var(--tt-line); border-radius:12px; min-height:46px; padding:10px 12px; margin-top:6px; font-size:16px; color:var(--tt-text); }
+    #tt-results-prototype .tt-nav { display:flex; border-top:1px solid var(--tt-line); background:var(--tt-panel); padding:10px 16px 16px; gap:12px; }
+    #tt-results-prototype .tt-nav button { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; border:0; background:transparent; min-height:46px; border-radius:24px; color:var(--tt-sub); font-weight:500; }
+    #tt-results-prototype .tt-nav button[aria-current="page"] { color:var(--tt-accent); background:var(--tt-tonal); }
+    #tt-results-prototype .tt-back { width:44px; height:44px; padding:0; display:grid; place-items:center; flex-shrink:0; background:var(--tt-panel); border:1px solid var(--tt-line); border-radius:50%; }
+    #tt-results-prototype .tt-summary { padding:18px; background:var(--tt-panel); border:1px solid var(--tt-line); border-radius:18px; margin:0 0 18px; }
+    #tt-results-prototype .tt-summary-row { display:flex; justify-content:space-between; gap:10px; padding-top:10px; }
+    #tt-results-prototype .tt-detail-score { text-align:center; font-size:36px; font-weight:500; font-variant-numeric:tabular-nums; padding:13px 0; }
+    #tt-results-prototype .tt-player-link { display:block; border:0; background:transparent; color:var(--tt-accent); text-align:left; min-height:44px; padding:8px 0; font-weight:500; }
+    #tt-results-prototype .tt-ranking { display:flex; align-items:center; width:100%; gap:12px; padding:14px 8px; text-align:left; border:0; border-bottom:1px solid var(--tt-line); background:transparent; min-height:64px; }
+    #tt-results-prototype .tt-rank { width:24px; text-align:center; color:var(--tt-sub); font-variant-numeric:tabular-nums; }
+    #tt-results-prototype .tt-avatar { width:36px; height:36px; border-radius:50%; background:var(--tt-tonal); color:var(--tt-accent); display:grid; place-items:center; flex-shrink:0; font-weight:500; }
+    #tt-results-prototype .tt-points { text-align:right; font-weight:500; font-variant-numeric:tabular-nums; }
+    #tt-results-prototype .tt-empty { padding:28px 8px; color:var(--tt-sub); text-align:center; }
+    #tt-results-prototype .tt-date-heading { font-size:12px; color:var(--tt-sub); margin:15px 4px 9px; }
+    #tt-results-prototype .tt-phone[data-compact="true"] .tt-match { padding:10px 12px; }
+    #tt-results-prototype .tt-phone[data-compact="true"] .tt-match-top { margin-bottom:4px; }
+    #tt-results-prototype .tt-phone[data-compact="true"] .tt-side { margin:2px 0; }
+    @media(max-width:420px) { #tt-results-prototype .tt-stage { padding:12px 0 24px; } #tt-results-prototype .tt-header { padding-left:16px; padding-right:16px; } #tt-results-prototype .tt-content { padding-left:12px; padding-right:12px; } }
+  </style>
+  <div class="tt-preview-switcher" role="group" aria-label="Compare results navigation">
+    <button type="button" class="btn" data-preview="events" data-label="Event-first" aria-pressed="true" aria-controls="tt-event-first-panel">Event-first ✓</button>
+    <button type="button" class="btn" data-preview="recent" data-label="Recent results" aria-pressed="false" aria-controls="tt-recent-results-panel">Recent results</button>
+  </div>
+  <div class="tt-preview-panels viz-dotted-background" aria-label="Results navigation options">
+    <section id="tt-event-first-panel" data-preview-panel="events" aria-label="Event-first results navigation">
+      <div class="tt-stage"><article class="tt-phone" data-design="events" lang="az" aria-label="Event-first Android preview"></article></div>
+    </section>
+    <section id="tt-recent-results-panel" data-preview-panel="recent" aria-label="Recent-results navigation" hidden>
+      <div class="tt-stage"><article class="tt-phone" data-design="recent" lang="az" aria-label="Recent-results Android preview"></article></div>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('tt-results-prototype');
+      const players = [
+        {id:1,name:'Aydın Məmmədov',points:920,rank:1},
+        {id:2,name:'Rauf Əliyev',points:890,rank:2},
+        {id:3,name:'Elvin Həsənov',points:890,rank:2},
+        {id:4,name:'Murad Quliyev',points:860,rank:4},
+        {id:5,name:'Orxan İsmayılov',points:830,rank:5},
+        {id:6,name:'Tural Abbasov',points:810,rank:6}
+      ];
+      const events = [
+        {id:'weekend',name:'Bakı həftəsonu turniri',date:'15 noyabr 2026',day:'15',place:'Bakı'},
+        {id:'league',name:'Payız liqası · 6-cı tur',date:'14 noyabr 2026',day:'14',place:'Bakı'},
+        {id:'cup',name:'Noyabr kuboku',date:'13 noyabr 2026',day:'13',place:'Sumqayıt'}
+      ];
+      const matches = [
+        {id:1,event:'weekend',date:'15 noyabr',time:'17:30',a:[1],b:[2],score:[4,2]},
+        {id:2,event:'league',date:'14 noyabr',time:'19:00',a:[3,4],b:[5,6],score:[3,4]},
+        {id:3,event:'cup',date:'13 noyabr',time:'15:15',a:[4],b:[5],score:[4,1]}
+      ];
+      const defaults = () => ({screen:'results',eventId:null,eventFilter:'all',query:'',matchId:null,playerId:null,history:[]});
+      let states = {events:defaults(),recent:defaults()};
+      let activePreview = 'events';
+      const design = {events:{offline:false,compact:false},recent:{offline:false,compact:false}};
+      const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const player = id => players.find(item => item.id === Number(id));
+      const event = id => events.find(item => item.id === id);
+      const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+      function restore(saved) {
+        const preview = saved && saved.privateContent && saved.privateContent.resultsPreviewVariant;
+        if (preview === 'events' || preview === 'recent') activePreview = preview;
+        const content = saved && saved.privateContent && saved.privateContent.resultsPrototype;
+        if (!content) return;
+        for (const key of ['events','recent']) {
+          const value = content[key];
+          if (value && ['results','event','match','profile','rankings'].includes(value.screen)) {
+            states[key] = {...defaults(),...value,history:Array.isArray(value.history)?value.history.slice(-8):[]};
+          }
+        }
+      }
+      restore(window.openai && window.openai.widgetState);
+      function save(key) {
+        if (!window.openai || typeof window.openai.setWidgetState !== 'function') return;
+        Promise.resolve(window.openai.setWidgetState({
+          modelContent:{resultsNavigationExplored:key==='events'?'Event-first':'Recent results',screen:states[key].screen},
+          privateContent:{resultsPrototype:states,resultsPreviewVariant:activePreview}
+        })).catch(() => {});
+      }
+      function selectPreview(key) {
+        if (key !== 'events' && key !== 'recent') return;
+        activePreview = key;
+        root.querySelectorAll('[data-preview-panel]').forEach(panel => {
+          panel.hidden = panel.dataset.previewPanel !== key;
+        });
+        root.querySelectorAll('button[data-preview]').forEach(button => {
+          const selected = button.dataset.preview === key;
+          button.setAttribute('aria-pressed', String(selected));
+          button.textContent = button.dataset.label + (selected ? ' ✓' : '');
+        });
+      }
+      function card(match, showEvent) {
+        const names = ids => ids.map(id => escape(player(id).name)).join('<br>');
+        return `<button type="button" class="tt-match cursor-interaction" data-action="match" data-id="${match.id}" aria-label="${escape(match.a.map(id=>player(id).name).join(' və '))} — ${escape(match.b.map(id=>player(id).name).join(' və '))}, ${match.score.join(' : ')}">
+          ${showEvent?`<span class="tt-match-event">${escape(event(match.event).name)}</span>`:''}
+          <span class="tt-match-top"><span>${match.a.length===2?'Qoşa':'Tək'} · ${match.time}</span><span>Yekun</span></span>
+          <span class="tt-side ${match.score[0]>match.score[1]?'tt-winner':''}"><span class="tt-side-name">${names(match.a)}</span><span class="tt-score">${match.score[0]}</span></span>
+          <span class="tt-side ${match.score[1]>match.score[0]?'tt-winner':''}"><span class="tt-side-name">${names(match.b)}</span><span class="tt-score">${match.score[1]}</span></span>
+        </button>`;
+      }
+      function grouped(list,showEvent) {
+        if (!list.length) return '<p class="tt-empty">Nəticə tapılmadı.</p>';
+        let previous='';
+        return list.map(match=>{
+          const heading=previous!==match.date?`<p class="tt-date-heading">${escape(match.date)} 2026</p>`:'';
+          previous=match.date;
+          return heading+card(match,showEvent);
+        }).join('');
+      }
+      function view(key) {
+        const state = states[key];
+        if (state.screen==='rankings') {
+          const query=state.query.toLocaleLowerCase('az').trim();
+          const list=players.filter(p=>p.name.toLocaleLowerCase('az').includes(query));
+          return {title:'Reytinq',content:`<label class="tt-field">Oyunçu adı<input data-input="player-search" type="search" value="${escape(state.query)}" placeholder="Ad və ya soyad" autocomplete="off"></label><p class="tt-section-label">Birləşdirilmiş reytinq · ${list.length} oyunçu</p><div aria-live="polite">${list.map(p=>`<button type="button" class="tt-ranking cursor-interaction" data-action="player" data-id="${p.id}"><span class="tt-rank">${p.rank}</span><span class="tt-avatar">${escape(p.name.split(' ').map(word=>word[0]).join(''))}</span><span class="tt-grow">${escape(p.name)}</span><span class="tt-points">${p.points}<br><span class="tt-meta">xal</span></span></button>`).join('')||'<p class="tt-empty">Oyunçu tapılmadı.</p>'}</div>`};
+        }
+        if (state.screen==='profile') {
+          const p=player(state.playerId);
+          if (!p) return {title:'Oyunçu',content:'<p class="tt-empty">Oyunçu tapılmadı.</p>'};
+          return {title:p.name,content:`<div class="tt-summary"><p class="tt-meta">Birləşdirilmiş reytinq</p><div class="tt-summary-row"><h3>#${p.rank}</h3><h3>${p.points} xal</h3></div></div><h3>Oyun tarixçəsi</h3>${grouped(matches.filter(m=>m.a.includes(p.id)||m.b.includes(p.id)),true)}`};
+        }
+        if (state.screen==='match') {
+          const match=matches.find(m=>m.id===Number(state.matchId));
+          if (!match) return {title:'Oyun',content:'<p class="tt-empty">Oyun tapılmadı.</p>'};
+          const side=ids=>ids.map(id=>`<button type="button" class="tt-player-link cursor-interaction" data-action="player" data-id="${id}">${escape(player(id).name)}</button>`).join('');
+          return {title:'Oyun nəticəsi',content:`<p class="tt-section-label">${escape(event(match.event).name)}</p><div class="tt-summary"><p class="tt-meta">${escape(match.date)} 2026 · ${match.time} · ${match.a.length===2?'Qoşa':'Tək'}</p>${side(match.a)}<div class="tt-detail-score">${match.score[0]} : ${match.score[1]}</div>${side(match.b)}<p class="tt-meta">Yekun · ${escape(event(match.event).place)}</p></div>`};
+        }
+        if (state.screen==='event') {
+          const chosen=event(state.eventId);
+          if (!chosen) return {title:'Nəticələr',content:'<p class="tt-empty">Yarış tapılmadı.</p>'};
+          return {title:chosen.name,content:`<p class="tt-section-label">${escape(chosen.date)} · ${escape(chosen.place)}</p>${grouped(matches.filter(m=>m.event===chosen.id),false)}`};
+        }
+        if (key==='events') return {title:'Nəticələr',content:`<p class="tt-section-label">Nəticələrinə baxmaq üçün yarışı seçin</p>${events.map(e=>`<button type="button" class="tt-event cursor-interaction" data-action="event" data-id="${e.id}"><span class="tt-event-date"><strong>${e.day}</strong>NOY</span><span class="tt-grow"><span class="tt-event-title">${escape(e.name)}</span><span class="tt-meta">${escape(e.place)} · ${matches.filter(m=>m.event===e.id).length} oyun</span></span><span class="tt-arrow">${icon('chevron-right')}</span></button>`).join('')}`};
+        return {title:'Son nəticələr',content:`<label class="tt-field">Yarış<select data-input="event-filter"><option value="all">Bütün yarışlar</option>${events.map(e=>`<option value="${e.id}"${state.eventFilter===e.id?' selected':''}>${escape(e.name)}</option>`).join('')}</select></label><div aria-live="polite">${grouped(matches.filter(m=>state.eventFilter==='all'||m.event===state.eventFilter),true)}</div>`};
+      }
+      function render(key) {
+        const phone=root.querySelector(`[data-design="${key}"]`);
+        const state=states[key];
+        const current=view(key);
+        phone.dataset.compact=String(design[key].compact);
+        const rankings=state.screen==='rankings'||(state.screen==='profile'&&state.history.some(item=>item.screen==='rankings'));
+        phone.innerHTML=`<div class="tt-status"><span>9:41</span><span class="tt-status-icons">${icon('signal')}${icon('wifi')}${icon('battery-full')}</span></div><div class="tt-demo">PROTOTİP · NÜMUNƏ MƏLUMATLAR</div><header class="tt-header"><div class="tt-brand">tabletennis.az</div><div class="tt-title-row">${state.history.length?`<button type="button" class="tt-back cursor-interaction" data-action="back" aria-label="Geri">${icon('arrow-left')}</button>`:''}<h2>${escape(current.title)}</h2></div><p class="tt-freshness">${icon(design[key].offline?'wifi-off':'clock-3')}<span>${design[key].offline?'Oflayn · ':''}Son yenilənmə: 15 noyabr, 18:00</span></p></header><main class="tt-content">${current.content}</main><nav class="tt-nav" aria-label="Əsas bölmələr"><button type="button" class="cursor-interaction" data-action="rankings"${rankings?' aria-current="page"':''}>${icon('list-ordered')}Reytinq</button><button type="button" class="cursor-interaction" data-action="results"${!rankings?' aria-current="page"':''}>${icon('trophy')}Nəticələr</button></nav>`;
+        if (globalThis.lucide) lucide.createIcons({attrs:{width:16,height:16}});
+      }
+      function navigate(key,screen,fields={}) {
+        const {history,...snapshot}=states[key];
+        states[key]={...states[key],...fields,screen,history:[...history,snapshot].slice(-8)};
+      }
+      root.addEventListener('click',evt=>{
+        const preview=evt.target.closest('button[data-preview]');
+        if(preview&&root.contains(preview)) {
+          selectPreview(preview.dataset.preview);save(preview.dataset.preview);return;
+        }
+        const control=evt.target.closest('button[data-action]');
+        if(!control||!root.contains(control)) return;
+        const key=control.closest('[data-design]').dataset.design;
+        const action=control.dataset.action;
+        if(action==='event') navigate(key,'event',{eventId:control.dataset.id});
+        if(action==='match') navigate(key,'match',{matchId:Number(control.dataset.id)});
+        if(action==='player') navigate(key,'profile',{playerId:Number(control.dataset.id)});
+        if(action==='rankings'||action==='results') states[key]={...states[key],screen:action,history:[]};
+        if(action==='back') {
+          const history=[...states[key].history];
+          const previous=history.pop();
+          if(previous) states[key]={...previous,history};
+        }
+        render(key); save(key);
+      });
+      root.addEventListener('change',evt=>{
+        if(!evt.target.matches('[data-input="event-filter"]')) return;
+        const key=evt.target.closest('[data-design]').dataset.design;
+        states[key].eventFilter=evt.target.value;
+        render(key); save(key);
+      });
+      root.addEventListener('input',evt=>{
+        if(!evt.target.matches('[data-input="player-search"]')) return;
+        const key=evt.target.closest('[data-design]').dataset.design;
+        states[key].query=evt.target.value;
+        render(key);
+        const input=root.querySelector(`[data-design="${key}"] [data-input="player-search"]`);
+        input.focus(); save(key);
+      });
+      window.addEventListener('openai:set_globals',evt=>{
+        const globals=evt.detail&&evt.detail.globals;
+        if(globals&&globals.widgetState) {restore(globals.widgetState);render('events');render('recent');selectPreview(activePreview);}
+      });
+      render('events');render('recent');
+      selectPreview(activePreview);
+      if(globalThis.Tweak) {
+        for(const key of ['events','recent']) {
+          const tweak=new Tweak({container:root.querySelector(`[data-design="${key}"]`),onChange:()=>render(key)});
+          tweak.addToggle(design[key],'offline',{label:'Offline preview'});
+          tweak.addToggle(design[key],'compact',{label:'Compact match rows'});
+        }
+      }
+    })();
+  </script>
+</div>
