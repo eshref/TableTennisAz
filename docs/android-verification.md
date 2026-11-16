@@ -1,5 +1,51 @@
 # Android verification
 
+## Doubles profiles — issue #17
+
+Implemented on `feature/17-doubles-profile`, based on `48c903a`. The existing
+pair-results destination now shows both player links, published pair points and
+position from the latest saved doubles ranking, separate partnership medal
+counts, and recent tournament matches and duels. Ranking values show their own
+successful update time. Profile refresh retrieves mutable medal metadata despite
+cached identity, validates pair membership and the results identity, and saves
+medals with results atomically. Missing counts differ from zero; refresh failure
+preserves the saved profile. Existing snapshot identities and serialization
+versions are retained. The dependent history chart is outside this ticket.
+
+The full application integration suite passed **69 cases**, with zero failures,
+errors, or skips. This includes three new profile workflows, three pair-profile
+freshness boundaries, and five pair-metadata failure scenarios added to the
+existing parameterized suites. Tests use native Android UI, the local HTTP
+fixture server, production parsing, a controlled clock, and durable private-file
+storage. Coverage includes cached-identity medal updates, absent/null/zero
+counts, published standings at tied points, changed saved rankings, rejected
+metadata for another partnership, offline restart, and actual pre-feature Java
+snapshots. Existing match/player navigation, paging, deduplication, and ranking
+search/scroll workflows remain in use, with added medal-preservation assertions.
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Lint completed with zero errors and the existing 16 warnings. Both APKs assembled;
+the debug app APK signature verifies. It remains at
+`app/build/outputs/apk/debug/app-debug.apk`, version 0.3.0 / code 3.
+SHA-256: `5eccb64f5749e166285700c8ce66422a27d780388a217125150c22faa0fa9345`.
+Logs and full-suite XML are retained under ignored
+`app/build/reports/doubles-profile-17/`.
+
+Separate Standards and Spec reviews found no violations or specification gaps.
+The optional duplicate-fixture advisory was resolved by sharing `pair-info.json`;
+all eight affected profile freshness/failure cases passed again afterward. The
+Standards follow-up confirmed no remaining advisories.
+
+The adapted opt-in `LiveDoublesTest` compares a real pair profile's names,
+points, and position with its selected ranking row and checks medal counts and
+results without fixed live values. The Android test APK compiled successfully;
+no connected device was available, so that journey and physical layout checks
+were not run. A read-only live metadata request confirmed the current medal
+field names; it does not replace the installed-app journey.
+
 ## Amateur-only singles ranking — issue #14
 
 The confirmed change in [issue #14](https://github.com/eshref/TableTennisAz/issues/14)

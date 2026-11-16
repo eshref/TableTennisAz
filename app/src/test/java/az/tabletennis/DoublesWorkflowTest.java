@@ -142,6 +142,8 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
     @Test public void pairHistoryPagesEventsAndDuelsLinksBothPlayersAndRestoresSearchAfterOfflineRelaunch() throws Exception {
         // arrange
         prepareDoubles();
+        website.compute("/api/getDuoInfo?id=110", (path, body) -> body.replace("}",
+                ",\"firstPlaceCount\":2,\"secondPlaceCount\":1,\"thirdPlaceCount\":0}"));
         prepareProfile(12, "İlqar Həsənov");
         prepareProfile(13, "Əli Məmmədov");
         website.put("/matches/results/duo/110", pairHistory(pairResult(501, "15 Nov. 2026", "Kupa")
@@ -183,7 +185,8 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
 
         // assert
         awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa");
-        assertThat(visibleText()).contains(updated).doesNotContain("Daha çox yüklə");
+        assertThat(visibleText()).contains(updated, "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0")
+                .doesNotContain("Daha çox yüklə");
         assertThat(visibleText().stream().filter(text -> text.endsWith("· Kupa"))).hasSize(1);
 
         // act
@@ -196,6 +199,11 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
 
         // act
         back();
+
+        // assert
+        assertThat(visibleText()).contains("Qoşanın profili", "Qızıl medal: 2");
+
+        // act
         clickText("İlqar Həsənov");
         followNavigation();
 
@@ -241,7 +249,8 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains(updated,
+        assertThat(visibleText()).contains(updated, "800 xal", "Reytinqdə yer: #1",
+                "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0",
                 "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa");
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
     }

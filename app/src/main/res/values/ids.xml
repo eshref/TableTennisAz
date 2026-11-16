@@ -5,6 +5,10 @@
     <item name="event_filter" type="id" />
     <item name="profile_name" type="id" />
     <item name="profile_points" type="id" />
+    <item name="pair_position" type="id" />
+    <item name="pair_gold" type="id" />
+    <item name="pair_silver" type="id" />
+    <item name="pair_bronze" type="id" />
     <item name="participants_left" type="id" />
     <item name="participants_right" type="id" />
     <item name="match_score" type="id" />

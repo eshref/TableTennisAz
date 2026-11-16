@@ -31,7 +31,15 @@
     <string name="doubles_row">%1$d. %2$s — %3$d xal</string>
     <string name="doubles_loading">Qoşaların adları yüklənir: %1$d / %2$d</string>
     <string name="no_pairs">Axtarışa uyğun qoşa tapılmadı.</string>
-    <string name="pair_results">Qoşanın nəticələri</string>
+    <string name="pair_profile">Qoşanın profili</string>
+    <string name="pair_position">Reytinqdə yer: #%1$d</string>
+    <string name="pair_position_unavailable">Cari yer məlumatı mövcud deyil.</string>
+    <string name="pair_ranking_updated_at">Reytinqin son uğurlu yenilənməsi: %1$s</string>
+    <string name="pair_medals">Qoşanın medalları</string>
+    <string name="pair_gold">Qızıl medal: %1$s</string>
+    <string name="pair_silver">Gümüş medal: %1$s</string>
+    <string name="pair_bronze">Bürünc medal: %1$s</string>
+    <string name="medal_unavailable">məlumat mövcud deyil</string>
     <string name="pair_history_coverage">Bu qoşanın yüklənmiş turnir matçları və duelloları. Daha köhnə nəticələr növbəti səhifələrdə ola bilər; eyni gün daxilində dəqiq sıra məlum deyil.</string>
     <string name="rank_explanation">Həvəskar oyunçular. Yerlər xal üzrə tətbiqdə hesablanır; eyni xallar eyni yeri bölüşür.</string>
     <string name="search_hint">Oyunçu adı ilə axtar</string>

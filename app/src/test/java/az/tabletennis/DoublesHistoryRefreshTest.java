@@ -57,7 +57,7 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         assertThat(visibleText()).contains(updated, "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains(updated).noneMatch(text -> text.contains("3-0"));
-        assertThat(requestedPaths()).containsExactly("/matches/results/duo/110", "/matches/results/duo/110?page=2");
+        assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110", "/matches/results/duo/110?page=2");
 
         // arrange
         responses.remove("/matches/results/duo/110?page=2");
@@ -69,7 +69,7 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-0 · Kupa");
         assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello")
                 .doesNotContain("Daha çox yüklə");
-        assertThat(requestedPaths()).containsExactly("/matches/results/duo/110", "/matches/results/duo/110?page=2");
+        assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110", "/matches/results/duo/110?page=2");
         String refreshed = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
         assertThat(refreshed).isNotEqualTo(updated);
 

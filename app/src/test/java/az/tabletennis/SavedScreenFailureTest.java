@@ -32,6 +32,13 @@ public class SavedScreenFailureTest extends ProductUiScenario {
             rows.add(new Object[] {screen + " HTTP failure", screen, 403, "Forbidden"});
             rows.add(new Object[] {screen + " changed markup", screen, 200, "<html>Sign in</html>"});
         }
+        String pair = fixture("pair-info.json");
+        rows.add(new Object[] {"PAIR wrong results identity", SavedScreenCase.PAIR, 200,
+                pair.replace("duo/110", "duo/220")});
+        rows.add(new Object[] {"PAIR changed partnership", SavedScreenCase.PAIR, 200,
+                pair.replace("\"player2Id\":13", "\"player2Id\":11")});
+        rows.add(new Object[] {"PAIR invalid medal count", SavedScreenCase.PAIR, 200,
+                pair.replace("\"firstPlaceCount\":4", "\"firstPlaceCount\":-1")});
         rows.add(new Object[] {"PROFILE wrong source identity", SavedScreenCase.PROFILE, 200,
                 "<div id='center'><div class='player-block'><div class='name-div'>Başqa oyunçu</div></div><div id='chart-user-id'>11</div></div>"});
         rows.add(new Object[] {"MATCH incomplete doubles side", SavedScreenCase.MATCH, 200,

@@ -7,8 +7,11 @@ rankings. This implements the first-delivery scope in issues #1–#9.
 Rankings also has an Oyunçular / Qoşalar switch. Doubles ranks partnerships using
 the website's published positions and points, so equal points can have different
 positions. Rows show both full names; searching either partner keeps source
-positions. Each partnership has its own history of tournament matches and duels,
-with player-profile links, match details, and Load more for older results.
+positions. Selecting a partnership opens its profile with both player links,
+current saved published points and position, separate pair gold/silver/bronze
+medal counts, and tournament matches and duels. Match details and Load more for
+older results remain available. Pair medals come from the partnership metadata,
+never the sum of individual players' medals; missing counts differ from zero.
 
 The website supplies pair membership through individual metadata requests. The
 first doubles load resolves all full names and shows progress; search becomes
@@ -17,8 +20,10 @@ saved and reused after interruptions and on later visits. Other screens remain
 usable during this load. Failed loads preserve the last complete ranking.
 Returning to Rankings retains the active selection, search, and scroll position;
 a fresh app launch opens Players. Doubles uses the same offline and refresh
-policy as the rest of the app. Bonus, medal counts, and event filtering are
-outside this doubles version.
+policy as the rest of the app. Profile refreshes retrieve mutable medals even
+when the pair identity is cached; failures retain saved counts and results.
+Points and position use the latest successfully saved doubles ranking, with its
+own update time. Bonus and event filtering are outside this doubles version.
 
 Singles rankings use the website's Amateur list, ordered by points descending.
 Players listed in both categories remain eligible; professional-only players
@@ -142,7 +147,8 @@ This needs a connected emulator/device and website connectivity. The GitHub
 workflow keeps it opt-in using the `live_site` input. Automatic CI runs the
 fixture suite, lint and APK build, and publishes the APK and reports.
 The separate `az.tabletennis.LiveDoublesTest` connected-test class checks the live
-doubles ranking, full-name metadata, and pair results. Its first load can take
+doubles ranking and opens a pair profile, comparing its names, points and
+position with the selected row and checking medal metadata and pair results. Its first load can take
 several minutes; run it with the same instrumentation argument shown above.
 See [verification notes](docs/android-verification.md) for actual checks and
 compatibility limits.

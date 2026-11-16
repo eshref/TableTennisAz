@@ -100,6 +100,15 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
     }
 
     protected void prepareSavedScreens() throws Exception {
+        // A known identity makes metadata refresh independent of name hydration.
+        try (var input = getClass().getResourceAsStream("/fixtures/legacy-duo-110");
+             var output = org.robolectric.RuntimeEnvironment.getApplication()
+                     .openFileOutput("saved-duo-110", android.content.Context.MODE_PRIVATE)) {
+            input.transferTo(output);
+        }
+        website.put("/api/getDuoInfo?id=110", html("pair-info.json").getBody().readUtf8());
+        website.put("/matches/results/duo/110", "<div id='center'><div class='matches-box'>"
+                + "<div class='no-info'>Matç yoxdur</div></div></div>");
         prepareProfile(12, "İlqar Həsənov");
         prepareResults();
         website.put("/matches/501", html("doubles-detail.html").getBody().readUtf8());
