@@ -28,14 +28,17 @@ public abstract class RankingsUiScenario {
     public static class FixtureApplication extends RankingsApplication {
         static HttpUrl url;
         static volatile java.time.Clock time;
+        static volatile boolean online;
         @Override protected java.time.Clock clock() { return time; }
         @Override protected HttpUrl websiteUrl() { return url; }
+        @Override protected boolean isOnline() { return online; }
     }
 
     @Before public void prepareWebsite() throws Exception {
         server = new MockWebServer();
         server.start();
         FixtureApplication.url = server.url("/");
+        FixtureApplication.online = true;
         FixtureApplication.time = java.time.Clock.fixed(java.time.Instant.parse("2026-11-15T12:00:00Z"), java.time.ZoneOffset.UTC);
         RuntimeEnvironment.getApplication().deleteFile("rankings.json");
         RuntimeEnvironment.getApplication().deleteFile("rankings.json.bak");
@@ -71,9 +74,11 @@ public abstract class RankingsUiScenario {
 
     protected List<String> visibleText() {
         List<String> text = new ArrayList<>();
-        collectText(screen.get().getWindow().getDecorView(), text);
+        collectText(activity().getWindow().getDecorView(), text);
         return text;
     }
+
+    protected android.app.Activity activity() { return screen.get(); }
 
     private void collectText(View view, List<String> text) {
         if (view.getVisibility() != View.VISIBLE) return;

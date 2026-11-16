@@ -1,4 +1,12 @@
 <resources>
+    <item name="chart" type="id" />
+    <item name="event_filter" type="id" />
+    <item name="profile_name" type="id" />
+    <item name="profile_points" type="id" />
+    <item name="participants_left" type="id" />
+    <item name="participants_right" type="id" />
+    <item name="match_score" type="id" />
+    <item name="result_rows" type="id" />
     <item name="search" type="id" />
     <item name="refresh" type="id" />
     <item name="status" type="id" />
