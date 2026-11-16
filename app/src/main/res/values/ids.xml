@@ -2,6 +2,8 @@
     <item name="players_mode" type="id" />
     <item name="doubles_mode" type="id" />
     <item name="chart" type="id" />
+    <item name="pair_chart_points" type="id" />
+    <item name="pair_chart_rank" type="id" />
     <item name="event_filter" type="id" />
     <item name="profile_name" type="id" />
     <item name="profile_points" type="id" />

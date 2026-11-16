@@ -38,6 +38,13 @@
     <string name="pair_position_unavailable">Cari yer məlumatı mövcud deyil.</string>
     <string name="pair_ranking_updated_at">Reytinqin son uğurlu yenilənməsi: %1$s</string>
     <string name="pair_medals">Qoşanın medalları</string>
+    <string name="pair_chart_title">Tarixçə</string>
+    <string name="pair_chart_points">Xal</string>
+    <string name="pair_chart_rank">Mövqe</string>
+    <string name="pair_chart_rank_point">%1$s — #%2$d</string>
+    <string name="pair_chart_first">Növbəti reytinq yenilənmələri tarixçəyə yeni müşahidələr əlavə edəcək.</string>
+    <string name="pair_chart_empty">Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb.</string>
+    <string name="pair_chart_coverage">Yalnız bu cihazda uğurla saxlanmış reytinq yenilənmələri göstərilir. Yenilənmələr arasındakı dövr üçün məlumat yoxdur.</string>
     <string name="pair_gold">Qızıl medal: %1$s</string>
     <string name="pair_silver">Gümüş medal: %1$s</string>
     <string name="pair_bronze">Bürünc medal: %1$s</string>

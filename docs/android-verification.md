@@ -1,5 +1,66 @@
 # Android verification
 
+## Embedded doubles history — issue #19
+
+Implemented on `issue-19-doubles-history-chart`, based on `5977ed3`.
+The profile now embeds the approved single-chart layout with Azerbaijani
+Xal / Mövqe radio controls. It projects observations for the stable pair ID
+from the existing saved ranking snapshot, also used for current standing.
+The chart orders actual timestamps, spaces points by elapsed time, and puts
+rank #1 at the top. Full date/time labels include milliseconds to distinguish
+same-day refreshes. A single point is displayed immediately with a future-refresh
+note; pre-observation profiles show an honest empty state. Switching modes
+performs no HTTP requests or writes, and the selected mode survives screen
+refreshes and Android instance-state restoration.
+
+The full application integration suite passed **76 cases**, zero failures,
+errors, or skips, together with Android lint and both APK builds:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+`DoublesChartTest` adds two distinct product UI workflows through actual local
+HTTP responses, production parsing, controlled time, and durable storage.
+The first verifies a dated single observation in both modes, no navigation or
+HTTP requests when switching, and no added observations after medal/match
+refresh. The second accumulates three observations before either partnership
+is opened, including two same-day refreshes and a two-day gap; it checks both
+measures for pairs sharing a player, current-standing consistency, preservation
+after a failed ranking refresh, and unchanged history/update time after a
+year-old offline restart. The existing legacy profile/pagination workflow now
+also asserts no chart or invented history for old saved metadata. Existing
+movement, freshness, failure, navigation, singles-chart, and match workflows
+remain intact. Assertions use product UI/accessibility output and external
+HTTP requests, never private storage as evidence.
+
+The first new chart test failed against the previous profile without a chart,
+then passed after implementation. Independent Standards and Spec reviews found
+no hard violations or specification defects. The Standards review's small
+coordinate-mapping duplication advisory was resolved and re-reviewed.
+After that refactor, both chart journeys, lint, and both APK builds passed
+again. The final debug APK's signature verifies; its SHA-256 is
+`1b922f31836657f71616f556c79590c39bf5b11540cb5d9e1d26c64819f4d997`.
+
+The final APK was installed on an Android 8.0 / API 26 x86_64 software emulator
+at 412 × 891 px. Controlled saved observations were prepared through production
+models for setup, with the app offline. Native screenshots and accessibility
+trees establish a visible single dated point in both modes; readable Xal /
+Mövqe controls; three chronologically positioned observations with unequal
+elapsed-time gaps; and #1 above #3 above #9 in rank mode. Medals, observation
+labels, history notes, and the recent-match button remain readable in the
+scrolling profile without overlap. Evidence is in `first-point-points.png`,
+`first-point-rank.png`, `history-points.png`, and `history-rank.png` under the
+ignored `app/build/reports/issue19/` directory, alongside native UI trees,
+verification logs, and full-suite XML/HTML.
+
+Initial emulator attempts encountered legacy-image forced-encryption and
+System UI startup failures. A temporary ramdisk disabling forced data encryption
+and System UI startup workarounds allowed the visual checks; application code,
+manifest, and TLS policy were unchanged for device setup. This was a fixture
+visual check, not a new live-site journey or physical-phone check. Temporary
+emulator data and setup tools were removed after verification.
+
 ## Doubles ranking movement — issue #18
 
 Implemented on `issue-18-doubles-ranking-movement`, based on `afb3890`.
