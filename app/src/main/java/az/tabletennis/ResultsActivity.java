@@ -17,6 +17,7 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
     private EventCatalog catalog;
     private RadioGroup types;
     private Spinner events;
+    private android.widget.TextView eventLabel;
     private boolean binding;
     private final List<EventCatalog.Event> choices = new ArrayList<>();
 
@@ -54,23 +55,39 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
 
     private void createFilters() {
         types = new RadioGroup(this);
-        android.content.res.Configuration configuration = getResources().getConfiguration();
-        boolean stackFilters = configuration.screenWidthDp < 360 * configuration.fontScale;
-        types.setOrientation(stackFilters ? RadioGroup.VERTICAL : RadioGroup.HORIZONTAL);
+        types.setOrientation(RadioGroup.HORIZONTAL);
         for (ResultsSelection.Type type : ResultsSelection.Type.values()) {
             RadioButton choice = new RadioButton(this);
             choice.setId(View.generateViewId());
             choice.setTag(type);
             choice.setText(type.label);
             Presentation.segment(choice);
-            types.addView(choice, new RadioGroup.LayoutParams(stackFilters ? -1 : 0, -2, stackFilters ? 0 : 1));
+            styleFilter(choice);
+            RadioGroup.LayoutParams spacing = new RadioGroup.LayoutParams(-2, -2);
+            spacing.setMarginEnd(dp(6));
+            spacing.bottomMargin = dp(6);
+            types.addView(choice, spacing);
+        }
+        // Short chips can fit even at large text sizes; stack only when their measured content needs it.
+        types.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        if (types.getMeasuredWidth() > dp(getResources().getConfiguration().screenWidthDp - 36)) {
+            types.setOrientation(RadioGroup.VERTICAL);
+            for (int i = 0; i < types.getChildCount(); i++) types.getChildAt(i).getLayoutParams().width = -1;
         }
         root.addView(types, 0);
         events = new Spinner(this);
         events.setId(R.id.event_filter);
         events.setContentDescription(getString(R.string.choose_event));
         events.setMinimumHeight(dp(48));
-        root.addView(events, 1);
+        eventLabel = label(getString(R.string.choose_event), 12);
+        eventLabel.setTextColor(getColor(R.color.secondary));
+        eventLabel.setLabelFor(R.id.event_filter);
+        root.addView(eventLabel, 1);
+        android.graphics.drawable.GradientDrawable eventSurface = Presentation.shape(this, R.color.surface);
+        eventSurface.setStroke(dp(1), getColor(R.color.line));
+        events.setBackground(new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] {
+                eventSurface, events.getBackground()}));
+        root.addView(events, 2);
         bindFilters();
         types.setOnCheckedChangeListener((group, checkedId) -> {
             if (!binding) choose(new ResultsSelection((ResultsSelection.Type) group.findViewById(checkedId).getTag(), 0));
@@ -83,6 +100,21 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
                 if (selectedId != selection.eventId) choose(new ResultsSelection(ResultsSelection.Type.EVENTS, selectedId));
             }
         });
+    }
+
+    private void styleFilter(RadioButton choice) {
+        choice.setTextColor(new android.content.res.ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {getColor(R.color.primary), getColor(R.color.text)}));
+        android.graphics.drawable.StateListDrawable background = new android.graphics.drawable.StateListDrawable();
+        for (boolean checked : new boolean[] {true, false}) {
+            android.graphics.drawable.GradientDrawable shape = Presentation.shape(this, checked ? R.color.soft : R.color.background);
+            shape.setCornerRadius(dp(24));
+            shape.setStroke(dp(1), getColor(checked ? R.color.soft : R.color.line));
+            background.addState(checked ? new int[] {android.R.attr.state_checked} : new int[] {}, shape);
+        }
+        choice.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(getColor(R.color.line)), background, null));
     }
 
     private void choose(ResultsSelection next) {
@@ -109,19 +141,31 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         for (int i = 0; i < choices.size(); i++) if (choices.get(i).id == selection.eventId) selected = i;
         events.setSelection(selected, false);
         events.setVisibility(selection.type.events ? View.VISIBLE : View.GONE);
+        eventLabel.setVisibility(events.getVisibility());
         binding = false;
     }
 
     @Override protected void render(ResultsFeed feed) {
         catalog = feed.catalog;
         bindFilters();
-        content.addView(label(getString(R.string.partial_coverage), 14));
-        if (feed.matches.isEmpty()) content.addView(label(getString(R.string.no_results), 16));
+        android.widget.TextView coverage = label(getString(R.string.partial_coverage), 12);
+        coverage.setTextColor(getColor(R.color.secondary));
+        content.addView(coverage);
+        if (feed.matches.isEmpty()) {
+            content.addView(label(getString(R.string.no_results), 18));
+            content.addView(label(getString(R.string.results_empty_hint), 14));
+            if (selection.type != ResultsSelection.Type.ALL || selection.eventId != 0) {
+                android.widget.Button clear = button(getString(R.string.clear_results_filters),
+                        () -> choose(new ResultsSelection(ResultsSelection.Type.ALL, 0)));
+                clear.setId(R.id.clear_results_filters);
+                content.addView(clear);
+            }
+        }
         android.widget.LinearLayout rows = new android.widget.LinearLayout(this);
         rows.setId(R.id.result_rows);
         rows.setOrientation(android.widget.LinearLayout.VERTICAL);
         for (MatchSummary match : feed.matches) {
-            rows.addView(button(match.display(), () -> startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id))));
+            rows.addView(new MatchCard(this, match, () -> startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id))));
         }
         content.addView(rows);
         if (feed.hasMore()) {

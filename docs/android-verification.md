@@ -1,5 +1,116 @@
 # Android verification
 
+## Results feed cards and filters — issue #27
+
+Implemented [issue #27](https://github.com/eshref/TableTennisAz/issues/27) on
+`issue-27-results-cards`. Results uses one reusable native `MatchCard` with an
+existing summary and a caller-supplied open action. Full names, separate scores,
+source dates, singles/doubles and source-type badges, and event identity have
+separate visual roles. The higher recorded score emphasizes that side's names;
+the complete card exposes both sides and metadata as one accessible button.
+Results dates have no supplied times, so cards do not invent them or fetch every
+match detail to fill them in. Overlapping event/duel identities show both source
+memberships. Existing profile cards and match details remain separate slices.
+
+Filters use the approved short chip labels. Their measured text determines
+whether they fit horizontally or need to stack. The labeled event chooser keeps
+its native dropdown indicator. Partial coverage and unknown within-day order
+remain secondary text. Verified empty filtered selections offer a clear-filter
+action; unseen offline selections continue to be unavailable rather than empty.
+
+### Integration verification
+
+The final measured-chip run passed **121 cases**, with zero failures, errors,
+or skips. Android lint, debug APK assembly, and instrumentation APK assembly
+passed. The full suite was repeated after native visual inspection led to the
+measured-chip refinement; `final-suite.log` records that final run.
+
+The native-UI/local-HTTP suite exercises production parsing and persistence.
+`ResultsWorkflowTest`, `BatchedResultsTest`, `ResultsFilterTest`,
+`MainNavigationTest`, `ScreenFreshnessTest`, and `SavedScreenFailureTest` retain
+their ordering, detail navigation, selected-event coverage outside the general
+batch, saved pagination, snapshot isolation, stale-response rejection, atomic
+failure/retry, freshness, and offline guarantees. Assertions use native visible
+or accessible outputs and external HTTP requests.
+
+The additional empty-event scenario distinguishes loading from a verified empty
+selection and restores the saved general feed through Clear filters.
+`ResultsCardLayoutTest` adds eight native-graphics cases: API 26 and API 36,
+320dp portrait and 891dp landscape, both themes, at 150% text. They inspect full
+wrapping doubles names, score separation, right-side winner emphasis, complete
+accessible values, one-line filter labels, containment, and touch target height.
+These are host integration checks, not installed-device evidence.
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/tmp/tabletennis-android-tools/sdk ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+### Native visual evidence
+
+`ResultsDeviceTest` exercises the installed API 26 application with fresh saved
+fixtures. It verifies structured singles scores, an event selection followed by
+match detail and real Android Back, wrapping doubles names on both sides,
+verified empty selection, clearing filters, and Activity recreation. Setup
+writes saved data; assertions inspect product views. The installed journey
+passed in both system themes at 412 × 891 px / 160 dpi. Stress runs passed at
+320 × 640 px with 150% text in light appearance and 891 × 412 px with 150% text
+in dark appearance. The final measured-chip journey also passed at
+320 × 640 px / 150% text;
+`final-narrow-large-*.png` shows the three filters fitting on one row. The final
+rotated-display journey passed with true 891 × 412 px screenshots at 150% text;
+`rotated-dark-landscape-large-*.png` replaces the earlier letterboxed logical-size
+captures.
+
+Screenshots were compared with Results in the approved
+`docs/prototypes/android-final-ui-prototype.html`: green light/dark surfaces,
+compact selected chips, event dropdown, secondary coverage, bordered rounded
+cards, date/type metadata, full names beside separate scores, winner emphasis,
+and divided event footers. The reference's illustrative times are omitted where
+the actual feed supplies dates only. Native screenshots also inspect both long
+sides after scrolling; enlarged content remains reachable rather than truncated.
+
+Evidence is retained under the ignored `app/build/reports/issue27/` directory:
+`screenshots/issue27/`, `approved-results-light.png`,
+`approved-results-dark.png`, native run logs, full-suite XML, and lint output.
+The first installed run encountered the legacy emulator's System UI ANR dialog;
+after dismissing it, the journey passed. A task-owned ramdisk and userdata image
+were used for the disposable software emulator. Temporary tools and emulator
+state were removed after verification.
+
+Reproduce the installed journey after installing both APKs:
+
+```sh
+adb shell am instrument -w -r -e class az.tabletennis.ResultsDeviceTest az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+### Standards
+
+No documented-standard violations. One optional Duplicated Code advisory:
+Results chip styling overrides the shared segmented-control state styling;
+consolidating the variants in `Presentation` would simplify future maintenance.
+The final measured-chip adjustment introduced no further advisories.
+
+### Spec
+
+No findings. Structured cards, filters, outcome emphasis, empty-selection
+recovery, and existing match-detail navigation satisfy the slice. Shared feed
+and saved-selection behavior retain their existing integration guarantees.
+
+Review totals: zero hard Standards findings, one optional maintenance advisory;
+zero Spec findings.
+
+### Artifact and limits
+
+The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Signature
+verification passes. Its SHA-256 is
+`09c40664aaaf60e8418c9c389e90cf82716f343583ca51fb86554f5f44d389fe`.
+
+This is fixture-backed native verification. No new live-source journey or
+physical-phone test was run. API 36 coverage is host integration, not installation
+on a current Android device. Screenshots and APKs are local build artifacts;
+this task does not publish them remotely.
+
+
 ## Comfortable Doubles ranking and split portraits — issue #26
 
 Implemented on `feat/26-doubles-split-portraits`, based on `633a3c4`.

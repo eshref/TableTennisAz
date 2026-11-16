@@ -1,4 +1,11 @@
 <resources>
+    <string name="match_singles">Tək</string>
+    <string name="match_doubles">Qoşalar</string>
+    <string name="match_duel">Duel</string>
+    <string name="match_event">Turnir</string>
+    <string name="match_event_and_duel">Turnir · Duel</string>
+    <string name="clear_results_filters">Filtrləri təmizlə</string>
+    <string name="results_empty_hint">Digər seçimləri yoxlaya bilərsiniz.</string>
     <string name="rank_caption">yer</string>
     <string name="rank_number">#%1$d</string>
     <string name="app_name">TableTennisAz</string>
@@ -17,9 +24,9 @@
     <string name="no_rating_history">Xal tarixçəsi mövcud deyil.</string>
     <string name="results_title">Nəticələr</string>
     <string name="load_more">Daha çox yüklə</string>
-    <string name="all_results">Bütün nəticələr</string>
-    <string name="tournament_results">Turnir matçları</string>
-    <string name="duel_results">Duellolar</string>
+    <string name="all_results">Hamısı</string>
+    <string name="tournament_results">Turnirlər</string>
+    <string name="duel_results">Duellər</string>
     <string name="all_events">Bütün tədbirlər</string>
     <string name="choose_event">Tədbir seç</string>
     <string name="partial_coverage">Yalnız yüklənmiş nəticələr göstərilir. Bu siyahı bütün son matçları əhatə etməyə bilər; eyni gün daxilində dəqiq sıra məlum deyil.</string>

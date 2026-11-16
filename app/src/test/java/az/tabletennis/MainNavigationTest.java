@@ -53,21 +53,21 @@ public class MainNavigationTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
 
         // act
-        clickText("Turnir matçları");
+        clickText("Turnirlər");
         ((android.widget.Spinner) activity().findViewById(R.id.event_filter)).setSelection(1);
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
 
         // assert
-        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
 
         // act
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku");
+        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
 
         // act
         android.widget.ScrollView resultsScroll = activity().findViewById(R.id.main_scroll);
@@ -122,7 +122,7 @@ public class MainNavigationTest extends DoublesUiScenario {
 
         // assert
         assertThat(((android.widget.Spinner) activity().findViewById(R.id.event_filter)).getSelectedItem().toString()).isEqualTo("Payız Kuboku");
-        assertThat(visibleText()).contains("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku");
+        assertThat(visibleText()).contains("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
         assertThat(((android.widget.ScrollView) activity().findViewById(R.id.main_scroll)).getScrollY()).isEqualTo(100);
 
         // arrange

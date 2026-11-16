@@ -22,31 +22,31 @@ public class ResultsFilterTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
 
         // act
-        clickText("Turnir matçları");
+        clickText("Turnirlər");
 
         // assert
-        awaitText("13 Nov. 2026 · Liqa A — Liqa B · 3-1 · Şəhər Liqası");
+        awaitText("13 Nov. 2026 · Liqa A — Liqa B · 3-1 · Şəhər Liqası · Tək · Turnir");
         assertThat(visibleText()).noneMatch(text -> text.contains("· Duello"));
         requestedPaths();
 
         // act
-        clickText("Duellolar");
+        clickText("Duellər");
 
         // assert
-        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello");
+        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel");
         assertThat(visibleText()).noneMatch(text -> text.contains("· Payız Kuboku") || text.contains("· Şəhər Liqası"));
         assertThat(requestedPaths()).containsExactly("/matches/duellos");
 
         // act
-        clickText("Turnir matçları");
+        clickText("Turnirlər");
         ((Spinner) activity().findViewById(R.id.event_filter)).setSelection(3);
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
 
         // assert
-        awaitText("12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok");
+        awaitText("12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok · Tək · Turnir");
         assertThat(requestedPaths()).contains("/matches/results/event/903");
         assertThat(visibleText()).noneMatch(text -> text.contains("· Payız Kuboku") || text.contains("· Şəhər Liqası") || text.contains("· Duello"));
 
@@ -55,14 +55,14 @@ public class ResultsFilterTest extends ProductUiScenario {
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
 
         // assert
-        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
         assertThat(visibleText()).noneMatch(text -> text.contains("Səhifə 2"));
 
         // act
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku");
+        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
         assertThat(((Spinner) activity().findViewById(R.id.event_filter)).getSelectedItem().toString()).isEqualTo("Payız Kuboku");
 
         // arrange
@@ -73,8 +73,8 @@ public class ResultsFilterTest extends ProductUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku");
-        assertThat(visibleText()).contains("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
+        awaitText("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
+        assertThat(visibleText()).contains("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
         assertThat(((Spinner) activity().findViewById(R.id.event_filter)).getSelectedItem().toString()).isEqualTo("Payız Kuboku");
         assertThat(requestedPaths()).contains("/matches/results/event/901", "/matches/results/event/901?page=2")
                 .doesNotContain("/matches/duellos", "/matches/results/event/902");
@@ -87,7 +87,7 @@ public class ResultsFilterTest extends ProductUiScenario {
 
         // assert
         assertThat(visibleText()).contains("İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.",
-                "16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku");
+                "16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
 
         // arrange
@@ -100,7 +100,7 @@ public class ResultsFilterTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku",
+        assertThat(visibleText()).contains("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir",
                 "İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.");
 
         // act
@@ -113,11 +113,45 @@ public class ResultsFilterTest extends ProductUiScenario {
                 .noneMatch(text -> text.contains("· Payız Kuboku") || text.contains("· Duello"));
 
         // act
-        clickText("Duellolar");
+        clickText("Duellər");
 
         // assert
-        assertThat(visibleText()).contains("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello")
+        assertThat(visibleText()).contains("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel")
                 .noneMatch(text -> text.contains("· Payız Kuboku"));
+    }
+
+    @Test public void verifiedEmptyEventOffersClearFiltersWhileAnUnloadedSelectionShowsProgress() throws Exception {
+        // arrange
+        prepareResults();
+        website.put("/matches/results/event/903", "<div id='center'><div class='matches-box'><div class='no-info'>Matç yoxdur</div></div></div>");
+        responses.put("/matches/results/event/903", () -> new okhttp3.mockwebserver.MockResponse()
+                .setBody(website.get("/matches/results/event/903")).setBodyDelay(1, java.util.concurrent.TimeUnit.SECONDS));
+
+        // act
+        openDirect(ResultsActivity.class, "", 0);
+
+        // assert
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
+        String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
+
+        // act
+        ((Spinner) activity().findViewById(R.id.event_filter)).setSelection(3);
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+
+        // assert
+        assertThat(visibleText()).contains("Məlumat yüklənir…").doesNotContain("Bu seçim üzrə mənbədə nəticə tapılmadı.", "Kubok A");
+        awaitText("Bu seçim üzrə mənbədə nəticə tapılmadı.");
+        assertThat(visibleText()).contains("Filtrləri təmizlə", "Məlumat yeniləndi.");
+        assertThat(requestedPaths()).contains("/matches/results/event/903");
+
+        // act
+        activity().findViewById(R.id.clear_results_filters).performClick();
+
+        // assert
+        assertThat(visibleText()).contains(updated, "14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir")
+                .doesNotContain("Bu seçim üzrə mənbədə nəticə tapılmadı.");
+        assertThat(((android.widget.RadioButton) findText(activity().getWindow().getDecorView(), "Hamısı")).isChecked()).isTrue();
+        assertThat(((Spinner) activity().findViewById(R.id.event_filter)).getSelectedItem().toString()).isEqualTo("Bütün tədbirlər");
     }
 
     @Test public void aDelayedPreviousSelectionCannotReplaceTheCurrentlySelectedDuelResults() throws Exception {
@@ -133,11 +167,11 @@ public class ResultsFilterTest extends ProductUiScenario {
         assertThat(requestTo("/matches/results/event/901")).isEqualTo("/matches/results/event/901");
 
         // act
-        clickText("Duellolar");
+        clickText("Duellər");
 
         // assert
         assertThat(visibleText()).noneMatch(text -> text.contains("· Payız Kuboku") || text.contains("· Şəhər Liqası"));
-        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello");
+        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel");
         assertThat(visibleText()).noneMatch(text -> text.contains("· Payız Kuboku") || text.contains("· Şəhər Liqası"));
     }
 }

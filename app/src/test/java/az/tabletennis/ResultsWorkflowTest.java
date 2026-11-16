@@ -27,14 +27,14 @@ public class ResultsWorkflowTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello");
+        awaitText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel");
         assertThat(visibleText()).containsSubsequence(
-                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello",
-                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello");
+                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel",
+                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // act
-        clickText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello");
+        clickText("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel");
         followNavigation();
 
         // assert
@@ -59,7 +59,7 @@ public class ResultsWorkflowTest extends ProductUiScenario {
 
         // assert
         assertThat(visibleText()).contains(updated,
-                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello",
-                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello");
+                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Duello · Tək · Duel",
+                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
     }
 }

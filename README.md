@@ -96,6 +96,13 @@ Results combines event matches and duels, with All results / Tournament matches 
 Duels selections and an event chooser. Cup and league events are both included.
 An event can be selected even if it was absent from the initial general batch.
 
+Match cards separate each side's full names and final score from the source date,
+match type, and event. Doubles names wrap, and the higher-scoring side's names
+receive bold emphasis. Tap a card to open the existing match detail; Back retains
+the Results selection and browsing context. The type chips and event chooser
+remain reachable while scrolling on small screens. A verified empty filtered
+selection offers **Filtrləri təmizlə** to return to the general feed.
+
 A new general batch retrieves one duel page and at most two event-result pages.
 The event chooser is retrieved separately. Event continuations alternate with
 previously unseen events; selecting one event loads one of its pages per batch.
