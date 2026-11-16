@@ -62,11 +62,24 @@ final class DoublesRepository {
         return pair;
     }
 
+    /** Optional discovery for old identities; callers run this outside the ranking refresh. */
+    DoublesPair portraitMetadata(DoublesPair expected) throws IOException {
+        DoublesPair cached = pair(expected.id);
+        DoublesPair actual = cached.photoMetadataResolved ? cached : parsePair(expected.id, pairInfo(expected.id));
+        boolean sameOrder = actual.first.id == expected.first.id && actual.second.id == expected.second.id;
+        if (!expected.hasSamePlayers(actual)) throw new IOException("Metadata does not describe this partnership");
+        DoublesPair enriched = new DoublesPair(expected.id, expected.first, expected.second,
+                sameOrder ? actual.firstPhotoUrl : actual.secondPhotoUrl,
+                sameOrder ? actual.secondPhotoUrl : actual.firstPhotoUrl, true);
+        if (!cached.photoMetadataResolved) new SavedDataStore<>(context, "duo-" + expected.id, DoublesPair.class)
+                .write(new SavedData<>(enriched, System.currentTimeMillis()));
+        return enriched;
+    }
+
     PairMedals medals(DoublesPair expected) throws IOException {
         JSONObject data = pairInfo(expected.id);
         DoublesPair actual = parsePair(expected.id, data);
-        if (!((actual.first.id == expected.first.id && actual.second.id == expected.second.id)
-                || (actual.first.id == expected.second.id && actual.second.id == expected.first.id))) {
+        if (!expected.hasSamePlayers(actual)) {
             throw new IOException("Metadata does not describe this partnership");
         }
         return new PairMedals(medalCount(data, "firstPlaceCount"), medalCount(data, "secondPlaceCount"),
@@ -100,10 +113,16 @@ final class DoublesRepository {
                 throw new IOException("Unusable doubles identity");
             }
             return new DoublesPair(id, new MatchDetails.PlayerLink(first, firstName),
-                    new MatchDetails.PlayerLink(second, secondName));
+                    new MatchDetails.PlayerLink(second, secondName), photo(data, "player1PictureUrl"),
+                    photo(data, "player2PictureUrl"), true);
         } catch (JSONException invalid) {
             throw new IOException("Unusable doubles identity", invalid);
         }
+    }
+
+    private String photo(JSONObject data, String key) {
+        Object value = data.opt(key);
+        return value instanceof String ? client.photoUrl((String) value) : null;
     }
 
     interface Progress { void update(int completed, int total); }

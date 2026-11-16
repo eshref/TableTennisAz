@@ -18,6 +18,14 @@ medal counts, and tournament matches and duels. Match details and Load more for
 older results remain available. Pair medals come from the partnership metadata,
 never the sum of individual players' medals; missing counts differ from zero.
 
+Doubles Comfortable rows group the two full partner names and pair points beside
+one split circular avatar, with the published position in a separate badge.
+Each half uses that partner's public portrait or its own neutral silhouette.
+Both halves reuse the singles portrait cache and remain usable offline. Older
+saved identities discover optional photo metadata separately, so usable rankings,
+search, and navigation do not wait for photos. Movement retains its accessible
+direction and number of places.
+
 The website supplies pair membership through individual metadata requests. The
 first doubles load resolves all full names and shows progress; search becomes
 available once the complete ranking is ready. Completed identity lookups are

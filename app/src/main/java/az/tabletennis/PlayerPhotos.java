@@ -25,6 +25,9 @@ import okhttp3.HttpUrl;
 final class PlayerPhotos implements AutoCloseable {
     private final File directory;
     private final WebsiteClient client;
+    private final DoublesRepository doubles;
+    private final ExecutorService metadataWorker = Executors.newFixedThreadPool(2);
+    private final Map<Long, CompletableFuture<DoublesPair>> pairMetadata = new HashMap<>();
     // AtomicFile supplies atomic replacement, not locking. Serialize every portrait read/write here.
     private final ExecutorService storage = Executors.newSingleThreadExecutor();
     private final ExecutorService worker = Executors.newFixedThreadPool(3);
@@ -40,6 +43,27 @@ final class PlayerPhotos implements AutoCloseable {
     PlayerPhotos(Context context, HttpUrl website) {
         directory = new File(context.getFilesDir(), "player-portraits");
         client = new WebsiteClient(website);
+        doubles = new DoublesRepository(context, website);
+    }
+
+    void bind(DoublesPortraitView view, DoublesPair pair, boolean online) {
+        Object binding = new Object();
+        view.setTag(binding);
+        bind(view.first, pair.first.id, pair.firstPhotoUrl, online);
+        bind(view.second, pair.second.id, pair.secondPhotoUrl, online);
+        if (!online || pair.photoMetadataResolved) return;
+        CompletableFuture<DoublesPair> metadata = pairMetadata.computeIfAbsent(pair.id, id ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return doubles.portraitMetadata(pair); }
+                    catch (IOException | RuntimeException optionalFailure) { return null; }
+                }, metadataWorker));
+        WeakReference<DoublesPortraitView> target = new WeakReference<>(view);
+        metadata.thenAccept(enriched -> main.post(() -> {
+            DoublesPortraitView current = target.get();
+            if (enriched == null || current == null || current.getTag() != binding) return;
+            bind(current.first, pair.first.id, enriched.firstPhotoUrl, online);
+            bind(current.second, pair.second.id, enriched.secondPhotoUrl, online);
+        }));
     }
 
     void bind(ImageView view, long playerId, String suppliedUrl, boolean online) {
@@ -67,6 +91,7 @@ final class PlayerPhotos implements AutoCloseable {
     void refreshed() {
         // A deliberate ranking refresh permits retrying optional failures, without duplicating pending requests.
         attempted.clear();
+        pairMetadata.values().removeIf(value -> value.isDone() && value.getNow(null) == null);
     }
 
     void trimMemory() {
@@ -76,6 +101,7 @@ final class PlayerPhotos implements AutoCloseable {
 
     @Override public void close() {
         worker.shutdown();
+        metadataWorker.shutdown();
         storage.shutdown();
     }
 

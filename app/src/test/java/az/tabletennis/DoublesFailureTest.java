@@ -64,8 +64,8 @@ public class DoublesFailureTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1");
-        assertThat(visibleText()).contains("1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1");
+        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib");
+        assertThat(visibleText()).contains("1. İlqar Həsənov / Şəms Quliyeva — 800 xal, 1 pillə yüksəlib");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -77,8 +77,8 @@ public class DoublesFailureTest extends DoublesUiScenario {
 
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
-        assertThat(visibleText()).contains(updated, "2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1",
-                "1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1", "3. Işıl Əliyeva / Əli Məmmədov — 600 xal");
+        assertThat(visibleText()).contains(updated, "2. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib",
+                "1. İlqar Həsənov / Şəms Quliyeva — 800 xal, 1 pillə yüksəlib", "3. Işıl Əliyeva / Əli Məmmədov — 600 xal");
 
         // arrange
         FixtureApplication.online = false;
@@ -88,8 +88,8 @@ public class DoublesFailureTest extends DoublesUiScenario {
         clickText("Qoşalar");
 
         // assert
-        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1");
-        assertThat(visibleText()).contains(updated, "1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1");
+        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib");
+        assertThat(visibleText()).contains(updated, "1. İlqar Həsənov / Şəms Quliyeva — 800 xal, 1 pillə yüksəlib");
 
         // arrange
         FixtureApplication.online = true;
@@ -101,6 +101,6 @@ public class DoublesFailureTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("4. İlqar Həsənov / Əli Məmmədov — 500 xal  ↓ 2");
+        awaitText("4. İlqar Həsənov / Əli Məmmədov — 500 xal, 2 pillə geriləyib");
     }
 }

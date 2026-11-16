@@ -1,5 +1,70 @@
 # Android verification
 
+## Comfortable Doubles ranking and split portraits — issue #26
+
+Implemented on `feat/26-doubles-split-portraits`, based on `633a3c4`.
+Doubles rows now group both wrapping full names and pair points beside one
+circular avatar with independently bound partner portraits. Published positions
+remain separate, including ties in points. Movement has its own compact value
+and the complete row announcement retains direction and places gained/lost.
+
+Optional `player1PictureUrl` / `player2PictureUrl` fields come from the existing
+public partnership metadata. Older serialized identities and rankings remain
+readable. Optional metadata discovery runs separately from ranking refreshes;
+reversed source member order is mapped back to the displayed partner identities,
+and unrelated membership is rejected. Each half reuses the singles image loader,
+player-ID cache, durable storage, failure handling and binding tokens. Neither
+image downloads nor optional identity enrichment can replace ranking snapshots,
+collect observations, or advance ranking update times.
+
+The full native-UI/real-HTTP integration suite passed **112 cases**, with zero
+failures, errors or skips. Twelve new cases cover all four portrait availability
+combinations, circular rendering and source colors, independent HTTP/decode
+failures, legacy identity discovery, delayed row reuse and mode changes,
+Activity recreation, offline reuse without cross-partnership leakage, and
+150% text in both themes at narrow portrait and landscape sizes. Existing
+workflow, movement, freshness, atomic persistence, chart and navigation tests
+remain in place. Movement assertions now inspect the structured row's visible
+arrow/value and accessible direction instead of legacy TextView spans. The
+workflow scrolls to partnerships that no longer fit simultaneously in the
+viewport. On narrow phones with large text, controls scroll with the list so a
+complete long-name row fits the viewport.
+
+Android lint and both debug APK builds passed. After the independent Standards
+and Spec reviews, six affected integration cases, lint and both builds passed
+again. Both review axes have zero outstanding findings. The debug APK verifies
+with APK Signature Scheme v2; SHA-256:
+`f49d45bf3f3bca39ba7a4fb6dc5fa9444f73bcd9f1bb98fddbf3220c202f4b67`.
+
+The opt-in `DoublesRankingDeviceTest` prepares public portrait fixtures and saved
+partnership observations, opens Doubles through the native mode control, checks
+both partner images and published position, searches long partner names, checks
+Activity recreation, and captures screenshots. Use the instrumentation class
+argument from the README, substituting this class. The `capturePrefix` argument
+names captures; `reuseSaved=true` retains fixtures across process restarts.
+
+The installed journey passed on an Android 8.0 / API 26 x86_64 emulator in
+light and dark portrait at normal text, light narrow portrait at 150% text,
+and dark landscape at 150% text. Subsequent runs reused the same saved fixtures
+after forcing the app process to stop, with Wi-Fi and mobile data disabled.
+Native screenshots were compared with the approved Comfortable Doubles reference
+for full partner identities, paired portrait/fallback composition, separate
+published-position badges, points, movement, and theme hierarchy. The long-name
+captures retain both complete names, points and movement.
+
+This software emulator has no KVM acceleration. Startup required a task-owned
+ramdisk without forced encryption, restarting Android services, and dismissing
+a System UI ANR dialog. On API 26, UiAutomation returned no screenshot after a
+display resize; the capture helper falls back to Android's `screencap` command.
+These workarounds do not change the application or its TLS policy. This is a
+fixture-backed installed-app check, not a new live-site or physical-phone run.
+API 36 coverage remains host integration. Temporary emulator data was removed
+after verification.
+
+Verification artifacts are under the ignored `app/build/reports/issue26/`:
+the complete suite log/XML, post-review checks, lint output, approved Doubles
+browser reference, and native screenshots/run logs where captured.
+
 ## Comfortable Players ranking and cached portraits — issue #25
 
 Implemented on `feat/25-comfortable-player-photos`, based on `2b9677b`.

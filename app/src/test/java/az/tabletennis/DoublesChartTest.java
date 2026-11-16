@@ -32,7 +32,7 @@ public class DoublesChartTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("3. İlqar Həsənov / Əli Məmmədov — 900 xal  ↑ 6");
+        awaitText("3. İlqar Həsənov / Əli Məmmədov — 900 xal, 6 pillə yüksəlib");
 
         // arrange
         FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofDays(2));
@@ -42,10 +42,10 @@ public class DoublesChartTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
+        awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
 
         // act
-        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
+        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
         followNavigation();
 
         // assert
@@ -65,7 +65,7 @@ public class DoublesChartTest extends DoublesUiScenario {
 
         // act
         back();
-        clickText("7. İlqar Həsənov / Şəms Quliyeva — 750 xal  ↓ 6");
+        clickText("7. İlqar Həsənov / Şəms Quliyeva — 750 xal, 6 pillə geriləyib");
         followNavigation();
 
         // assert
@@ -92,7 +92,7 @@ public class DoublesChartTest extends DoublesUiScenario {
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
 
         // act
-        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
+        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
         followNavigation();
 
         // assert
@@ -109,10 +109,10 @@ public class DoublesChartTest extends DoublesUiScenario {
         clickText("Qoşalar");
 
         // assert
-        awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
+        awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
 
         // act
-        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
+        clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
         followNavigation();
 
         // assert

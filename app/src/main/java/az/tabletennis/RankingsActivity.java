@@ -3,10 +3,6 @@ package az.tabletennis;
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -110,7 +106,10 @@ public class RankingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         // Short screens need the full list viewport for wrapping rows at large text sizes.
-        LinearLayout controls = getResources().getConfiguration().screenHeightDp < 480 ? root : chrome.body;
+        android.content.res.Configuration configuration = getResources().getConfiguration();
+        boolean scrollingControls = configuration.screenHeightDp < 480
+                || (configuration.screenWidthDp <= 360 && configuration.fontScale >= 1.3f);
+        LinearLayout controls = scrollingControls ? root : chrome.body;
         RadioGroup modes = new RadioGroup(this);
         modes.setOrientation(LinearLayout.HORIZONTAL);
         RadioButton players = new RadioButton(this);
@@ -179,13 +178,8 @@ public class RankingsActivity extends Activity {
                     row.bind(visiblePlayers.get(position), visibleRanks.get(position), getItem(position), application);
                     return row;
                 }
-                TextView row = (TextView) super.getView(position, recycled, parent);
-                row.setTextColor(getColor(R.color.text));
-                row.setTextSize(18);
-                row.setMinHeight(dp(64));
-                row.setPadding(dp(4), dp(12), dp(4), dp(12));
-                if (doublesMode) showMovement(row, visiblePairs.get(position));
-                else row.setContentDescription(null);
+                DoublesRankingRow row = recycled instanceof DoublesRankingRow ? (DoublesRankingRow) recycled : new DoublesRankingRow(RankingsActivity.this);
+                row.bind(visiblePairs.get(position), application);
                 return row;
             }
         };
@@ -299,6 +293,7 @@ public class RankingsActivity extends Activity {
             doublesLoading = false;
             if (failure == null) {
                 doubles = retrieved;
+                application.photos().refreshed();
                 doublesStatus = getString(R.string.refresh_success);
             } else doublesStatus = getString(doubles == null ? R.string.data_unavailable : R.string.data_saved_failure);
             render();
@@ -401,24 +396,6 @@ public class RankingsActivity extends Activity {
         TextView label = Presentation.label(this, resource == 0 ? "" : getString(resource), size);
         label.setTextColor(getColor(R.color.secondary));
         return label;
-    }
-
-    private void showMovement(TextView view, DoublesRanking.Row row) {
-        String text = getString(R.string.doubles_row, row.position, row.pair.names(), row.points);
-        if (row.placesGained == 0) {
-            view.setText(text);
-            view.setContentDescription(null);
-            return;
-        }
-        boolean up = row.placesGained > 0;
-        int places = Math.abs(row.placesGained);
-        SpannableString movement = new SpannableString(text + (up ? "  ↑ " : "  ↓ ") + places);
-        int start = text.length() + 2;
-        movement.setSpan(new ForegroundColorSpan(getColor(up ? R.color.movement_up : R.color.movement_down)),
-                start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        movement.setSpan(new RelativeSizeSpan(0.78f), start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        view.setText(movement);
-        view.setContentDescription(text + ", " + getString(up ? R.string.movement_up : R.string.movement_down, places));
     }
 
     // Legacy Back dispatch; MainScreenChrome registers the native gesture callback on API 33+.
