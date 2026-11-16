@@ -115,7 +115,10 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     protected abstract void render(T value);
 
     protected long dataUpdatedAt() { return saved.updatedAt; }
-    protected long retrievalTime(long previousUpdate, boolean more) { return application.clock().millis(); }
+    private long retrievalTime(long previousUpdate, boolean more) {
+        // An appended page does not refresh the older information already on screen.
+        return more && previousUpdate > 0 ? previousUpdate : application.clock().millis();
+    }
 
     protected final void showSaved() {
         content.removeAllViews();

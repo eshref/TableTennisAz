@@ -125,8 +125,4 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         }
     }
 
-    @Override protected long retrievalTime(long previousUpdate, boolean more) {
-        // Loading another page does not make the older displayed pages newly refreshed.
-        return more && previousUpdate > 0 ? previousUpdate : application.clock().millis();
-    }
 }

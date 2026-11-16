@@ -48,7 +48,4 @@ public class ProfileActivity extends SavedScreen<PlayerProfile> {
         }
     }
 
-    @Override protected long retrievalTime(long previousUpdate, boolean more) {
-        return more && previousUpdate > 0 ? previousUpdate : application.clock().millis();
-    }
 }

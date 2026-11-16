@@ -262,30 +262,30 @@ final class WebsiteSource {
         if (boxes.isEmpty()) throw new IOException("Missing source results");
         List<MatchSummary> results = new ArrayList<>();
         for (Element box : boxes) {
-        int before = results.size();
-        for (Element day : box.children()) {
-            Element date = day.selectFirst(".divs-header");
-            for (Element match : day.select("a[href] > .match-box, a[href] > .team-matches-match")) {
-                var identity = Pattern.compile("/matches/(\\d+)/?").matcher(match.parent().attr("href"));
-                boolean teamChild = match.hasClass("team-matches-match");
-                List<Element> sides = match.select(teamChild ? ".col-5" : ".col-3");
-                Element score = match.selectFirst(".col-2 .center");
-                Element event = match.selectFirst(".col-4");
-                Element team = match.closest(".team-match-box");
-                if (event == null && team != null) event = team.selectFirst(".team-match-main > .col-4");
-                if (!identity.matches() || date == null || date.text().trim().isEmpty() || sides.size() != 2
-                        || score == null || !score.text().matches("\\d+\\s*-\\s*\\d+")) throw new IOException("Unusable result row");
-                List<String> left = names(sides.get(0));
-                List<String> right = names(sides.get(1));
-                if (left.size() != right.size()) throw new IOException("Unbalanced result sides");
-                results.add(new MatchSummary(sourceId(identity.group(1)), left, right,
-                        date.text(), score.text().replaceAll("\\s", ""), eventId,
-                        eventName.isEmpty() && event != null ? event.text() : eventName, duel, teamChild));
+            int before = results.size();
+            for (Element day : box.children()) {
+                Element date = day.selectFirst(".divs-header");
+                for (Element match : day.select("a[href] > .match-box, a[href] > .team-matches-match")) {
+                    var identity = Pattern.compile("/matches/(\\d+)/?").matcher(match.parent().attr("href"));
+                    boolean teamChild = match.hasClass("team-matches-match");
+                    List<Element> sides = match.select(teamChild ? ".col-5" : ".col-3");
+                    Element score = match.selectFirst(".col-2 .center");
+                    Element event = match.selectFirst(".col-4");
+                    Element team = match.closest(".team-match-box");
+                    if (event == null && team != null) event = team.selectFirst(".team-match-main > .col-4");
+                    if (!identity.matches() || date == null || date.text().trim().isEmpty() || sides.size() != 2
+                            || score == null || !score.text().matches("\\d+\\s*-\\s*\\d+")) throw new IOException("Unusable result row");
+                    List<String> left = names(sides.get(0));
+                    List<String> right = names(sides.get(1));
+                    if (left.size() != right.size()) throw new IOException("Unbalanced result sides");
+                    results.add(new MatchSummary(sourceId(identity.group(1)), left, right,
+                            date.text(), score.text().replaceAll("\\s", ""), eventId,
+                            eventName.isEmpty() && event != null ? event.text() : eventName, duel, teamChild));
+                }
             }
-        }
-        int count = box.select(".match-box, .team-matches-match").size();
-        if (results.size() - before != count || (count == 0 && !box.text().trim().isEmpty()
-                && box.selectFirst(".no-info, .team-match-box") == null)) throw new IOException("Incomplete source result list");
+            int count = box.select(".match-box, .team-matches-match").size();
+            if (results.size() - before != count || (count == 0 && !box.text().trim().isEmpty()
+                    && box.selectFirst(".no-info, .team-match-box") == null)) throw new IOException("Incomplete source result list");
         }
         return results;
     }
