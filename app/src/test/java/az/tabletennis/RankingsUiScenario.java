@@ -90,6 +90,8 @@ public abstract class RankingsUiScenario {
             text.add(view.getContentDescription().toString());
             return;
         }
+        if (view.getId() == R.id.match_card && view.getContentDescription() != null)
+            text.add(view.getContentDescription().toString());
         if (view instanceof TextView label) text.add(label.getText().toString());
         if (view instanceof ViewGroup group) {
             for (int i = 0; i < group.getChildCount(); i++) collectText(group.getChildAt(i), text);

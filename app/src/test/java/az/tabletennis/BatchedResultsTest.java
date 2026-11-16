@@ -21,10 +21,10 @@ public class BatchedResultsTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku");
-        assertThat(visibleText()).contains("13 Nov. 2026 · Liqa A — Liqa B · 3-1 · Şəhər Liqası")
-                .contains("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Şəhər Liqası")
-                .contains("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello")
+        awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir");
+        assertThat(visibleText()).contains("13 Nov. 2026 · Liqa A — Liqa B · 3-1 · Şəhər Liqası · Tək · Turnir")
+                .contains("16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Şəhər Liqası · Tək · Turnir · Duel")
+                .contains("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel")
                 .noneMatch(text -> text.contains("Uzaq A") || text.contains("Səhifə 2"));
         assertThat(visibleText().stream().filter(text -> text.contains("İlqar Həsənov — Şəms Quliyeva · 3-1"))).hasSize(1);
         assertThat(requestedPaths()).contains("/matches/results/event/901", "/matches/results/event/902", "/matches/duellos")
@@ -44,7 +44,7 @@ public class BatchedResultsTest extends ProductUiScenario {
 
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
-        assertThat(visibleText()).contains(updated, "14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku")
+        assertThat(visibleText()).contains(updated, "14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir")
                 .noneMatch(text -> text.contains("Səhifə 2") || text.contains("Yeni A"));
         assertThat(requestedPaths()).contains("/matches/results/event/901?page=2", "/matches/results/event/903", "/matches/duellos?page=2");
 
@@ -55,14 +55,14 @@ public class BatchedResultsTest extends ProductUiScenario {
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku");
-        awaitText("12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok");
+        awaitText("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
+        awaitText("12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok · Tək · Turnir");
         assertThat(requestedPaths()).contains("/matches/results/event/901?page=2", "/matches/results/event/903", "/matches/duellos?page=2")
                 .doesNotContain("/matches/results/event/901", "/matches/results/event/902", "/matches/duellos");
         assertThat(visibleText()).containsSubsequence(
-                "17 Nov. 2026 · Yeni A — Yeni B · 4-1 · Duello",
-                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Şəhər Liqası",
-                "16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku");
+                "17 Nov. 2026 · Yeni A — Yeni B · 4-1 · Duello · Tək · Duel",
+                "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Şəhər Liqası · Tək · Turnir · Duel",
+                "16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir");
         assertThat(visibleText().stream().filter(text -> text.contains("İlqar Həsənov / Əli Məmmədov"))).hasSize(1);
         assertThat(visibleText()).contains(updated);
 
@@ -76,7 +76,7 @@ public class BatchedResultsTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku",
-                "17 Nov. 2026 · Yeni A — Yeni B · 4-1 · Duello", "12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok");
+        assertThat(visibleText()).contains("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir",
+                "17 Nov. 2026 · Yeni A — Yeni B · 4-1 · Duello · Tək · Duel", "12 Nov. 2026 · Uzaq A — Uzaq B · 2-0 · Uzaq Kubok · Tək · Turnir");
     }
 }
