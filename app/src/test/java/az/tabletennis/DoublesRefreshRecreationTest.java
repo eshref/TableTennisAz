@@ -61,7 +61,7 @@ public class DoublesRefreshRecreationTest extends DoublesUiScenario {
             release.countDown();
 
             // assert
-            awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+            awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
             assertThat(requestedPaths()).containsExactly("/players/duos");
 
             // arrange
@@ -72,7 +72,7 @@ public class DoublesRefreshRecreationTest extends DoublesUiScenario {
             activity().findViewById(R.id.refresh).performClick();
 
             // assert
-            awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");
+            awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal, 2 pillə geriləyib");
         } finally {
             release.countDown();
         }

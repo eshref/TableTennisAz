@@ -3,9 +3,6 @@ package az.tabletennis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import android.graphics.Color;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -35,7 +32,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // assert
         awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
 
         // arrange
         FixtureApplication.online = true;
@@ -47,7 +44,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // assert
         awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
 
         // arrange
         ranking(pairRow(110, 11, 800));
@@ -56,7 +53,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");
+        awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal, 2 pillə geriləyib");
     }
 
     @Test public void failedPersistenceKeepsTheSavedComparisonAndTheNextRefreshUsesItsSuccessfulBaseline() throws Exception {
@@ -78,7 +75,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
         String updated = ((TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -95,7 +92,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
             // assert
             awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
-            assertThat(visibleText()).contains(updated, "9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+            assertThat(visibleText()).contains(updated, "9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
         } finally {
             directory.setWritable(true, true);
             saved.setWritable(true, true);
@@ -109,7 +106,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         clickText("Qoşalar");
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
         assertThat(visibleText()).contains(updated);
 
         // arrange
@@ -121,7 +118,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");
+        awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal, 2 pillə geriləyib");
     }
 
     @Test public void successfulRefreshesReplaceMovementAndMissingPreviousPairsNeverUseOlderPositions() throws Exception {
@@ -135,7 +132,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // assert
         awaitText("12. İlqar Həsənov / Əli Məmmədov — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
 
         // arrange
         ranking(pairRow(110, 9, 800) + pairRow(220, 11, 800) + pairRow(330, 15, 600));
@@ -145,21 +142,19 @@ public class DoublesMovementTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
-        assertThat(visibleText()).contains("11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2",
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
+        assertThat(visibleText()).contains("11. İlqar Həsənov / Şəms Quliyeva — 800 xal, 2 pillə geriləyib",
                 "15. Işıl Əliyeva / Əli Məmmədov — 600 xal");
         ListView list = activity().findViewById(android.R.id.list);
-        TextView up = (TextView) findText(list, "9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
-        TextView down = (TextView) findText(list, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2");
+        android.view.View up = findText(list, "9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
+        android.view.View down = findText(list, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal, 2 pillə geriləyib");
         assertThat(up.getContentDescription().toString()).contains("3 pillə yüksəlib");
         assertThat(down.getContentDescription().toString()).contains("2 pillə geriləyib");
-        Spanned upText = (Spanned) up.getText();
-        Spanned downText = (Spanned) down.getText();
-        assertThat(upText.getSpans(0, upText.length(), ForegroundColorSpan.class)[0].getForegroundColor())
-                .isEqualTo(Color.rgb(24, 115, 58));
-        assertThat(downText.getSpans(0, downText.length(), ForegroundColorSpan.class)[0].getForegroundColor())
-                .isEqualTo(Color.rgb(179, 38, 30));
-        assertThat(upText.getSpans(0, upText.length(), RelativeSizeSpan.class)[0].getSizeChange()).isEqualTo(0.78f);
+        TextView upValue = (TextView) findText(up, "↑ 3");
+        TextView downValue = (TextView) findText(down, "↓ 2");
+        assertThat(upValue.getCurrentTextColor()).isEqualTo(Color.rgb(24, 115, 58));
+        assertThat(downValue.getCurrentTextColor()).isEqualTo(Color.rgb(179, 38, 30));
+        assertThat(upValue.getTextSize()).isLessThan(((TextView) up.findViewById(android.R.id.text2)).getTextSize());
         String updated = ((TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // act
@@ -167,16 +162,16 @@ public class DoublesMovementTest extends DoublesUiScenario {
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofMillis(100));
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
-        assertThat(visibleText()).doesNotContain("11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2");
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
+        assertThat(visibleText()).doesNotContain("11. İlqar Həsənov / Şəms Quliyeva — 800 xal, 2 pillə geriləyib");
 
         // act
         ((EditText) activity().findViewById(R.id.search)).setText("ilqar");
         screen.recreate();
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
-        assertThat(visibleText()).contains(updated, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2");
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
+        assertThat(visibleText()).contains(updated, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal, 2 pillə geriləyib");
 
         // arrange
         FixtureApplication.online = false;
@@ -187,8 +182,8 @@ public class DoublesMovementTest extends DoublesUiScenario {
         clickText("Qoşalar");
 
         // assert
-        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
-        assertThat(visibleText()).contains(updated, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2");
+        awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
+        assertThat(visibleText()).contains(updated, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal, 2 pillə geriləyib");
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
 
         // arrange
@@ -200,8 +195,8 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // assert
         awaitText("11. İlqar Həsənov / Şəms Quliyeva — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
-        assertThat(visibleText()).doesNotContain("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
+        assertThat(visibleText()).doesNotContain("9. İlqar Həsənov / Əli Məmmədov — 800 xal, 3 pillə yüksəlib");
 
         // arrange
         ranking(pairRow(110, 4, 800) + pairRow(220, 11, 800) + pairRow(330, 15, 600));
@@ -211,7 +206,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // assert
         awaitText("4. İlqar Həsənov / Əli Məmmədov — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
 
         // arrange
         ranking(pairRow(110, 3, 800) + pairRow(220, 11, 800) + pairRow(330, 15, 600));
@@ -220,14 +215,14 @@ public class DoublesMovementTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("3. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 1");
+        awaitText("3. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə yüksəlib");
 
         // act
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("3. İlqar Həsənov / Əli Məmmədov — 800 xal");
-        assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
+        assertThat(visibleText()).noneMatch(text -> text.contains("pillə yüksəlib") || text.contains("pillə geriləyib"));
     }
 
     private void ranking(String rows) {
