@@ -36,6 +36,15 @@ preserve the ranking, observations, movement, and update time together. A later
 unchanged refresh clears earlier movement. Older saved rankings remain readable;
 observation history starts with new successful refreshes, without backfilling.
 
+Each doubles profile embeds one history chart with Xal / Mövqe controls. It
+shows the pair's recorded points or published positions, with #1 at the top.
+Dates and times identify each observation, including refreshes on the same day;
+horizontal spacing reflects elapsed time. The first observation appears as a
+single dated point with a note about future refreshes. Older saved profiles
+without observations show an explicit empty state. These device-local charts
+remain available offline and after restart; opening profiles, switching modes,
+or refreshing medals and matches does not collect ranking history.
+
 Singles rankings use the website's Amateur list, ordered by points descending.
 Players listed in both categories remain eligible; professional-only players
 are excluded, with no category toggle. Equal points share competition ranks

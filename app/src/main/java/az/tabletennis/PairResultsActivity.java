@@ -5,9 +5,11 @@ import android.os.Bundle;
 
 public class PairResultsActivity extends SavedScreen<PairHistory> {
     private long pairId;
+    private boolean rankMode;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        rankMode = state != null && state.getBoolean("rankMode");
         pairId = getIntent().getLongExtra("pairId", 0);
         if (pairId <= 0) { finish(); return; }
         select("duo-results-" + pairId, PairHistory.class);
@@ -23,8 +25,12 @@ public class PairResultsActivity extends SavedScreen<PairHistory> {
         };
     }
 
-    private void showStanding() {
-        SavedData<DoublesRanking> ranking = new SavedDataStore<>(this, "doubles-ranking", DoublesRanking.class).read();
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("rankMode", rankMode);
+        super.onSaveInstanceState(state);
+    }
+
+    private void showStanding(SavedData<DoublesRanking> ranking) {
         DoublesRanking.Row standing = null;
         if (ranking != null) {
             for (DoublesRanking.Row row : ranking.value.rows) {
@@ -60,11 +66,15 @@ public class PairResultsActivity extends SavedScreen<PairHistory> {
             content.addView(button(player.name, () -> startActivity(new Intent(this, ProfileActivity.class)
                     .putExtra("playerId", player.id))));
         }
-        showStanding();
+        SavedData<DoublesRanking> ranking = new SavedDataStore<>(this, "doubles-ranking", DoublesRanking.class).read();
+        showStanding(ranking);
         content.addView(label(getString(R.string.pair_medals), 20));
         showMedal(R.id.pair_gold, R.string.pair_gold, history.medals == null ? null : history.medals.gold);
         showMedal(R.id.pair_silver, R.string.pair_silver, history.medals == null ? null : history.medals.silver);
         showMedal(R.id.pair_bronze, R.string.pair_bronze, history.medals == null ? null : history.medals.bronze);
+        content.addView(label(getString(R.string.pair_chart_title), 20));
+        content.addView(new DoublesHistoryView(this, ranking == null ? null : ranking.value, pairId,
+                rankMode, selected -> rankMode = selected));
         content.addView(label(getString(R.string.match_history), 20));
         content.addView(label(getString(R.string.pair_history_coverage), 14));
         if (history.matches.isEmpty()) content.addView(label(getString(R.string.no_history), 16));

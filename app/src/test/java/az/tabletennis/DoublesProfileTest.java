@@ -159,8 +159,10 @@ public class DoublesProfileTest extends DoublesUiScenario {
 
         // assert
         assertThat(visibleText()).contains("800 xal", "Reytinqdə yer: #2", "Qızıl medal: məlumat mövcud deyil",
+                "Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb.",
                 "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa",
                 "Daha çox yüklə");
+        assertThat(activity().<android.view.View>findViewById(R.id.chart)).isNull();
         java.util.ArrayList<android.view.View> pagination = new java.util.ArrayList<>();
         activity().getWindow().getDecorView().findViewsWithText(pagination, "Daha çox yüklə", android.view.View.FIND_VIEWS_WITH_TEXT);
         assertThat(pagination).singleElement().satisfies(view -> assertThat(view.isEnabled()).isFalse());
