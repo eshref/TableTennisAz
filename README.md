@@ -25,6 +25,17 @@ when the pair identity is cached; failures retain saved counts and results.
 Points and position use the latest successfully saved doubles ranking, with its
 own update time. Bonus and event filtering are outside this doubles version.
 
+Doubles ranking refreshes now save complete dated observations on this device,
+including points and published positions for pairs whose profiles have never
+been opened. Small green ↑ / red ↓ indicators show places gained/lost since
+the immediately previous successful saved refresh, with Azerbaijani accessible
+descriptions. Search preserves movement. Unchanged positions, the first
+observation, and pairs absent from the previous ranking show no indicator.
+Reopening or going offline preserves the latest comparison; failed refreshes
+preserve the ranking, observations, movement, and update time together. A later
+unchanged refresh clears earlier movement. Older saved rankings remain readable;
+observation history starts with new successful refreshes, without backfilling.
+
 Singles rankings use the website's Amateur list, ordered by points descending.
 Players listed in both categories remain eligible; professional-only players
 are excluded, with no category toggle. Equal points share competition ranks

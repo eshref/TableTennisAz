@@ -69,14 +69,15 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
 
             // assert
             awaitText("1. İlqar Həsənov / Əli Məmmədov — 800 xal");
+            assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
             assertThat(requestedPaths()).contains("/api/getDuoInfo?id=220", "/api/getDuoInfo?id=330")
                     .doesNotContain("/api/getDuoInfo?id=110");
             String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
             // arrange
             website.put("/players/duos", "<div id='center'><div class='ranking-page-list'>"
-                    + pairRow(110, 1, 800) + pairRow(220, 2, 800) + pairRow(330, 3, 600)
-                    + pairRow(440, 4, 500) + "</div></div>");
+                    + pairRow(220, 1, 800) + pairRow(330, 2, 600) + pairRow(110, 4, 500)
+                    + pairRow(440, 5, 400) + "</div></div>");
             website.put("/api/getDuoInfo?id=440", pairInfo(999, 11, "Şəms Quliyeva", 14, "Işıl Əliyeva"));
             FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofMinutes(2));
 
@@ -86,7 +87,8 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
             // assert
             awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
             assertThat(visibleText()).contains(updated, "1. İlqar Həsənov / Əli Məmmədov — 800 xal")
-                    .doesNotContain("4. Şəms Quliyeva / Işıl Əliyeva — 500 xal");
+                    .doesNotContain("5. Şəms Quliyeva / Işıl Əliyeva — 400 xal");
+            assertThat(visibleText()).noneMatch(text -> text.contains("↑") || text.contains("↓"));
 
             // arrange
             website.put("/api/getDuoInfo?id=440", pairInfo(440, 11, "Şəms Quliyeva", 14, "Işıl Əliyeva"));
@@ -95,7 +97,9 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
             activity().findViewById(R.id.refresh).performClick();
 
             // assert
-            awaitText("4. Şəms Quliyeva / Işıl Əliyeva — 500 xal");
+            awaitText("5. Şəms Quliyeva / Işıl Əliyeva — 400 xal");
+            assertThat(visibleText()).contains("4. İlqar Həsənov / Əli Məmmədov — 500 xal  ↓ 3",
+                    "1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1", "2. Işıl Əliyeva / Əli Məmmədov — 600 xal  ↑ 1");
             assertThat(((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString()).isNotEqualTo(updated);
         } finally {
             finishLookup.countDown();

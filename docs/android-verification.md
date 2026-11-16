@@ -1,5 +1,60 @@
 # Android verification
 
+## Doubles ranking movement — issue #18
+
+Implemented on `issue-18-doubles-ranking-movement`, based on `afb3890`.
+Each complete successful doubles refresh saves its timestamp, every pair's
+identity/points/published position, retained observations, and latest movement
+in the existing atomic ranking snapshot. The serialized model remains compatible
+with old saved rankings; no observations are backfilled. Comparisons use only
+the immediately preceding recorded ranking, including distinct tied positions.
+
+Full verification passed **74 cases**, zero failures/errors/skips, plus Android
+lint, debug APK assembly, and connected-test APK assembly:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+`DoublesMovementTest` adds three native UI integration workflows: the combined
+gain/loss/search/recreation/offline/disappearance/reappearance/unchanged-refresh
+lifecycle; read-only persistence failure followed by offline reopening and a
+successful retry against the preserved baseline; and pre-observation snapshot
+compatibility followed by two real observations. The existing parameterized
+`DoublesFailureTest` now retains nonzero movement across five HTTP/parsing/
+validation failures, offline reopening, and recovery. The interrupted-name
+workflow verifies that partial identity resolution cannot create a comparison
+or advance a saved baseline. Assertions inspect visible rows, update labels,
+accessibility descriptions, and rendered text styling. Stored history is the
+source for the dependent chart ticket; this slice adds no chart UI.
+
+`DoublesRefreshRecreationTest` adds fresh/stale parameterized cases that recreate
+Rankings while an HTTP response is delayed. Both require the same single source
+request, preserved movement, and the correct next comparison. A shared in-flight
+refresh survives recreation and releases its completed result, so later launches
+read durable storage. Snapshot reads and writes are serialized across store
+instances: API 26 `AtomicFile.openRead()` can otherwise restore a backup while
+another instance is writing. Network work stays outside this storage lock.
+
+Separate standards and specification reviews found a font-scaling issue and
+the in-flight recreation defect; both were fixed and re-reviewed with no
+remaining findings. Movement now uses relative text sizing to follow Android's
+font-size setting.
+
+The debug APK was installed on an Android 8.0 / API 26 x86_64 software emulator
+at a 412 × 891 px phone size. Controlled saved observations prepared through
+the production models showed a small green ↑3 for #12 → #9, a small red ↓2 for
+#9 → #11, and no indicator on the unchanged row. Both arrows and counts were
+visible and distinct from the surrounding text; direction did not rely on
+color. This was an offline fixture visual check, not a new live-site journey.
+An additional check at font scale 1.5 showed the arrow/count enlarging with the
+row. The legacy software emulator needed System UI crash/ANR dialogs dismissed;
+System UI was disabled in this disposable emulator to finish the enlarged-font
+check. App code and TLS policy were not changed for device setup.
+Verification logs, full-suite XML, and both font-size screenshots are retained
+under the ignored `app/build/reports/issue18/` directory. Temporary emulator
+data and setup tools were removed after verification.
+
 ## Doubles profiles — issue #17
 
 Implemented on `feature/17-doubles-profile`, based on `48c903a`. The existing

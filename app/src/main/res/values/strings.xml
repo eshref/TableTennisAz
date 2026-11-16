@@ -29,6 +29,8 @@
     <string name="doubles_explanation">Qoşaların mənbədə dərc olunmuş yerləri və xalları. Eyni xallı qoşaların yerləri fərqli ola bilər.</string>
     <string name="doubles_search_hint">Qoşadakı oyunçunun adı ilə axtar</string>
     <string name="doubles_row">%1$d. %2$s — %3$d xal</string>
+    <string name="movement_up">%1$d pillə yüksəlib</string>
+    <string name="movement_down">%1$d pillə geriləyib</string>
     <string name="doubles_loading">Qoşaların adları yüklənir: %1$d / %2$d</string>
     <string name="no_pairs">Axtarışa uyğun qoşa tapılmadı.</string>
     <string name="pair_profile">Qoşanın profili</string>
