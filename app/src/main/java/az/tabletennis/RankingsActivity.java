@@ -48,6 +48,7 @@ public class RankingsActivity extends Activity {
     private ListView list;
     private ArrayAdapter<String> rows;
     private final List<RankingSnapshot.Player> visiblePlayers = new ArrayList<>();
+    private final List<Integer> visibleRanks = new ArrayList<>();
     private final List<DoublesRanking.Row> visiblePairs = new ArrayList<>();
     private boolean loading;
     private boolean doublesLoading;
@@ -168,7 +169,14 @@ public class RankingsActivity extends Activity {
         list.setDividerHeight(dp(1));
         list.setId(android.R.id.list);
         rows = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, new ArrayList<>()) {
+            @Override public int getViewTypeCount() { return 2; }
+            @Override public int getItemViewType(int position) { return doublesMode ? 1 : 0; }
             @Override public View getView(int position, View recycled, ViewGroup parent) {
+                if (!doublesMode) {
+                    PlayerRankingRow row = recycled instanceof PlayerRankingRow ? (PlayerRankingRow) recycled : new PlayerRankingRow(RankingsActivity.this);
+                    row.bind(visiblePlayers.get(position), visibleRanks.get(position), getItem(position), application);
+                    return row;
+                }
                 TextView row = (TextView) super.getView(position, recycled, parent);
                 row.setTextColor(getColor(R.color.text));
                 row.setTextSize(18);
@@ -254,6 +262,7 @@ public class RankingsActivity extends Activity {
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 snapshot = retrieved;
+                application.photos().refreshed();
                 loading = false;
                 playerStatus = getString(R.string.refresh_success);
                 render();
@@ -341,6 +350,7 @@ public class RankingsActivity extends Activity {
     private void render() {
         List<String> visible = new ArrayList<>();
         visiblePlayers.clear();
+        visibleRanks.clear();
         visiblePairs.clear();
         explanation.setText(doublesMode ? R.string.doubles_explanation : R.string.rank_explanation);
         search.setHint(doublesMode ? R.string.doubles_search_hint : R.string.search_hint);
@@ -369,6 +379,7 @@ public class RankingsActivity extends Activity {
                 previousPoints = player.points;
                 if (player.name.toLowerCase(AZERBAIJANI).contains(query)) {
                     visiblePlayers.add(player);
+                    visibleRanks.add(rank);
                     visible.add(getResources().getQuantityString(R.plurals.player_row, player.points, rank, player.name, player.points));
                 }
             }

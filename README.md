@@ -51,6 +51,14 @@ remain available offline and after restart; opening profiles, switching modes,
 or refreshing medals and matches does not collect ranking history.
 
 Singles rankings use the website's Amateur list, ordered by points descending.
+Comfortable rows show a circular player portrait, wrapping full name and points,
+with a separate amateur-rank badge. Optional thumbnails come from the ranking
+response and load independently of names, search, and navigation. Downloaded
+portraits remain available offline; missing or unusable photos use a bundled
+person silhouette. Failed replacements retain the player's last usable portrait
+without changing the ranking's successful-update time. Older saved amateur
+rankings remain readable when photo metadata is absent.
+
 Players listed in both categories remain eligible; professional-only players
 are excluded, with no category toggle. Equal points share competition ranks
 (1, 2, 2, 4), calculated among amateurs. Search uses Azerbaijani case rules and

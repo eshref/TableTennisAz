@@ -17,11 +17,17 @@ final class RankingSnapshot {
         final long id;
         final String name;
         final int points;
+        final String photoUrl;
 
         Player(long id, String name, int points) {
+            this(id, name, points, null);
+        }
+
+        Player(long id, String name, int points, String photoUrl) {
             this.id = id;
             this.name = name;
             this.points = points;
+            this.photoUrl = photoUrl;
         }
     }
 }

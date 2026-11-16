@@ -57,8 +57,10 @@ final class RankingsSource {
                 throw new IOException("Unusable source ranking row");
             }
             try {
+                Element photo = row.selectFirst("img[src]");
                 players.add(new RankingSnapshot.Player(Long.parseLong(identity.group(1)),
-                        name.text(), Integer.parseInt(numericPoints.group(1))));
+                        name.text(), Integer.parseInt(numericPoints.group(1)),
+                        photo == null ? null : client.photoUrl(photo.attr("src"))));
             } catch (NumberFormatException invalidNumber) {
                 throw new IOException("Invalid source ranking number", invalidNumber);
             }

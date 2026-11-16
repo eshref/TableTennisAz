@@ -46,9 +46,11 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
     protected void clickText(String text) {
         android.view.View view = findText(activity().getWindow().getDecorView(), text);
         if (view == null) throw new IllegalStateException("No visible control: " + text);
-        if (view.getParent() instanceof android.widget.ListView list) {
-            int position = list.getPositionForView(view);
-            list.performItemClick(view, position, list.getItemIdAtPosition(position));
+        android.view.View item = view;
+        while (item.getParent() instanceof android.view.View parent && !(parent instanceof android.widget.ListView)) item = parent;
+        if (item.getParent() instanceof android.widget.ListView list) {
+            int position = list.getPositionForView(item);
+            list.performItemClick(item, position, list.getItemIdAtPosition(position));
         } else view.performClick();
     }
 
@@ -146,6 +148,7 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
 
     protected android.view.View findText(android.view.View view, String text) {
         if (view.getVisibility() != android.view.View.VISIBLE) return null;
+        if (view.getContentDescription() != null && text.contentEquals(view.getContentDescription())) return view;
         if (view instanceof android.widget.TextView label && label.getText().toString().equals(text)) return view;
         if (view instanceof android.view.ViewGroup group) {
             for (int i = 0; i < group.getChildCount(); i++) {
