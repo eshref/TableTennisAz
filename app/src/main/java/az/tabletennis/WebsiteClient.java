@@ -10,6 +10,7 @@ import okhttp3.Response;
 
 /** Shared production HTTPS policy for HTML, public chart JSON, and optional portraits. */
 final class WebsiteClient {
+    private static final String DEFAULT_PHOTO = "/assets/img/person.png";
     private final HttpUrl website;
     private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build();
@@ -19,7 +20,7 @@ final class WebsiteClient {
     String photoUrl(String value) {
         if (value == null || value.trim().isEmpty()) return null;
         HttpUrl url = website.resolve(value.trim());
-        if (!allowed(url) || "/assets/img/person.png".equalsIgnoreCase(url.encodedPath())) return null;
+        if (!allowed(url) || DEFAULT_PHOTO.equalsIgnoreCase(url.encodedPath())) return null;
         return url.toString();
     }
 
@@ -28,7 +29,7 @@ final class WebsiteClient {
         // Inspect each redirect before requesting it, retaining the website origin/TLS policy.
         OkHttpClient images = client.newBuilder().followRedirects(false).followSslRedirects(false).build();
         for (int redirects = 0; redirects <= 5; redirects++) {
-            if (!allowed(url)) throw new IOException("Unexpected image link");
+            if (!allowed(url) || DEFAULT_PHOTO.equalsIgnoreCase(url.encodedPath())) throw new IOException("Unexpected image link");
             Request request = new Request.Builder().url(url).header("Accept", "image/*")
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android) TableTennisAz/0.1").build();
             try (Response response = images.newCall(request).execute()) {

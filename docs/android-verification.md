@@ -1,5 +1,96 @@
 # Android verification
 
+## Comfortable Players ranking and cached portraits — issue #25
+
+Implemented on `feat/25-comfortable-player-photos`, based on `2b9677b`.
+Players rows now group a wrapping full name and current points beside an actual
+circular portrait, with an independent amateur-rank badge. The source ranking's
+optional image URL is saved compatibly; snapshots without it, including null or
+unusable optional metadata, remain readable. Amateur membership, competition
+ties, Azerbaijani search, profile identity/navigation, per-mode scroll context,
+and the existing doubles rows retain their established behavior.
+
+Portrait downloads and decoding run independently of ranking work. Serialized
+image storage and a bounded memory cache retain the last usable portrait per
+player, including offline use after memory loss. Failed downloads cannot change
+ranking data or its successful-update time. Binding tokens protect recycled
+views, and older URL responses cannot replace a newer saved portrait. Missing,
+default, invalid, and failed photos fall back to a bundled silhouette. Redirects
+retain the website origin and reject its default placeholder. Normal TLS and
+certificate validation remain enabled. No per-player profile crawl or invented
+thumbnail filenames were added.
+
+The final full application integration suite passed **100 cases**, with zero
+failures, errors, or skips. It includes the existing API 26/36 rankings and
+navigation workflows and new native-UI/real-HTTP photo scenarios. Coverage adds
+independent failures, placeholder redirects, delayed row reuse/mode changes,
+Activity recreation and selected-profile navigation, overlapping old/new image
+URLs, durable offline reuse, and legacy optional metadata. Assertions inspect
+rendered images/text/accessibility and external HTTP requests. Saved files are
+used only for setup. Final portrait-rendering corrections passed all nine
+affected photo/layout cases, lint, and both APK builds again:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Native comparison exposed software-renderer outline clipping that left square
+avatars and a center crop that cut off faces. Explicit antialiased circular
+drawing with the reference's upper crop corrects portraits; the silhouette
+also stays inside its circle. Native-graphics product-view assertions verify
+portrait corner transparency, image identity, and fallback boundaries. Layout
+scenarios inspect long names, 150% text, accessible row values, 48dp minimum
+targets, both themes, and narrow/landscape widths. A separate native landscape
+capture at 150% text exposed fixed controls leaving less space than a complete
+row needed. On short screens, mode and search controls now share the list's
+scrolling header. The layout scenarios scroll to a row and verify that its full
+height fits the viewport; portrait control placement is preserved.
+
+Independent Standards and Spec reviews have no outstanding findings. The
+specification review identified concurrent image-file access, directory creation,
+and placeholder redirects; all were corrected and re-reviewed. The native
+comparison's rendering corrections and test phase organization were also
+reviewed.
+
+The debug APK remains at `app/build/outputs/apk/debug/app-debug.apk` and passes
+signature verification. SHA-256:
+`b43eaa3365f886957647fd2c18ca4de1227b068e1cf37001556620ae358c2e1e`.
+
+### Installed application evidence
+
+The final APK was installed on an Android 8.0 / API 26 x86_64 software emulator.
+`PlayerRankingDeviceTest` passed in both system themes: **OK (1 test)** per run.
+It compares the visible portraits with known public source images, checks
+separate names/points/ranks, searches a long full name, and retains its query
+through Activity recreation. Wi-Fi and mobile data were disabled. The dark run
+uses the same saved fixtures after a forced process stop, confirming disk-backed
+portrait reuse and the unchanged ranking update time in the native UI.
+
+Native captures cover 320 × 640 portrait and 640 × 320 landscape at 160 dpi,
+including 150% text in both themes. The corrected landscape captures retain the
+entire wrapping name, points, and rank within the viewport after scrolling the
+controls away. External ADB/UIAutomator checks additionally verified that the
+landscape header accepts search input and switches modes while retaining the
+Players query. The native accessibility trees and images record these outcomes.
+
+Screenshots were compared with the approved Comfortable rows reference in
+`docs/prototypes/android-final-ui-prototype.html`, including the same İlqar
+portrait. Evidence is under the ignored `app/build/reports/issue25/` directory:
+`screenshots/issue25/`, native run logs, native accessibility trees, the approved
+reference, full-suite XML, rendering checks, and lint output. Source portraits
+are bundled only in the test APK for native fixture setup; production retrieves
+optional ranking thumbnails. Acquisition and network failures are verified
+through the real-HTTP integration suite, rather than inferred from saved fixtures.
+
+The disposable emulator required a task-owned ramdisk without forced encryption,
+an Android runtime restart, and waiting through legacy System UI ANR dialogs.
+These were environment workarounds; application code and TLS policy were not
+relaxed. This was fixture-backed native verification, not a new live-site or
+physical-phone journey. API 36 evidence remains host integration; a current
+Android device was not available. Temporary emulator data and task tools were
+removed after verification.
+
+
 ## Drawer and main-screen layout — issue #24
 
 Implemented on `feat/24-drawer-main-screen-layout`, based on `5c8f37a`.

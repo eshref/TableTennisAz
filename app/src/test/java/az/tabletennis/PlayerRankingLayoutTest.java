@@ -45,7 +45,13 @@ public class PlayerRankingLayoutTest extends PlayerPhotoScenario {
 
         // assert
         awaitText("Məlumat yeniləndi.");
+
+        // act
+        android.widget.ListView list = activity().findViewById(android.R.id.list);
+        list.setSelection(1);
         shadowOf(Looper.getMainLooper()).idle();
+
+        // assert
         TextView name = (TextView) findText(activity().getWindow().getDecorView(), LONG_NAME);
         TextView points = (TextView) findText(activity().getWindow().getDecorView(), "800 xal");
         TextView rank = (TextView) findText(activity().getWindow().getDecorView(), "#1");
@@ -54,9 +60,23 @@ public class PlayerRankingLayoutTest extends PlayerPhotoScenario {
         assertThat(name.getLayout().getEllipsisCount(name.getLineCount() - 1)).isZero();
         assertThat(points.getTop()).isGreaterThanOrEqualTo(name.getBottom());
         assertThat(row.getHeight()).isGreaterThanOrEqualTo(Presentation.dp(activity(), 48));
+        assertThat(row.getHeight()).isLessThanOrEqualTo(list.getHeight());
         assertThat(row.getContentDescription().toString()).isEqualTo("1. " + LONG_NAME + " — 800 xal");
         assertThat(rank.getText().toString()).isEqualTo("#1");
         assertThat(photo(LONG_NAME).getClipToOutline()).isTrue();
         assertThat(requestedPaths()).containsExactly("/players?level=amateur");
+
+        // arrange
+        int width = photo(LONG_NAME).getWidth();
+        int height = photo(LONG_NAME).getHeight();
+        android.graphics.Bitmap fallback = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888);
+
+        // act
+        photo(LONG_NAME).draw(new android.graphics.Canvas(fallback));
+
+        // assert
+        // Allow subpixel antialiasing on the circle edge, while excluding a protruding opaque silhouette.
+        assertThat(android.graphics.Color.alpha(fallback.getPixel(Math.round(width * 0.18f), Math.round(height * 0.9f)))).isLessThanOrEqualTo(2);
+        assertThat(android.graphics.Color.alpha(fallback.getPixel(width / 2, height / 3))).isEqualTo(255);
     }
 }

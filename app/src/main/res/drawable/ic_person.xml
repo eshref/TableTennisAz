@@ -2,5 +2,5 @@
     android:width="50dp" android:height="50dp" android:viewportWidth="50" android:viewportHeight="50">
     <path android:fillColor="@color/soft" android:pathData="M25,0a25,25 0,1 0,0 50a25,25 0,1 0,0 -50" />
     <path android:fillColor="@color/secondary" android:fillAlpha="0.62"
-        android:pathData="M25,10a8,8 0,1 0,0 16a8,8 0,1 0,0 -16M9,46v-6c0,-8 7,-12 16,-12s16,4 16,12v6z" />
+        android:pathData="M25,10a8,8 0,1 0,0 16a8,8 0,1 0,0 -16M9,44v-4c0,-8 7,-12 16,-12s16,4 16,12v4z" />
 </vector>

@@ -41,6 +41,7 @@ public class PlayerPhotoFailuresTest extends PlayerPhotoScenario {
                 {"insecure external URL", "<img src='http://example.com/photo.png'>", 200, "", "", noPhoto},
                 {"HTTP failure", "<img src='/portraits/bad.png'>", 503, "Unavailable", "", attemptedPhoto},
                 {"invalid image", "<img src='/portraits/bad.png'>", 200, "<html>Sign in</html>", "", attemptedPhoto},
+                {"redirect to source placeholder", "<img src='/portraits/bad.png'>", 302, "", "/assets/img/person.png", attemptedPhoto},
                 {"redirect outside origin", "<img src='/portraits/bad.png'>", 302, "", "http://localhost:1/untrusted.png", attemptedPhoto}
         });
     }
@@ -49,6 +50,7 @@ public class PlayerPhotoFailuresTest extends PlayerPhotoScenario {
         // arrange
         website.put("/players?level=amateur", ranking("/unused.png", "/portraits/ali.png").replace("<img src='/unused.png'>", markup));
         responses.put("/portraits/ali.png", () -> portrait(Color.BLUE));
+        responses.put("/assets/img/person.png", () -> portrait(Color.GREEN));
         responses.put("/portraits/bad.png", () -> new MockResponse().setResponseCode(status).setBody(body).setHeader("Location", redirect));
 
         // act

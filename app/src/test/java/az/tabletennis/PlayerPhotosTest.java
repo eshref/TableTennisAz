@@ -20,6 +20,59 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 26, qualifiers = "w411dp-h891dp", application = RankingsUiScenario.FixtureApplication.class)
 public class PlayerPhotosTest extends PlayerPhotoScenario {
+    @Test public void aSlowOldPhotoUrlCannotReplaceTheNewPortraitOnAnOfflineRelaunch() throws Exception {
+        // arrange
+        CountDownLatch release = new CountDownLatch(1);
+        website.put("/players?level=amateur", ranking("/portraits/old.png", "/assets/img/person.png"));
+        responses.put("/portraits/old.png", () -> {
+            try { release.await(15, TimeUnit.SECONDS); }
+            catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+            return portrait(Color.RED);
+        });
+
+        try {
+            // act
+            openScreen();
+
+            // assert
+            awaitText("Məlumat yeniləndi.");
+            assertThat(requestTo("/portraits/old.png")).isEqualTo("/portraits/old.png");
+
+            // arrange
+            website.put("/players?level=amateur", ranking("/portraits/new.png", "/assets/img/person.png"));
+            responses.put("/portraits/new.png", () -> portrait(Color.BLUE));
+
+            // act
+            activity().findViewById(R.id.refresh).performClick();
+
+            // assert
+            awaitPortrait("İlqar Həsənov", Color.BLUE);
+
+            // act
+            release.countDown();
+
+            // assert
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            do {
+                shadowOf(Looper.getMainLooper()).idle();
+                assertThat(((BitmapDrawable) photo("İlqar Həsənov").getDrawable()).getBitmap().getPixel(12, 12)).isEqualTo(Color.BLUE);
+                Thread.sleep(20);
+            } while (System.nanoTime() < deadline);
+
+            // arrange
+            FixtureApplication.online = false;
+            ((RankingsApplication) activity().getApplication()).onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE);
+
+            // act
+            restart();
+
+            // assert
+            awaitPortrait("İlqar Həsənov", Color.BLUE);
+        } finally {
+            release.countDown();
+        }
+    }
+
     @Test public void aDelayedImageCannotOverwriteAnotherPlayerInTheRecycledSearchRow() throws Exception {
         // arrange
         website.put("/players?level=amateur", ranking("/portraits/slow.png", "/portraits/ali.png"));
@@ -70,6 +123,16 @@ public class PlayerPhotosTest extends PlayerPhotoScenario {
         assertThat(findText(activity().getWindow().getDecorView(), "800 xal")).isNotNull();
         awaitPortrait("İlqar Həsənov", Color.RED);
         awaitPortrait("Əli Məmmədov", Color.BLUE);
+        // arrange
+        android.graphics.Bitmap rendered = android.graphics.Bitmap.createBitmap(photo("İlqar Həsənov").getWidth(),
+                photo("İlqar Həsənov").getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
+
+        // act
+        photo("İlqar Həsənov").draw(new android.graphics.Canvas(rendered));
+
+        // assert
+        assertThat(Color.alpha(rendered.getPixel(0, 0))).isZero();
+        assertThat(rendered.getPixel(rendered.getWidth() / 2, rendered.getHeight() / 2)).isEqualTo(Color.RED);
         assertThat(requestedPaths()).containsExactlyInAnyOrder("/players?level=amateur", "/portraits/ilqar.png", "/portraits/ali.png");
     }
 

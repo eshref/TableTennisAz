@@ -58,6 +58,7 @@ portraits remain available offline; missing or unusable photos use a bundled
 person silhouette. Failed replacements retain the player's last usable portrait
 without changing the ranking's successful-update time. Older saved amateur
 rankings remain readable when photo metadata is absent.
+On short screens, the mode and search controls scroll with the ranking.
 
 Players listed in both categories remain eligible; professional-only players
 are excluded, with no category toggle. Equal points share competition ranks

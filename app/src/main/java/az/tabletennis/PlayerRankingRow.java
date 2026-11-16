@@ -1,10 +1,8 @@
 package az.tabletennis;
 
 import android.content.Context;
-import android.graphics.Outline;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewOutlineProvider;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -24,17 +22,10 @@ final class PlayerRankingRow extends LinearLayout {
         setPadding(dp(2), dp(15), dp(2), dp(15));
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
         setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-        photo = new ImageView(context);
+        photo = new PlayerPortraitView(context);
         photo.setId(android.R.id.icon);
         photo.setScaleType(ImageView.ScaleType.CENTER_CROP);
         photo.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        photo.setBackgroundColor(context.getColor(R.color.soft));
-        photo.setOutlineProvider(new ViewOutlineProvider() {
-            @Override public void getOutline(View view, Outline outline) {
-                outline.setOval(0, 0, view.getWidth(), view.getHeight());
-            }
-        });
-        photo.setClipToOutline(true);
         int portraitSize = getResources().getConfiguration().screenWidthDp <= 360 ? 46 : 50;
         LayoutParams portraitLayout = new LayoutParams(dp(portraitSize), dp(portraitSize));
         portraitLayout.setMarginEnd(dp(12));

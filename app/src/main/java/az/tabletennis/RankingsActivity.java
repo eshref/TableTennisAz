@@ -109,6 +109,8 @@ public class RankingsActivity extends Activity {
         refresh = chrome.refresh;
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        // Short screens need the full list viewport for wrapping rows at large text sizes.
+        LinearLayout controls = getResources().getConfiguration().screenHeightDp < 480 ? root : chrome.body;
         RadioGroup modes = new RadioGroup(this);
         modes.setOrientation(LinearLayout.HORIZONTAL);
         RadioButton players = new RadioButton(this);
@@ -127,20 +129,20 @@ public class RankingsActivity extends Activity {
         modes.setBackground(Presentation.shape(this, R.color.soft));
         LinearLayout.LayoutParams modeLayout = new LinearLayout.LayoutParams(-1, -2);
         modeLayout.bottomMargin = dp(12);
-        chrome.body.addView(modes, modeLayout);
+        controls.addView(modes, modeLayout);
         explanation = label(0, 14);
-        root.addView(explanation);
         search = new EditText(this);
         search.setId(R.id.search);
         search.setSingleLine(true);
         search.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
         LinearLayout.LayoutParams searchLayout = new LinearLayout.LayoutParams(-1, dp(56));
         searchLayout.bottomMargin = dp(8);
-        chrome.body.addView(search, searchLayout);
+        controls.addView(search, searchLayout);
         search.setTextColor(getColor(R.color.text));
         search.setHintTextColor(getColor(R.color.secondary));
         search.setBackground(Presentation.shape(this, R.color.surface));
         search.setPadding(dp(12), 0, dp(12), 0);
+        root.addView(explanation);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setContentDescription(getString(R.string.loading));
         root.addView(progress, new LinearLayout.LayoutParams(-1, dp(4)));

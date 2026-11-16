@@ -25,6 +25,8 @@ import okhttp3.HttpUrl;
 final class PlayerPhotos implements AutoCloseable {
     private final File directory;
     private final WebsiteClient client;
+    // AtomicFile supplies atomic replacement, not locking. Serialize every portrait read/write here.
+    private final ExecutorService storage = Executors.newSingleThreadExecutor();
     private final ExecutorService worker = Executors.newFixedThreadPool(3);
     private final Handler main = new Handler(Looper.getMainLooper());
     private final LruCache<Long, Bitmap> memory = new LruCache<Long, Bitmap>(8 * 1024 * 1024) {
@@ -33,6 +35,7 @@ final class PlayerPhotos implements AutoCloseable {
     // Main-thread ownership; in-flight work and successful images survive Activity recreation.
     private final Map<String, Download> requests = new HashMap<>();
     private final Set<String> attempted = new HashSet<>();
+    private final Map<Long, String> latestUrls = new java.util.concurrent.ConcurrentHashMap<>();
 
     PlayerPhotos(Context context, HttpUrl website) {
         directory = new File(context.getFilesDir(), "player-portraits");
@@ -46,6 +49,7 @@ final class PlayerPhotos implements AutoCloseable {
         if (available == null) view.setImageResource(R.drawable.ic_person);
         else view.setImageBitmap(available);
         String url = client.photoUrl(suppliedUrl);
+        if (url != null) latestUrls.put(playerId, url);
         String key = playerId + ":" + (online ? url : "offline");
         Download download = requests.get(key);
         if (download == null) {
@@ -70,7 +74,10 @@ final class PlayerPhotos implements AutoCloseable {
         refreshed();
     }
 
-    @Override public void close() { worker.shutdown(); }
+    @Override public void close() {
+        worker.shutdown();
+        storage.shutdown();
+    }
 
     private final class Download {
         final CompletableFuture<Bitmap> saved;
@@ -85,26 +92,32 @@ final class PlayerPhotos implements AutoCloseable {
                 }
                 if (image != null) memory.put(id, image);
                 return image;
-            }, worker);
-            finished = saved.thenApplyAsync(previous -> {
-                if (url == null) return previous;
-                try {
-                    Bitmap image = decode(client.image(url));
+            }, storage);
+            finished = saved.thenCompose(previous -> {
+                if (url == null) return CompletableFuture.completedFuture(previous);
+                return CompletableFuture.supplyAsync(() -> {
+                    try { return decode(client.image(url)); }
+                    catch (IOException | RuntimeException optionalFailure) { return null; }
+                }, worker).thenApplyAsync(image -> {
+                    // A slow response for an older URL must not replace a newer saved portrait.
+                    if (!url.equals(latestUrls.get(id))) return memory.get(id);
                     if (image == null) return previous;
-                    save(id, image);
-                    memory.put(id, image);
-                    return image;
-                } catch (IOException | RuntimeException optionalFailure) {
-                    return previous;
-                }
-            }, worker);
+                    try {
+                        save(id, image);
+                        memory.put(id, image);
+                        return image;
+                    } catch (IOException | RuntimeException optionalFailure) {
+                        return previous;
+                    }
+                }, storage);
+            });
         }
     }
 
     private AtomicFile file(long id) { return new AtomicFile(new File(directory, id + ".png")); }
 
     private void save(long id, Bitmap image) throws IOException {
-        if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create portrait storage");
+        if (!directory.isDirectory() && !directory.mkdirs() && !directory.isDirectory()) throw new IOException("Cannot create portrait storage");
         AtomicFile file = file(id);
         FileOutputStream output = null;
         try {
