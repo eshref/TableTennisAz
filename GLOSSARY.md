@@ -7,11 +7,14 @@ Terms for the players, ratings, and match results published on tabletennis.az.
 **Player**:
 A table-tennis participant listed on the site with a public profile and playing record.
 
+**Amateur player**:
+A player listed in the website's Amateur category, including a player also listed in its Professional category.
+
 **Player rating**:
 A player's points total in the site's rating system. A rating differs from the player's position in an ordered list.
 
-**Combined rank**:
-A player's position in the app's list of amateur and professional players, ordered by rating points from highest to lowest. Equal points share a rank and skip the occupied positions before the next rank (1, 2, 2, 4); these ranks differ from the website's category-specific ranks.
+**Amateur rank**:
+A player's position among amateur players, ordered by rating points from highest to lowest. Equal points share a rank and skip the occupied positions before the next rank (1, 2, 2, 4); only amateur players occupy positions in this ranking.
 
 **Source rank**:
 A player's position within their category on the website.

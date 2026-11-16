@@ -1,7 +1,7 @@
 # TableTennisAz Android
 
 Native Azerbaijani rankings, player profiles, rating history, and match results
-for Android 8.0 (API 26) and newer. The app opens on combined individual-player
+for Android 8.0 (API 26) and newer. The app opens on amateur individual-player
 rankings. This implements the first-delivery scope in issues #1–#9.
 
 Rankings also has an Oyunçular / Qoşalar switch. Doubles ranks partnerships using
@@ -20,10 +20,12 @@ a fresh app launch opens Players. Doubles uses the same offline and refresh
 policy as the rest of the app. Bonus, medal counts, and event filtering are
 outside this doubles version.
 
-Rankings combine the amateur and professional website lists by source identity,
-ordered by points descending. Equal points share competition ranks (1, 2, 2, 4).
-These app-defined positions differ from the website's category-specific ranks.
-Search uses Azerbaijani case rules and preserves a matching player's rank.
+Singles rankings use the website's Amateur list, ordered by points descending.
+Players listed in both categories remain eligible; professional-only players
+are excluded, with no category toggle. Equal points share competition ranks
+(1, 2, 2, 4), calculated among amateurs. Search uses Azerbaijani case rules and
+preserves a matching player's amateur rank. Professional profiles, match results,
+and doubles participation remain accessible.
 
 Select a player to see current points and singles/doubles match history, with
 Load more for older source pages. Current
@@ -72,6 +74,11 @@ Errors and unusable changed markup preserve the saved data and time. A first
 visit without usable data shows an unavailable state. Age never deletes saved
 rankings, profiles, charts, match details, or results; clearing app storage or
 uninstalling removes them.
+
+The amateur-ranking update ignores old mixed singles rankings because they do
+not record player categories. An internet connection is needed to download the
+first amateur ranking; the app explains this when no usable ranking is available.
+Newly downloaded amateur rankings remain available offline.
 
 Profile/history and Results refresh revisit the source pages already downloaded
 for that player or selection,
@@ -122,8 +129,8 @@ selection isolation, delayed responses, freshness boundaries, and offline reuse.
 The rankings workflow runs on API 26 and API 36; the additional workflows run on
 API 26. Host-side simulation does not replace APK installation on a device.
 
-The opt-in installed-app journey exercises production HTTPS requests to both
-rankings categories, a profile/chart, mixed Results, a match, and a participant's
+The opt-in installed-app journey exercises production HTTPS requests to the
+amateur ranking, a profile/chart, mixed Results, a match, and a participant's
 profile. It asserts visible data without fixed live names, counts, or scores:
 
 ```sh

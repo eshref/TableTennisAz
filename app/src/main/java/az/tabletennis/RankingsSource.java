@@ -21,8 +21,16 @@ final class RankingsSource {
     RankingsSource(HttpUrl website) { client = new WebsiteClient(website); }
 
     List<RankingSnapshot.Player> fetch() throws IOException {
+        return fetchCategories("amateur", "pro");
+    }
+
+    List<RankingSnapshot.Player> fetchAmateurs() throws IOException {
+        return fetchCategories("amateur");
+    }
+
+    private List<RankingSnapshot.Player> fetchCategories(String... categories) throws IOException {
         Map<Long, RankingSnapshot.Player> combined = new LinkedHashMap<>();
-        for (String category : new String[] {"amateur", "pro"}) {
+        for (String category : categories) {
             for (RankingSnapshot.Player player : fetchCategory(category)) {
                 RankingSnapshot.Player previous = combined.putIfAbsent(player.id, player);
                 if (previous != null && (previous.points != player.points || !previous.name.equals(player.name))) {

@@ -22,6 +22,7 @@ final class RankingsStore {
     RankingSnapshot read() {
         try {
             JSONObject saved = new JSONObject(new String(file.readFully(), StandardCharsets.UTF_8));
+            if (!"amateur".equals(saved.optString("category"))) return null;
             JSONArray rows = saved.getJSONArray("players");
             List<RankingSnapshot.Player> players = new ArrayList<>();
             for (int i = 0; i < rows.length(); i++) {
@@ -42,7 +43,7 @@ final class RankingsStore {
             for (RankingSnapshot.Player player : snapshot.players) {
                 rows.put(new JSONObject().put("id", player.id).put("name", player.name).put("points", player.points));
             }
-            byte[] bytes = new JSONObject().put("updatedAt", snapshot.updatedAt).put("players", rows)
+            byte[] bytes = new JSONObject().put("category", "amateur").put("updatedAt", snapshot.updatedAt).put("players", rows)
                     .toString().getBytes(StandardCharsets.UTF_8);
             stream = file.startWrite();
             stream.write(bytes);

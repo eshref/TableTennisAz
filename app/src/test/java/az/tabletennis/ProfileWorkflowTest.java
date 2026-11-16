@@ -19,12 +19,12 @@ public class ProfileWorkflowTest extends ProductUiScenario {
         openScreen();
 
         // assert
-        awaitText("2. İlqar Həsənov — 800 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
         ((EditText) activity().findViewById(R.id.search)).setText("ilqar");
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
-        clickText("2. İlqar Həsənov — 800 xal");
+        clickText("1. İlqar Həsənov — 800 xal");
         followNavigation();
 
         // assert
@@ -42,32 +42,32 @@ public class ProfileWorkflowTest extends ProductUiScenario {
 
     @Test public void sameNamedPlayersKeepTheirOwnPointsAndHistoryAcrossAnOfflineRestart() throws Exception {
         // arrange
-        website.replaceAll((path, body) -> body.replace("Şəms Quliyeva", "Eyni Ad").replace("İlqar Həsənov", "Eyni Ad"));
-        prepareProfile(11, "Eyni Ad");
+        website.replaceAll((path, body) -> body.replace("Işıl Əliyeva", "Eyni Ad").replace("İlqar Həsənov", "Eyni Ad"));
         prepareProfile(12, "Eyni Ad");
-        website.put("/matches/results/player/11", html("history.html").getBody().readUtf8().replace("Kupa", "Oyunçu 11"));
+        prepareProfile(14, "Eyni Ad");
         website.put("/matches/results/player/12", html("history.html").getBody().readUtf8().replace("Kupa", "Oyunçu 12"));
+        website.put("/matches/results/player/14", html("history.html").getBody().readUtf8().replace("Kupa", "Oyunçu 14"));
         openScreen();
 
         // assert
-        awaitText("1. Eyni Ad — 950 xal");
+        awaitText("1. Eyni Ad — 800 xal");
 
         // act
-        clickText("1. Eyni Ad — 950 xal");
-        followNavigation();
-
-        // assert
-        awaitText("950 xal");
-        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 11"));
-
-        // act
-        back();
-        clickText("2. Eyni Ad — 800 xal");
+        clickText("1. Eyni Ad — 800 xal");
         followNavigation();
 
         // assert
         awaitText("800 xal");
         assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 12"));
+
+        // act
+        back();
+        clickText("3. Eyni Ad — 600 xal");
+        followNavigation();
+
+        // assert
+        awaitText("600 xal");
+        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 14"));
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -77,22 +77,22 @@ public class ProfileWorkflowTest extends ProductUiScenario {
         restart();
 
         // assert
-        awaitText("2. Eyni Ad — 800 xal");
+        awaitText("3. Eyni Ad — 600 xal");
 
         // act
-        clickText("2. Eyni Ad — 800 xal");
+        clickText("3. Eyni Ad — 600 xal");
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("Eyni Ad", "800 xal", updated)
-                .anyMatch(text -> text.endsWith("· Oyunçu 12")).noneMatch(text -> text.endsWith("· Oyunçu 11"));
+        assertThat(visibleText()).contains("Eyni Ad", "600 xal", updated)
+                .anyMatch(text -> text.endsWith("· Oyunçu 14")).noneMatch(text -> text.endsWith("· Oyunçu 12"));
 
         // act
         back();
-        clickText("1. Eyni Ad — 950 xal");
+        clickText("1. Eyni Ad — 800 xal");
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("Eyni Ad", "950 xal").anyMatch(text -> text.endsWith("· Oyunçu 11"));
+        assertThat(visibleText()).contains("Eyni Ad", "800 xal").anyMatch(text -> text.endsWith("· Oyunçu 12"));
     }
 }

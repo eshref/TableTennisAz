@@ -1,5 +1,11 @@
 # Android app discovery
 
+The original singles-ranking scope in this discovery is superseded by
+[issue #14](https://github.com/eshref/TableTennisAz/issues/14) and the
+[revised ranking decision](adr/0003-combined-player-ranking.md#revised-singles-scope):
+the singles ranking now uses only the website's Amateur list. The doubles-ranking
+follow-up and professional profiles and results remain in scope.
+
 ## Approval status
 
 The project owner approved this plan only. Implementation and APK development
