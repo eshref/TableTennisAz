@@ -28,6 +28,10 @@ final class RankingsSource {
         return fetchCategories("amateur");
     }
 
+    List<RankingSnapshot.Player> fetchProfessionals() throws IOException {
+        return fetchCategories("pro");
+    }
+
     private List<RankingSnapshot.Player> fetchCategories(String... categories) throws IOException {
         Map<Long, RankingSnapshot.Player> combined = new LinkedHashMap<>();
         for (String category : categories) {

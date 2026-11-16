@@ -29,12 +29,15 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     private Bundle scrollPositions = new Bundle();
     private String selectionKey;
     private boolean loading;
+    private boolean restoringScroll;
     private int selectionVersion;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         Presentation.systemBars(this);
         application = (RankingsApplication) getApplication();
+        Bundle positions = state == null ? null : state.getBundle("scrollPositions");
+        if (positions != null) scrollPositions = new Bundle(positions);
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(8), dp(16), dp(16));
@@ -44,20 +47,40 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
             refresh = chrome.refresh;
             updated = chrome.updated;
             root.setPadding(0, 0, 0, dp(16));
-            Bundle positions = state == null ? application.resultsScrollPositions : state.getBundle("scrollPositions");
-            if (positions != null) scrollPositions = new Bundle(positions);
+            if (state == null && application.resultsScrollPositions != null)
+                scrollPositions = new Bundle(application.resultsScrollPositions);
         } else {
             root.setOnApplyWindowInsetsListener((view, insets) -> {
                 view.setPadding(dp(16) + insets.getSystemWindowInsetLeft(), dp(16) + insets.getSystemWindowInsetTop(),
                         dp(16) + insets.getSystemWindowInsetRight(), dp(16) + insets.getSystemWindowInsetBottom());
                 return insets;
             });
-            root.addView(button(getString(R.string.back), () -> finish()));
-            refresh = button(getString(R.string.refresh), () -> refresh(false));
+            if (detailTitle() != 0) {
+                LinearLayout bar = new LinearLayout(this);
+                bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                Button back = button("‹", () -> finish());
+                back.setContentDescription(getString(R.string.back));
+                back.setTextSize(28);
+                back.setPadding(0, 0, 0, 0);
+                bar.addView(back, new LinearLayout.LayoutParams(dp(48), -2));
+                TextView title = label(getString(detailTitle()), 22);
+                if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+                bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+                refresh = button("↻", () -> refresh(false));
+                refresh.setContentDescription(getString(R.string.refresh));
+                refresh.setTextSize(24);
+                refresh.setPadding(0, 0, 0, 0);
+                bar.addView(refresh, new LinearLayout.LayoutParams(dp(48), -2));
+                root.addView(bar);
+            } else {
+                root.addView(button(getString(R.string.back), () -> finish()));
+                refresh = button(getString(R.string.refresh), () -> refresh(false));
+                root.addView(refresh);
+            }
             refresh.setId(R.id.refresh);
-            root.addView(refresh);
             updated = label("", 13);
             updated.setId(R.id.updated);
+            updated.setTextColor(getColor(R.color.secondary));
             root.addView(updated);
         }
         progress = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -141,7 +164,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
                     loading = false;
                     saved = next;
                     showSaved();
-                    if (chrome != null) status.setText(R.string.refresh_success);
+                    if (chrome != null || detailTitle() != 0) status.setText(R.string.refresh_success);
                     status.setVisibility(View.VISIBLE);
                 });
             } catch (IOException failure) {
@@ -157,6 +180,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     }
 
     protected boolean isMainDestination() { return false; }
+    protected int detailTitle() { return 0; }
 
     protected interface Fetch<V> { V load() throws IOException; }
     protected abstract Fetch<T> request(T previous, boolean more);
@@ -172,7 +196,8 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
         content.removeAllViews();
         updated.setText("");
         status.setText(loading ? getString(R.string.data_loading) : application.isOnline() ? ""
-                : getString(saved == null ? R.string.data_unavailable : chrome == null ? R.string.data_saved_failure : R.string.offline_saved));
+                : getString(saved == null ? R.string.data_unavailable
+                : chrome != null || detailTitle() != 0 ? R.string.offline_saved : R.string.data_saved_failure));
         progress.setVisibility(loading ? View.VISIBLE : View.GONE);
         retry.setVisibility(!loading && saved == null ? View.VISIBLE : View.GONE);
         retry.setEnabled(application.isOnline());
@@ -183,9 +208,15 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
             updated.setText(getString(R.string.updated_at, format.format(new Date(dataUpdatedAt()))));
             render(saved.value);
         }
-        if (chrome != null) {
+        if (chrome != null || detailTitle() != 0) {
             int position = scrollPositions.getInt(selectionKey, 0);
-            scroll.post(() -> scroll.scrollTo(0, position));
+            int version = selectionVersion;
+            restoringScroll = true;
+            scroll.post(() -> {
+                if (version != selectionVersion) return;
+                scroll.scrollTo(0, position);
+                restoringScroll = false;
+            });
         }
     }
 
@@ -221,7 +252,8 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     }
 
     private void rememberScroll() {
-        if (chrome != null && selectionKey != null) scrollPositions.putInt(selectionKey, scroll.getScrollY());
+        if (!restoringScroll && (chrome != null || detailTitle() != 0) && selectionKey != null)
+            scrollPositions.putInt(selectionKey, scroll.getScrollY());
     }
 
     protected final int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }

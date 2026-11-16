@@ -30,8 +30,8 @@ public class ProfileWorkflowTest extends ProductUiScenario {
         // assert
         awaitText("İlqar Həsənov");
         awaitText("800 xal");
-        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
-        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Liqa");
+        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
+        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Liqa · Tək · Turnir");
 
         // act
         back();
@@ -58,7 +58,7 @@ public class ProfileWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("800 xal");
-        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 12"));
+        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 12 · Qoşalar · Turnir"));
 
         // act
         back();
@@ -67,7 +67,7 @@ public class ProfileWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("600 xal");
-        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 14"));
+        assertThat(visibleText()).anyMatch(text -> text.endsWith("· Oyunçu 14 · Qoşalar · Turnir"));
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -85,7 +85,7 @@ public class ProfileWorkflowTest extends ProductUiScenario {
 
         // assert
         assertThat(visibleText()).contains("Eyni Ad", "600 xal", updated)
-                .anyMatch(text -> text.endsWith("· Oyunçu 14")).noneMatch(text -> text.endsWith("· Oyunçu 12"));
+                .anyMatch(text -> text.endsWith("· Oyunçu 14 · Qoşalar · Turnir")).noneMatch(text -> text.endsWith("· Oyunçu 12 · Qoşalar · Turnir"));
 
         // act
         back();
@@ -93,6 +93,6 @@ public class ProfileWorkflowTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("Eyni Ad", "800 xal").anyMatch(text -> text.endsWith("· Oyunçu 12"));
+        assertThat(visibleText()).contains("Eyni Ad", "800 xal").anyMatch(text -> text.endsWith("· Oyunçu 12 · Qoşalar · Turnir"));
     }
 }

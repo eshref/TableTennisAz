@@ -1,4 +1,6 @@
 <resources>
+    <item name="profile_position" type="id" />
+    <item name="profile_history_action" type="id" />
     <item name="match_card" type="id" />
     <item name="clear_results_filters" type="id" />
     <item name="players_mode" type="id" />

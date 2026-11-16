@@ -160,6 +160,8 @@ final class WebsiteSource {
     ProfileLoad profile(long id, PlayerProfile previous, boolean more) throws IOException {
         String name = previous == null ? "" : previous.name;
         Integer points = previous == null ? null : previous.points;
+        String photoUrl = previous == null ? null : previous.photoUrl;
+        Integer amateurPosition = previous == null ? null : previous.amateurPosition;
         if (!more || previous == null) {
             Document document = Jsoup.parse(client.get("/players/" + id));
             Element sourceName = document.selectFirst("#center .player-block .name-div");
@@ -168,8 +170,30 @@ final class WebsiteSource {
                 throw new IOException("Unusable player identity");
             }
             name = sourceName.text();
+            Element photo = document.selectFirst("#center .player-block .player-block-picture img[src]");
+            photoUrl = photo == null ? null : client.photoUrl(photo.attr("src"));
             points = null;
-            for (RankingSnapshot.Player player : new RankingsSource(website).fetch()) if (player.id == id) points = player.points;
+            amateurPosition = null;
+            RankingsSource rankings = new RankingsSource(website);
+            List<RankingSnapshot.Player> amateurs = rankings.fetchAmateurs();
+            int position = 0;
+            Integer previousPoints = null;
+            for (int i = 0; i < amateurs.size(); i++) {
+                RankingSnapshot.Player player = amateurs.get(i);
+                if (previousPoints == null || previousPoints != player.points) position = i + 1;
+                previousPoints = player.points;
+                if (player.id == id) {
+                    points = player.points;
+                    amateurPosition = position;
+                    if (photoUrl == null) photoUrl = player.photoUrl;
+                }
+            }
+            if (points == null) {
+                for (RankingSnapshot.Player player : rankings.fetchProfessionals()) if (player.id == id) {
+                    points = player.points;
+                    if (photoUrl == null) photoUrl = player.photoUrl;
+                }
+            }
         }
         List<String> loaded = previous == null ? new ArrayList<>() : new ArrayList<>(previous.historyPages);
         List<String> requested = new ArrayList<>();
@@ -204,7 +228,7 @@ final class WebsiteSource {
         }
         List<MatchSummary> rows = new ArrayList<>(history.values());
         sortResults(rows);
-        return new ProfileLoad(new PlayerProfile(id, name, points, rows, loaded, next), verified);
+        return new ProfileLoad(new PlayerProfile(id, name, points, rows, loaded, next, photoUrl, amateurPosition), verified);
     }
 
     PairHistory pairHistory(DoublesPair pair, PairHistory previous, boolean more) throws IOException {

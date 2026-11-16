@@ -1,4 +1,10 @@
 <resources>
+    <string name="player_profile">Oyunçu profili</string>
+    <string name="player">Oyunçu</string>
+    <string name="amateur_player">Həvəskar oyunçu</string>
+    <string name="current_points">Cari xal</string>
+    <string name="amateur_position">Həvəskar mövqeyi</string>
+    <string name="position_unavailable">Mövqe mövcud deyil</string>
     <string name="match_singles">Tək</string>
     <string name="match_doubles">Qoşalar</string>
     <string name="match_duel">Duel</string>

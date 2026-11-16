@@ -1,5 +1,94 @@
 # Android verification
 
+## Player profile and match-history journey — issue #28
+
+Implemented [issue #28](https://github.com/eshref/TableTennisAz/issues/28) on
+`issue-28-player-profile`, starting at `f8758d4`. The native profile now groups
+the player's circular portrait or local silhouette with their full name and
+known amateur membership. A green summary separates current points from the
+amateur position; professional-only and unlisted players have an explicit
+unavailable position. Points are taken from known source rankings, never from
+the profile's unrelated `Reytinq` ratio. Amateur positions retain competition
+ties and skipped places.
+
+The existing verified profile response supplies optional portrait metadata,
+with the already requested ranking response as fallback. Image downloads reuse
+the shared asynchronous player cache and never participate in profile saves or
+update times. The serialized profile keeps its existing version identifier;
+older snapshots without photo or position fields remain usable. The dedicated
+Xal tarixçəsi destination stays separate. Profile history reuses Results'
+`MatchCard`, including singles/doubles identity, scores, source metadata and
+winner emphasis. Loaded history pages survive refresh and recreation.
+
+Compact Back/Refresh controls, secondary update information, explicit offline
+saved-data feedback and successful-refresh feedback replace the profile's
+stacked utility buttons. Long content scrolls and wide profiles have a bounded
+reading width. Scroll restoration now avoids replacing the saved position with
+the initial zero position when recreation immediately triggers a stale refresh.
+
+### Integration verification
+
+The complete native-UI/real-HTTP suite passed **136 cases**, with zero failures,
+errors or skips. Android lint, debug APK assembly and test APK assembly passed:
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/tmp/tabletennis-android-tools/sdk ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Existing profile, match, rating-history, freshness and failure journeys retain
+their source-identity, same-name attribution, navigation, empty/unavailable,
+atomic refresh, update-time and offline guarantees. `PlayerHistoryPagingTest`
+now also recreates and refreshes an already extended history before reopening
+its verified matches offline. Assertions use visible/accessible product output
+and external HTTP requests; saved files are only prepared as input.
+
+Five `ProfileStandingTest` cases cover dual-category eligibility, tied amateur
+positions, skipped positions, professional-only points, and an unlisted player
+without points. Two `ProfilePhotosTest` cases cover profile-photo precedence and
+ranking-photo fallback, genuine pre-change serialization, nonblocking delayed
+photos, recreation during image loading, failed replacement images, and durable
+offline reuse after clearing memory. `ProfileLayoutTest` adds eight cases across
+API 26/36, both themes, 320dp portrait and 891dp landscape at 150% text. They
+check full names, separate statistics, accessible identity, portrait fallback,
+reachable chart navigation and reading-position restoration after stale
+recreation. The standing and stale-scroll regressions failed before their
+respective implementations and passed afterward.
+
+### Installed Android verification
+
+`ProfileDeviceTest` passed on the API 26 x86_64 software emulator at 412 × 891 px
+and 160 dpi in light appearance, then passed again in dark appearance after a
+process restart with the same saved fixtures and Wi-Fi/mobile data disabled.
+It checks the selected portrait and points/position, opens the dedicated chart,
+follows a shared match card and participant profile, returns through real Android
+Back, and verifies retained ranking search after Activity recreation.
+
+Native profile screenshots were compared with Player profile in
+`docs/prototypes/android-final-ui-prototype.html` in both themes: portrait and
+identity grouping, rounded green statistics, chart action, secondary coverage,
+and shared bordered match cards agree with the reference. The actual saved
+records determine values, history coverage and source dates; illustrative times
+and records from the prototype are not added to the application.
+
+The disposable emulator needed a smaller task-owned userdata image and a
+ramdisk without forced encryption. Its initial System UI ANR was dismissed
+after startup settled. The first fixture attempt used a file-copy API absent on
+API 26; the copy loop was corrected. A subsequent selector matched both the
+ranking name and the search field; it now selects the complete accessible
+ranking row. The installed journey passed after those test corrections.
+
+### Artifact and limits
+
+The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. APK Signature
+Scheme v2 verification passes. SHA-256:
+`7d7411e9e13dde215d89d14cd6e9c47a17275632c8eb58548dfda1d5c74ed5a0`.
+
+Reports and native/reference screenshots are retained in the ignored
+`app/build/reports/issue28/` directory. This is fixture-backed verification;
+there was no new live-source application journey or physical-phone check.
+API 36 evidence is host integration, not an installed current-Android device.
+No APK, screenshots, branch or package was published remotely.
+
 ## Results feed cards and filters — issue #27
 
 Implemented [issue #27](https://github.com/eshref/TableTennisAz/issues/27) on
