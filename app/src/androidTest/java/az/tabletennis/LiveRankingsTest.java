@@ -16,10 +16,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** Opt-in: actual Android TLS/HTTP stack against both live website categories. */
+/** Opt-in: actual Android TLS/HTTP stack against the live amateur ranking. */
 @RunWith(AndroidJUnit4.class)
 public class LiveRankingsTest {
-    @Test public void bothLiveCategoriesProduceReadableRankings() {
+    @Test public void liveAmateurPlayersProduceReadableRankings() {
         // arrange
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         context.deleteFile("rankings.json");

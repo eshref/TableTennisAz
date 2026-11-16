@@ -225,7 +225,7 @@ public class RankingsActivity extends Activity {
 
     private void retrieveRankings() {
         try {
-            RankingSnapshot retrieved = new RankingSnapshot(source.fetch(), application.clock().millis());
+            RankingSnapshot retrieved = new RankingSnapshot(source.fetchAmateurs(), application.clock().millis());
             store.write(retrieved);
             runOnUiThread(() -> {
                 if (isDestroyed()) return;

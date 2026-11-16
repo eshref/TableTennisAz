@@ -38,7 +38,7 @@ public class DoublesFailureTest extends DoublesUiScenario {
         openScreen();
 
         // assert
-        awaitText("1. Şəms Quliyeva — 950 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
         clickText("Qoşalar");

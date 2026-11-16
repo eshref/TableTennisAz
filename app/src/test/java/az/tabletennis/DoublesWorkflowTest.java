@@ -15,7 +15,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
     @Test public void interruptedNamesKeepSearchIncompleteAllowOtherScreensAndResumeWithoutReplacingASavedRanking() throws Exception {
         // arrange
         prepareDoubles();
-        prepareProfile(11, "Şəms Quliyeva");
+        prepareProfile(12, "İlqar Həsənov");
         java.util.concurrent.CountDownLatch finishLookup = new java.util.concurrent.CountDownLatch(1);
         responses.put("/api/getDuoInfo?id=220", () -> {
             try { finishLookup.await(60, java.util.concurrent.TimeUnit.SECONDS); }
@@ -27,7 +27,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
             openScreen();
 
             // assert
-            awaitText("1. Şəms Quliyeva — 950 xal");
+            awaitText("1. İlqar Həsənov — 800 xal");
 
             // act
             clickText("Qoşalar");
@@ -42,14 +42,14 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
             clickText("Oyunçular");
 
             // assert
-            awaitText("1. Şəms Quliyeva — 950 xal");
+            awaitText("1. İlqar Həsənov — 800 xal");
 
             // act
-            clickText("1. Şəms Quliyeva — 950 xal");
+            clickText("1. İlqar Həsənov — 800 xal");
             followNavigation();
 
             // assert
-            awaitText("950 xal");
+            awaitText("800 xal");
 
             // act
             back();
@@ -110,7 +110,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         openScreen();
 
         // assert
-        awaitText("1. Şəms Quliyeva — 950 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
         assertThat(visibleText()).doesNotContain("1. İlqar Həsənov / Əli Məmmədov — 800 xal");
 
         // act
@@ -154,7 +154,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         openScreen();
 
         // assert
-        awaitText("1. Şəms Quliyeva — 950 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
         clickText("Qoşalar");

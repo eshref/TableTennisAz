@@ -29,35 +29,32 @@ public class RankingsFreshnessTest extends RankingsUiScenario {
 
     @Parameters(name = "{0}") public static Collection<Object[]> boundaries() {
         return Arrays.asList(new Object[][] {
-                {"below 15 minutes", 899_999L, null, "1. Şəms Quliyeva — 950 xal"},
-                {"exactly 15 minutes", 900_000L, null, "1. Şəms Quliyeva — 950 xal"},
-                {"above 15 minutes", 900_001L, "/players?level=amateur", "1. Yeni ad — 950 xal"}
+                {"below 15 minutes", 899_999L, null, "1. İlqar Həsənov — 800 xal"},
+                {"exactly 15 minutes", 900_000L, null, "1. İlqar Həsənov — 800 xal"},
+                {"above 15 minutes", 900_001L, "/players?level=amateur", "1. Yeni ad — 800 xal"}
         });
     }
 
     @Test public void reopeningShowsSavedRankingsBeforeRefreshingOnlyAboveTheBoundary() throws Exception {
         // arrange
         server.enqueue(html("amateur.html"));
-        server.enqueue(html("pro.html"));
         openScreen();
 
         // assert
-        awaitText("1. Şəms Quliyeva — 950 xal");
-        assertThat(server.takeRequest(1, TimeUnit.SECONDS)).isNotNull();
+        awaitText("1. İlqar Həsənov — 800 xal");
         assertThat(server.takeRequest(1, TimeUnit.SECONDS)).isNotNull();
 
         // arrange
         screen.pause().stop().destroy();
         FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, Duration.ofMillis(age));
-        server.enqueue(html("amateur.html").setBodyDelay(1, TimeUnit.SECONDS));
-        String changed = html("pro.html").getBody().readUtf8().replace("Şəms Quliyeva", "Yeni ad");
-        server.enqueue(new okhttp3.mockwebserver.MockResponse().setBody(changed));
+        String changed = html("amateur.html").getBody().readUtf8().replace("İlqar Həsənov", "Yeni ad");
+        server.enqueue(new okhttp3.mockwebserver.MockResponse().setBody(changed).setBodyDelay(1, TimeUnit.SECONDS));
 
         // act
         openScreen();
 
         // assert
-        assertThat(visibleText()).contains("1. Şəms Quliyeva — 950 xal");
+        assertThat(visibleText()).contains("1. İlqar Həsənov — 800 xal");
         assertThat(Optional.ofNullable(server.takeRequest(1, TimeUnit.SECONDS)).map(RecordedRequest::getPath).orElse(null))
                 .isEqualTo(expectedRequest);
         awaitText(expectedRow);

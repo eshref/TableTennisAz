@@ -26,10 +26,10 @@ public class DoublesNavigationTest extends DoublesUiScenario {
         openScreen();
 
         // assert
-        awaitText("1. Şəms Quliyeva — 950 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
-        ((EditText) activity().findViewById(R.id.search)).setText("şəms");
+        ((EditText) activity().findViewById(R.id.search)).setText("ışıl");
         clickText("Qoşalar");
 
         // assert
@@ -70,8 +70,8 @@ public class DoublesNavigationTest extends DoublesUiScenario {
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofMillis(100));
 
         // assert
-        assertThat(((EditText) activity().findViewById(R.id.search)).getText().toString()).isEqualTo("şəms");
-        assertThat(visibleText()).contains("1. Şəms Quliyeva — 950 xal").doesNotContain("2. İlqar Həsənov — 800 xal");
+        assertThat(((EditText) activity().findViewById(R.id.search)).getText().toString()).isEqualTo("ışıl");
+        assertThat(visibleText()).contains("3. Işıl Əliyeva — 600 xal").doesNotContain("1. İlqar Həsənov — 800 xal");
 
         // act
         clickText("Qoşalar");

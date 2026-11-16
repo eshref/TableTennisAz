@@ -1,5 +1,39 @@
 # Android verification
 
+## Amateur-only singles ranking — issue #14
+
+The confirmed change in [issue #14](https://github.com/eshref/TableTennisAz/issues/14)
+was implemented on `feat/14-amateur-rankings` on 2026-11-16. Singles rankings use
+the website's Amateur list, recalculate competition ranks, and keep search ranks.
+Professional profiles, results, and doubles participation remain accessible.
+Old unlabelled mixed rankings are ignored until an amateur download succeeds;
+new amateur snapshots remain available offline.
+
+The full application integration suite passed **58 cases**, with zero failures,
+errors, or skips. Android lint completed with zero errors and 16 warnings; the
+debug APK and Android test APK assembled successfully:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The amateur ranking/search/offline workflow passed on API 26 and API 36. The new
+`RankingsMigrationTest` covers old mixed data while offline, a failed initial
+download, successful amateur replacement, and offline relaunch. Existing profile,
+results, and doubles workflows retain professional-profile points and pairs.
+The ranking and migration regressions failed against their previous behavior
+before their respective implementation changes, then passed. Separate Standards
+and Spec reviews found no issues.
+
+The debug APK remains version 0.3.0, version code 3, at
+`app/build/outputs/apk/debug/app-debug.apk`; its APK v2 signature verifies.
+SHA-256: `59a5b7c149da98f49169cb6463aad3234fec1e8293fe362232dd4d7f154c4e86`.
+Verification logs and full-suite XML are retained under the ignored directory
+`app/build/reports/amateur-ranking-14-1patA3/`.
+
+No device or live-site tests were run for this change. The opt-in
+`LiveRankingsTest` now describes and exercises the amateur ranking.
+
 ## Doubles ranking — version 0.3.0
 
 The project owner explicitly requested implementation of the confirmed doubles

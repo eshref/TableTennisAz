@@ -31,10 +31,10 @@ public class RatingHistoryTest extends ProductUiScenario {
         openScreen();
 
         // assert
-        awaitText("2. İlqar Həsənov — 800 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
-        clickText("2. İlqar Həsənov — 800 xal");
+        clickText("1. İlqar Həsənov — 800 xal");
         followNavigation();
 
         // assert
@@ -59,10 +59,10 @@ public class RatingHistoryTest extends ProductUiScenario {
         restart();
 
         // assert
-        awaitText("2. İlqar Həsənov — 800 xal");
+        awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
-        clickText("2. İlqar Həsənov — 800 xal");
+        clickText("1. İlqar Həsənov — 800 xal");
         followNavigation();
         clickText("Xal tarixçəsi");
         followNavigation();
