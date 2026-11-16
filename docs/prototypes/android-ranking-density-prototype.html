@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark"><title>Ranking layouts — throwaway prototype</title>
+<style>
+body {margin:0;background:light-dark(#eef3ef,#0c1511);color:light-dark(#192d26,#e6efe9);font:14px/1.5 system-ui,sans-serif;padding:16px 0 100px;}
+body>header {max-width:390px;margin:0 auto;padding:0 16px;}
+body>header p {margin:0 0 5px;}
+body>header small {color:light-dark(#53675d,#afc3b7);}
+.prototype-variants>[hidden] {display:none!important;}
+#prototype-switcher {position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;box-sizing:border-box;width:360px;max-width:calc(100% - 20px);padding:6px;background:light-dark(#192d26,#e6efe9);color:light-dark(#ffffff,#192d26);border-radius:30px;box-shadow:0 4px 24px #0003;z-index:10;}
+#prototype-switcher button,#prototype-switcher select {color:inherit;background:transparent;border:0;font:14px system-ui;min-height:44px;border-radius:22px;}
+#prototype-switcher button {flex-shrink:0;min-width:44px;font-size:20px;cursor:pointer;}
+#prototype-switcher select {flex:1;min-width:0;max-width:210px;padding:0 4px;}
+#prototype-switcher option {color:#192d26;background:#ffffff;}
+#prototype-switcher button:focus-visible,#prototype-switcher select:focus-visible {outline:2px solid currentColor;}
+#prototype-state {font-size:11px;min-width:26px;}
+#standalone-controls {display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:12px;}
+#standalone-controls select {font:inherit;padding:5px;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;}
+</style>
+</head>
+<body>
+<header><p><strong>Ranking layouts · Throwaway prototype</strong></p><small>Compare ranking layouts with the bottom arrows or picker. Try Players / Doubles, search, and larger text. Sample data only; no server needed.</small>
+<div id="standalone-controls"><label>Appearance <select id="appearance"><option value="system">Device</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Text <select id="text-size"><option value="standard">Standard</option><option value="large">Large</option></select></label></div></header>
+<!-- THROWAWAY: Three ranking layouts answering Q4 of the Android UI/UX interview.
+     Open this file directly. All styles, data, interactions, and variant controls are inline.
+     ?variant=compact | comfortable | cards. No libraries, requests, or persistent storage.
+     The selected Navigation drawer and separate singles rating-history screen are retained. -->
+<div id="tt-navigation-options">
+  <style>
+    #tt-navigation-options { width:100%; font-family:system-ui,-apple-system,sans-serif; }
+    #tt-navigation-options .tt-stage { min-height:840px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:12px; padding:14px 8px 20px; }
+    #tt-navigation-options .tt-caption { max-width:100%; overflow-wrap:anywhere; color:light-dark(#52635f,#b3c6c0); font-size:12px; text-align:center; margin:0; }
+    #tt-navigation-options .tt-phone {
+      --tt-bg:light-dark(#f6f9f7,#101b18); --tt-surface:light-dark(#ffffff,#1a2823);
+      --tt-text:light-dark(#192d26,#e6efe9); --tt-sub:light-dark(#53675d,#afc3b7);
+      --tt-line:light-dark(#dbe5df,#34473d); --tt-accent:light-dark(#006b50,#81d6b2);
+      --tt-on-accent:light-dark(#ffffff,#003825); --tt-soft:light-dark(#d6eee1,#234b3a);
+      --tt-quiet:light-dark(#edf2ee,#25372d); --tt-warn:light-dark(#fff0cd,#4c3b18);
+      --tt-warn-text:light-dark(#614b13,#f5dda0);
+      box-sizing:border-box; min-width:0; width:100%; max-width:390px; height:744px; background:var(--tt-bg); color:var(--tt-text);
+      border:1px solid var(--tt-line); border-radius:26px; overflow:hidden; font-size:14px; line-height:1.45;
+      display:flex; flex-direction:column; position:relative; box-shadow:0 8px 32px light-dark(#142c2310,#00000025);
+    }
+    #tt-navigation-options .tt-phone * { box-sizing:border-box; }
+    #tt-navigation-options .tt-phone[data-appearance="light"] { color-scheme:light; }
+    #tt-navigation-options .tt-phone[data-appearance="dark"] { color-scheme:dark; }
+    #tt-navigation-options .tt-phone[data-text="large"] { font-size:17px; }
+    #tt-navigation-options .tt-phone button, #tt-navigation-options .tt-phone input, #tt-navigation-options .tt-phone select { font:inherit; color:inherit; }
+    #tt-navigation-options .tt-phone button { cursor:var(--cursor-interaction,pointer); }
+    #tt-navigation-options .tt-phone button:disabled { cursor:default; opacity:.65; }
+    #tt-navigation-options .tt-phone button { min-height:48px; }
+    #tt-navigation-options .tt-phone h2, #tt-navigation-options .tt-phone h3, #tt-navigation-options .tt-phone p { margin:0; }
+    #tt-navigation-options .tt-phone h2 { font-size:1.85em; font-weight:500; line-height:1.2; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-phone h3 { font-size:1.12em; font-weight:500; }
+    #tt-navigation-options .tt-phone strong { font-weight:500; }
+    #tt-navigation-options .tt-system { display:flex; flex-shrink:0; justify-content:space-between; align-items:center; padding:12px 22px 8px; font-size:12px; font-weight:500; }
+    #tt-navigation-options .tt-demo { font-size:11px; letter-spacing:.08em; color:var(--tt-sub); text-align:center; padding:1px 12px 8px; }
+    #tt-navigation-options .tt-screen { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
+    #tt-navigation-options .tt-header { padding:12px 20px 14px; flex-shrink:0; }
+    #tt-navigation-options .tt-brand { color:var(--tt-accent); font-size:12px; letter-spacing:.06em; margin-bottom:10px; }
+    #tt-navigation-options .tt-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    #tt-navigation-options .tt-sub { color:var(--tt-sub); }
+    #tt-navigation-options .tt-small { font-size:.86em; }
+    #tt-navigation-options .tt-text-button { border:0; background:transparent; color:var(--tt-accent); padding:0 8px; border-radius:10px; }
+    #tt-navigation-options .tt-freshness { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; color:var(--tt-sub); font-size:.82em; }
+    #tt-navigation-options .tt-body { padding:0 18px 18px; flex:1; min-height:0; overflow-y:auto; }
+    #tt-navigation-options .tt-segments { display:flex; background:var(--tt-quiet); border:1px solid var(--tt-line); border-radius:14px; padding:3px; margin:0 0 14px; }
+    #tt-navigation-options .tt-segments button { flex:1; border:0; background:transparent; border-radius:11px; padding:9px 6px; min-width:0; }
+    #tt-navigation-options .tt-segments button[aria-pressed="true"] { color:var(--tt-on-accent); background:var(--tt-accent); font-weight:500; }
+    #tt-navigation-options .tt-search { display:flex; align-items:center; gap:8px; background:var(--tt-surface); border:1px solid var(--tt-line); border-radius:14px; min-height:50px; padding:0 13px; margin-bottom:12px; }
+    #tt-navigation-options .tt-search input { width:100%; min-width:0; border:0; background:transparent; min-height:48px; font-size:16px; }
+    #tt-navigation-options .tt-search input::placeholder { color:var(--tt-sub); opacity:1; }
+    #tt-navigation-options .tt-hint { color:var(--tt-sub); font-size:.82em; margin-bottom:14px !important; }
+    #tt-navigation-options .tt-list-label { display:flex; justify-content:space-between; gap:10px; font-size:.78em; color:var(--tt-sub); padding:8px 6px; }
+    #tt-navigation-options .tt-ranking-row { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:13px 6px; min-height:70px; border:0; border-bottom:1px solid var(--tt-line); background:transparent; }
+    #tt-navigation-options .tt-rank { flex:0 0 24px; color:var(--tt-sub); text-align:center; font-variant-numeric:tabular-nums; }
+    #tt-navigation-options .tt-name { flex:1; min-width:0; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-name span { display:block; }
+    #tt-navigation-options .tt-initials { display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border-radius:50%; background:var(--tt-soft); color:var(--tt-accent); font-size:.85em; }
+    #tt-navigation-options .tt-points { text-align:right; font-variant-numeric:tabular-nums; flex-shrink:0; font-weight:500; }
+    #tt-navigation-options .tt-points small { display:block; font-size:.75em; color:var(--tt-sub); font-weight:400; }
+    #tt-navigation-options .tt-movement { color:var(--tt-accent); font-size:.78em; font-weight:500; }
+    #tt-navigation-options .tt-bottom { display:flex; flex-shrink:0; gap:8px; background:var(--tt-surface); border-top:1px solid var(--tt-line); padding:9px 18px 15px; }
+    #tt-navigation-options .tt-bottom button { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 10px; border:0; background:transparent; border-radius:18px; color:var(--tt-sub); font-size:.86em; }
+    #tt-navigation-options .tt-bottom button[aria-current="page"] { color:var(--tt-accent); background:var(--tt-soft); font-weight:500; }
+    #tt-navigation-options .tt-phone i[data-lucide], #tt-navigation-options .tt-phone svg.lucide { display:inline-block; flex-shrink:0; width:19px; height:19px; vertical-align:middle; }
+    #tt-navigation-options .tt-top-tabs { display:flex; padding:0 18px; gap:22px; border-bottom:1px solid var(--tt-line); margin-bottom:18px; }
+    #tt-navigation-options .tt-top-tabs button { min-height:50px; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--tt-sub); padding:10px 0; flex:1; }
+    #tt-navigation-options .tt-top-tabs button[aria-current="page"] { color:var(--tt-accent); border-bottom-color:var(--tt-accent); font-weight:500; }
+    #tt-navigation-options .tt-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 18px; }
+    #tt-navigation-options .tt-toolbar .tt-wordmark { font-size:1.08em; font-weight:500; }
+    #tt-navigation-options [data-layout="tabs"] .tt-header { padding-top:0; padding-bottom:12px; }
+    #tt-navigation-options [data-layout="tabs"] .tt-header h2 { font-size:1.4em; }
+    #tt-navigation-options [data-layout="tabs"] .tt-ranking-row { min-height:58px; padding:12px 4px; }
+    #tt-navigation-options [data-layout="tabs"] .tt-initials { display:none; }
+    #tt-navigation-options [data-layout="tabs"] .tt-segments { background:transparent; border:0; padding:0; border-radius:0; gap:8px; }
+    #tt-navigation-options [data-layout="tabs"] .tt-segments button { border:1px solid var(--tt-line); border-radius:24px; flex:0 1 auto; padding:9px 16px; }
+    #tt-navigation-options [data-layout="drawer"] .tt-header { background:var(--tt-soft); margin:0 0 18px; padding:14px 20px 20px; }
+    #tt-navigation-options [data-layout="drawer"] .tt-header h2 { font-size:2.2em; }
+    #tt-navigation-options [data-layout="drawer"] .tt-ranking-row { background:var(--tt-surface); border:1px solid var(--tt-line); border-radius:15px; padding:14px 12px; margin:0 0 9px; }
+    #tt-navigation-options [data-layout="drawer"] .tt-list-label { padding-left:14px; padding-right:14px; }
+    #tt-navigation-options .tt-filter-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    #tt-navigation-options .tt-filter-row button { min-height:44px; border:1px solid var(--tt-line); border-radius:22px; background:var(--tt-surface); padding:7px 11px; font-size:.86em; }
+    #tt-navigation-options .tt-filter-row button[aria-pressed="true"] { background:var(--tt-soft); color:var(--tt-accent); border-color:var(--tt-soft); font-weight:500; }
+    #tt-navigation-options .tt-event-label { display:block; font-size:.82em; color:var(--tt-sub); margin-bottom:4px; }
+    #tt-navigation-options .tt-event { width:100%; min-height:48px; padding:10px 12px; border:1px solid var(--tt-line); border-radius:12px; background:var(--tt-surface); margin-bottom:12px; }
+    #tt-navigation-options .tt-notice { background:var(--tt-quiet); padding:10px 12px; border-radius:10px; color:var(--tt-sub); font-size:.82em; margin-bottom:14px; }
+    #tt-navigation-options .tt-match-card { display:block; width:100%; text-align:left; padding:14px; border:1px solid var(--tt-line); border-radius:15px; background:var(--tt-surface); margin-bottom:10px; }
+    #tt-navigation-options .tt-match-meta { display:flex; justify-content:space-between; gap:8px; color:var(--tt-sub); font-size:.78em; margin-bottom:9px; }
+    #tt-navigation-options .tt-match-side { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:5px 0; }
+    #tt-navigation-options .tt-match-side span:first-child { min-width:0; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-score { font-size:1.2em; font-weight:500; font-variant-numeric:tabular-nums; flex-shrink:0; }
+    #tt-navigation-options [data-layout="tabs"] .tt-match-card { background:transparent; border:0; border-bottom:1px solid var(--tt-line); border-radius:0; padding:12px 0; margin:0; }
+    #tt-navigation-options .tt-more { display:block; min-height:48px; width:100%; padding:10px; border:1px solid var(--tt-line); border-radius:12px; color:var(--tt-accent); background:transparent; margin-top:14px; }
+    #tt-navigation-options .tt-detail-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 12px 10px; border-bottom:1px solid var(--tt-line); margin-bottom:20px; }
+    #tt-navigation-options .tt-detail-title { font-weight:500; }
+    #tt-navigation-options .tt-profile { padding:0 20px 18px; flex:1; min-height:0; overflow-y:auto; }
+    #tt-navigation-options .tt-profile-head { padding:0 0 22px; }
+    #tt-navigation-options .tt-profile-head .tt-initials { width:54px; height:54px; margin-bottom:12px; display:grid; font-size:1.2em; }
+    #tt-navigation-options .tt-profile-head h2 { font-size:1.7em; }
+    #tt-navigation-options .tt-stats { display:flex; gap:24px; padding:18px 0; border-bottom:1px solid var(--tt-line); }
+    #tt-navigation-options .tt-stat-number { display:block; font-size:1.65em; font-weight:500; }
+    #tt-navigation-options .tt-section-title { margin:20px 0 12px !important; }
+    #tt-navigation-options .tt-link { display:block; padding:12px 0; min-height:48px; width:100%; border:0; background:transparent; text-align:left; color:var(--tt-accent); }
+    #tt-navigation-options .tt-medals { display:flex; justify-content:space-between; gap:12px; background:var(--tt-quiet); border-radius:14px; padding:14px; margin-top:14px; font-size:.86em; }
+    #tt-navigation-options .tt-chart { padding:16px 0; }
+    #tt-navigation-options .tt-chart svg { display:block; width:100%; height:130px; overflow:visible; }
+    #tt-navigation-options .tt-chart line { stroke:var(--tt-line); stroke-width:1; }
+    #tt-navigation-options .tt-chart polyline { stroke:var(--tt-accent); stroke-width:3; fill:none; }
+    #tt-navigation-options .tt-chart circle { fill:var(--tt-accent); }
+    #tt-navigation-options .tt-chart text { fill:var(--tt-sub); font-size:12px; font-family:inherit; }
+    #tt-navigation-options .tt-observations { display:flex; flex-direction:column; gap:8px; margin:18px 0 0; }
+    #tt-navigation-options .tt-observation { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid var(--tt-line); }
+    #tt-navigation-options .tt-scoreboard { background:var(--tt-soft); border-radius:18px; padding:20px 16px; margin:16px 0; }
+    #tt-navigation-options .tt-scoreboard .tt-match-side { align-items:flex-start; margin:8px 0; }
+    #tt-navigation-options .tt-scoreboard .tt-link { padding:0; min-height:48px; }
+    #tt-navigation-options .tt-scoreboard .tt-score { font-size:2em; line-height:1.2; }
+    #tt-navigation-options .tt-player-links { flex:1; min-width:0; }
+    #tt-navigation-options .tt-player-links .tt-link { min-height:48px; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-drawer-backdrop { position:absolute; inset:0; background:#00000055; z-index:3; display:flex; }
+    #tt-navigation-options .tt-drawer { width:84%; max-width:300px; background:var(--tt-surface); border-radius:0 20px 20px 0; padding:26px 18px; }
+    #tt-navigation-options .tt-drawer h3 { margin:12px 8px 26px; }
+    #tt-navigation-options .tt-drawer button { width:100%; text-align:left; padding:13px 18px; border:0; border-radius:14px; background:transparent; margin:4px 0; }
+    #tt-navigation-options .tt-drawer button[aria-current="page"] { background:var(--tt-soft); color:var(--tt-accent); }
+    #tt-navigation-options .tt-empty { padding:38px 12px; text-align:center; }
+    #tt-navigation-options .tt-empty h3 { margin-bottom:8px; }
+    #tt-navigation-options .tt-state { width:100%; max-width:390px; color:light-dark(#52635f,#b3c6c0); font-size:11px; overflow-wrap:anywhere; text-align:center; }
+    #tt-navigation-options .tt-state summary { cursor:var(--cursor-interaction,pointer); padding:5px; }
+    #tt-navigation-options .tt-state pre { white-space:pre-wrap; text-align:left; margin:8px 0; font:11px/1.5 ui-monospace,monospace; }
+    @media(max-width:360px) {
+      #tt-navigation-options .tt-stage { padding-left:0; padding-right:0; }
+      #tt-navigation-options .tt-phone { border-radius:18px; }
+      #tt-navigation-options .tt-body { padding-left:12px; padding-right:12px; }
+      #tt-navigation-options .tt-header { padding-left:14px; padding-right:14px; }
+      #tt-navigation-options .tt-ranking-row { gap:8px; }
+      #tt-navigation-options .tt-initials { display:none; }
+    }
+    #tt-navigation-options .tt-toolbar { min-width:0; padding-left:10px; padding-right:14px; }
+    #tt-navigation-options .tt-toolbar .tt-wordmark { min-width:0; font-size:1em; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-phone .tt-ranking-row { background:transparent; border:0; border-bottom:1px solid var(--tt-line); border-radius:0; margin:0; }
+    #tt-navigation-options .tt-phone .tt-compact-row { min-height:56px; padding:10px 2px; gap:10px; }
+    #tt-navigation-options .tt-phone .tt-compact-row .tt-rank { flex-basis:25px; }
+    #tt-navigation-options .tt-phone .tt-comfortable-row { min-height:84px; padding:16px 2px; gap:12px; align-items:center; }
+    #tt-navigation-options .tt-portrait { width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; background:var(--tt-soft); color:var(--tt-accent); font-size:.88em; }
+    #tt-navigation-options .tt-person-summary { flex:1; min-width:0; }
+    #tt-navigation-options .tt-person-summary .tt-name { display:block; }
+    #tt-navigation-options .tt-secondary-line { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:6px; font-size:.88em; }
+    #tt-navigation-options .tt-secondary-line .tt-points { color:var(--tt-sub); font-weight:400; }
+    #tt-navigation-options .tt-secondary-line .tt-movement { font-size:1em; }
+    #tt-navigation-options .tt-rank-badge { flex-shrink:0; display:flex; flex-direction:column; text-align:right; }
+    #tt-navigation-options .tt-rank-badge .tt-rank { color:var(--tt-text); font-size:1.1em; text-align:right; flex-basis:auto; }
+    #tt-navigation-options .tt-rank-badge .tt-sub { font-size:.75em; }
+    #tt-navigation-options .tt-ranking-card { display:block; width:100%; border:1px solid var(--tt-line); border-radius:18px; background:var(--tt-surface); color:var(--tt-text); text-align:left; padding:16px; min-height:138px; margin:0 0 12px; }
+    #tt-navigation-options .tt-card-top { display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center; gap:8px; color:var(--tt-sub); font-size:.82em; }
+    #tt-navigation-options .tt-card-top .tt-movement { font-size:1em; }
+    #tt-navigation-options .tt-card-name { display:block; font-size:1.16em; margin:12px 0 14px; font-weight:500; overflow-wrap:anywhere; }
+    #tt-navigation-options .tt-card-name>span { display:block; }
+    #tt-navigation-options .tt-card-bottom { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding-top:10px; border-top:1px solid var(--tt-line); }
+    #tt-navigation-options .tt-card-bottom .tt-sub { font-size:.82em; }
+    #tt-navigation-options .tt-card-points { font-size:1.45em; font-weight:500; font-variant-numeric:tabular-nums; }
+    #tt-navigation-options .tt-phone[data-density="compact"] .tt-list-label { padding-left:2px; padding-right:2px; }
+    #tt-navigation-options .tt-phone[data-density="comfortable"] .tt-list-label { padding-left:2px; padding-right:2px; }
+    #tt-navigation-options .tt-phone .tt-local-icon { display:inline-block; font-size:24px; width:22px; color:var(--tt-sub); flex-shrink:0; }
+  </style>
+  <div class="prototype-variants" aria-label="Ranking layout designs">
+    <section data-variant="Compact rows" aria-label="Compact rows">
+      <div class="tt-stage">
+        <p class="tt-caption">Aligned rank, name, and points columns. The most rows per screen.</p>
+        <div class="tt-phone" lang="az" data-layout="drawer" data-density="compact" aria-label="Compact rows Android preview"></div>
+        <details class="tt-state"><summary>Preview state · Compact rows</summary><pre></pre></details>
+      </div>
+    </section>
+    <section data-variant="Comfortable rows" aria-label="Comfortable rows" hidden>
+      <div class="tt-stage">
+        <p class="tt-caption">Names and points grouped together, with initials and a separate rank badge.</p>
+        <div class="tt-phone" lang="az" data-layout="drawer" data-density="comfortable" aria-label="Comfortable rows Android preview"></div>
+        <details class="tt-state"><summary>Preview state · Comfortable rows</summary><pre></pre></details>
+      </div>
+    </section>
+    <section data-variant="Player cards" aria-label="Player cards" hidden>
+      <div class="tt-stage">
+        <p class="tt-caption">Each player or pair gets a full card, with more space around names and points.</p>
+        <div class="tt-phone" lang="az" data-layout="drawer" data-density="cards" aria-label="Player cards Android preview"></div>
+        <details class="tt-state"><summary>Preview state · Player cards</summary><pre></pre></details>
+      </div>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('tt-navigation-options');
+      const players = [
+        {id:'p1', name:'Rəşad Məmmədov', points:842, rank:1},
+        {id:'p2', name:'Aysel Əliyeva', points:816, rank:2},
+        {id:'p3', name:'Elvin Həsənov', points:816, rank:2},
+        {id:'p4', name:'Nigar Hüseynova', points:784, rank:4},
+        {id:'p5', name:'Tural İsmayılov', points:769, rank:5},
+        {id:'p6', name:'Fəridə Əbdürrəhmanova', points:742, rank:6},
+        {id:'p7', name:'Orxan Quliyev', points:728, rank:7}
+      ];
+      const pairs = [
+        {id:'d1', members:['p1','p2'], points:1218, rank:1, movement:2},
+        {id:'d2', members:['p3','p4'], points:1170, rank:2, movement:0},
+        {id:'d3', members:['p5','p6'], points:1142, rank:3, movement:1},
+        {id:'d4', members:['p1','p7'], points:1095, rank:4, movement:0}
+      ];
+      const matches = [
+        {id:'m1', sides:[['p1'],['p3']], score:[3,1], date:'16 noyabr', event:'Bakı həvəskarlar kuboku', type:'event'},
+        {id:'m2', sides:[['p2'],['p4']], score:[2,3], date:'16 noyabr', event:'Duel', type:'duel'},
+        {id:'m3', sides:[['p1','p2'],['p3','p4']], score:[3,2], date:'15 noyabr', event:'Bakı həvəskarlar kuboku', type:'event'},
+        {id:'m4', sides:[['p5'],['p7']], score:[3,0], date:'15 noyabr', event:'Payız liqası', type:'event'},
+        {id:'m5', sides:[['p1'],['p5']], score:[3,2], date:'14 noyabr', event:'Duel', type:'duel'},
+        {id:'m6', sides:[['p5','p6'],['p1','p7']], score:[1,3], date:'14 noyabr', event:'Duel', type:'duel'}
+      ];
+      const names = {compact:'Compact rows', comfortable:'Comfortable rows', cards:'Player cards'};
+      const player = id => players.find(p => p.id === id);
+      const pair = id => pairs.find(p => p.id === id);
+      const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const initials = name => name.split(' ').map(p => p[0]).slice(0,2).join('');
+      const icon = name => `<span class="tt-local-icon" aria-hidden="true">${name === 'search' ? '⌕' : ''}</span>`;
+      const action = (label, act, attrs='') => `<button type="button" class="tt-text-button" data-action="${act}" ${attrs}>${label}</button>`;
+
+        const sharedState = {
+          destination:'rankings', screen:'root', mode:'players',
+          queries:{players:'',doubles:''}, resultType:'all', event:'all',
+          playerId:null, pairId:null, matchId:null, history:[], drawer:false,
+          appearance:'system', text:'standard', refreshed:false, more:false, chart:'points'
+        };
+
+      root.querySelectorAll('.tt-phone').forEach(phone => {
+        const layout = phone.dataset.layout;
+        const density = phone.dataset.density;
+        const state = sharedState;
+        const scrollPositions = new Map();
+        const screenKey = () => state.screen === 'root' ? `${state.destination}/${state.mode}` : `${state.screen}/${state.playerId}/${state.pairId}/${state.matchId}`;
+        const rememberScroll = () => scrollPositions.set(screenKey(), phone.querySelector('.tt-body,.tt-profile')?.scrollTop || 0);
+        const restoreScroll = () => {
+          const content = phone.querySelector('.tt-body,.tt-profile');
+          if (content) content.scrollTop = scrollPositions.get(screenKey()) || 0;
+        };
+        const visibleMatches = () => matches.filter(m =>
+          (state.resultType === 'all' || m.type === state.resultType) &&
+          (state.resultType === 'duel' || state.event === 'all' || m.event === state.event));
+        const participantNames = side => side.map(id => player(id).name).join(' / ');
+        const matchCard = m => `<button type="button" class="tt-match-card" data-action="match" data-id="${m.id}" aria-label="${escape(participantNames(m.sides[0]))}, ${m.score[0]} – ${m.score[1]}, ${escape(participantNames(m.sides[1]))}">
+          <div class="tt-match-meta"><span>${m.date} · ${m.sides[0].length === 2 ? 'Qoşalar' : 'Tək'}</span><span>${m.type === 'duel' ? 'Duel' : 'Turnir'}</span></div>
+          ${m.sides.map((side,i) => `<div class="tt-match-side"><span>${m.score[i] > m.score[1-i] ? '<strong>' : ''}${escape(participantNames(side))}${m.score[i] > m.score[1-i] ? '</strong>' : ''}</span><span class="tt-score">${m.score[i]}</span></div>`).join('')}
+          <div class="tt-small tt-sub">${escape(m.event)}</div>
+        </button>`;
+        const nav = css => `<nav class="${css}" aria-label="Əsas bölmələr">
+          <button type="button" data-action="destination" data-id="rankings" ${state.destination === 'rankings' ? 'aria-current="page"' : ''}>${css === 'tt-bottom' ? icon('list-ordered') : ''}<span>Reytinq</span></button>
+          <button type="button" data-action="destination" data-id="results" ${state.destination === 'results' ? 'aria-current="page"' : ''}>${css === 'tt-bottom' ? icon('trophy') : ''}<span>Nəticələr</span></button>
+        </nav>`;
+        const toolbar = () => layout === 'drawer'
+          ? `<div class="tt-toolbar">${action('☰ Menyu','drawer','aria-label="Əsas menyunu aç"')}<span class="tt-wordmark">tabletennis.az</span></div>`
+          : layout === 'tabs' ? `<div class="tt-toolbar"><span class="tt-wordmark">tabletennis.az</span>${action('Yenilə','refresh')}</div>${nav('tt-top-tabs')}` : '';
+        const header = (title,subtitle) => `<header class="tt-header">
+          ${layout === 'bottom' ? '<div class="tt-brand">TABLETENNIS.AZ</div>' : ''}
+          <div class="tt-title"><h2>${title}</h2>${layout === 'tabs' ? '' : action('Yenilə','refresh')}</div>
+          ${subtitle ? `<p class="tt-small tt-sub" style="margin-top:6px">${subtitle}</p>` : ''}
+          <div class="tt-freshness"><span>${state.refreshed ? 'İndi yeniləndi' : 'Yenilənib · 14:30'}</span><span>16 noyabr</span></div>
+        </header>`;
+        const entryNames = (entry, doubles) => doubles
+          ? entry.members.map(id => `<span>${escape(player(id).name)}</span>`).join('')
+          : `<span>${escape(entry.name)}</span>`;
+        const entryAction = (entry, doubles) => `data-action="${doubles ? 'pair' : 'player'}" data-id="${entry.id}"`;
+        const movement = (entry, doubles) => doubles && entry.movement
+          ? `<span class="tt-movement">↑ ${entry.movement} pillə</span>` : '';
+        function renderCompactRows(entries, doubles) {
+          return entries.map(entry => `<button type="button" class="tt-ranking-row tt-compact-row" ${entryAction(entry,doubles)}>
+            <span class="tt-rank">${entry.rank}</span>
+            <span class="tt-name">${entryNames(entry,doubles)}${movement(entry,doubles)}</span>
+            <span class="tt-points">${entry.points}</span>
+          </button>`).join('');
+        }
+        function renderComfortableRows(entries, doubles) {
+          return entries.map(entry => `<button type="button" class="tt-ranking-row tt-comfortable-row" ${entryAction(entry,doubles)}>
+            <span class="tt-portrait" aria-hidden="true">${doubles ? 'Q' : initials(entry.name)}</span>
+            <span class="tt-person-summary"><span class="tt-name">${entryNames(entry,doubles)}</span><span class="tt-secondary-line"><span class="tt-points">${entry.points} xal</span>${movement(entry,doubles)}</span></span>
+            <span class="tt-rank-badge"><span class="tt-rank">#${entry.rank}</span><span class="tt-sub">mövqe</span></span>
+          </button>`).join('');
+        }
+        function renderPlayerCards(entries, doubles) {
+          return entries.map(entry => `<button type="button" class="tt-ranking-card" ${entryAction(entry,doubles)}>
+            <span class="tt-card-top"><span class="tt-rank-label">#${entry.rank} · ${doubles ? 'Qoşa' : 'Həvəskar oyunçu'}</span>${movement(entry,doubles)}</span>
+            <span class="tt-card-name">${entryNames(entry,doubles)}</span>
+            <span class="tt-card-bottom"><span class="tt-sub">Reytinq xalı</span><span class="tt-card-points">${entry.points}</span></span>
+          </button>`).join('');
+        }
+        const rankingContent = () => {
+          const doubles = state.mode === 'doubles';
+          const query = state.queries[state.mode].toLocaleLowerCase('az-AZ');
+          const rows = (doubles ? pairs : players).filter(p => (doubles ? p.members.map(id => player(id).name).join(' ') : p.name).toLocaleLowerCase('az-AZ').includes(query));
+          return `${header('Reytinq',layout === 'drawer' ? 'Oyununu izlə. Rəqiblərini tanı.' : '')}
+            <div class="tt-body">
+              <div class="tt-segments" role="group" aria-label="Reytinq növü">
+                <button type="button" data-action="mode" data-id="players" aria-pressed="${!doubles}">Oyunçular</button>
+                <button type="button" data-action="mode" data-id="doubles" aria-pressed="${doubles}">Qoşalar</button>
+              </div>
+              <label class="tt-search">${icon('search')}<input type="search" data-search aria-label="${doubles ? 'Qoşada oyunçu axtar' : 'Oyunçu axtar'}" placeholder="${doubles ? 'Oyunçulardan birini axtar' : 'Oyunçu axtar'}" value="${escape(state.queries[state.mode])}"></label>
+              <p class="tt-hint">${doubles ? 'Hər tərəfdaşlıq ayrıca sıralanır.' : 'Həvəskar oyunçular · Xala görə sıralanır'}</p>
+              <div data-rows>
+              <div class="tt-list-label"><span>${density === 'compact' ? 'Mövqe · ' : ''}${doubles ? 'Qoşa' : 'Oyunçu'}</span><span>${density === 'compact' ? 'Xal' : density === 'comfortable' ? 'Mövqe' : 'Xala görə sıralanır'}</span></div>
+              ${density === 'compact' ? renderCompactRows(rows,doubles) : density === 'comfortable' ? renderComfortableRows(rows,doubles) : renderPlayerCards(rows,doubles)}
+              ${rows.length ? '' : '<div class="tt-empty"><h3>Oyunçu tapılmadı</h3><p class="tt-sub">Başqa adla axtarış edin.</p></div>'}
+              </div>
+            </div>`;
+        };
+        const resultsContent = () => `${header('Nəticələr','Turnir oyunları və duellər')}
+          <div class="tt-body">
+            <div class="tt-filter-row" role="group" aria-label="Nəticə növü">
+              ${[['all','Hamısı'],['event','Turnirlər'],['duel','Duellər']].map(([id,label]) => `<button type="button" data-action="filter" data-id="${id}" aria-pressed="${state.resultType === id}">${label}</button>`).join('')}
+            </div>
+            ${state.resultType === 'duel' ? '' : `<label class="tt-event-label" for="tt-event-${density}">Turnir</label><select id="tt-event-${density}" class="tt-event" data-event aria-label="Turnir seçin">${[['all','Bütün turnirlər'],['Bakı həvəskarlar kuboku','Bakı həvəskarlar kuboku'],['Payız liqası','Payız liqası']].map(([value,label]) => `<option value="${value}" ${state.event === value ? 'selected' : ''}>${label}</option>`).join('')}</select>`}
+            <div class="tt-notice">Yüklənmiş nəticələr göstərilir. Siyahı bütün son oyunları əhatə etməyə bilər.</div>
+            ${visibleMatches().slice(0,state.more ? 6 : 3).map(matchCard).join('')}
+            ${visibleMatches().length > 3 && !state.more ? '<button type="button" class="tt-more" data-action="more">Daha çox yüklə</button>' : ''}
+          </div>`;
+        const detailBar = title => `<div class="tt-detail-bar">${action('‹ Geri','back')}<span class="tt-detail-title">${title}</span>${action('Yenilə','refresh')}</div>`;
+        const chart = () => {
+          const rank = state.screen === 'pair' && state.chart === 'rank';
+          const current = state.screen === 'pair' ? pair(state.pairId) : player(state.playerId);
+          const values = rank ? [current.rank+2,current.rank+1,current.rank+1,current.rank] : [current.points-52,current.points-38,current.points-26,current.points];
+          return `<div class="tt-chart"><svg viewBox="0 0 320 130" role="img" aria-label="${rank ? 'Nümunə mövqelər' : 'Nümunə xallar'}: ${values.join(', ')}">
+            <line x1="30" y1="12" x2="312" y2="12"/><line x1="30" y1="94" x2="312" y2="94"/>
+            <text x="0" y="17">${values[3]}</text><text x="0" y="98">${values[0]}</text>
+            <polyline points="34,94 128,${rank ? 53 : 72} 222,53 310,12"/>
+            <circle cx="34" cy="94" r="4"/><circle cx="128" cy="${rank ? 53 : 72}" r="4"/><circle cx="222" cy="53" r="4"/><circle cx="310" cy="12" r="4"/>
+            <text x="30" y="122">01 noy</text><text x="310" y="122" text-anchor="end">16 noy</text>
+          </svg></div>`;
+        };
+        const profileContent = () => {
+          const doubles = state.screen === 'pair';
+          const p = doubles ? pair(state.pairId) : player(state.playerId);
+          const title = doubles ? 'Qoşa profili' : 'Oyunçu profili';
+          const relevant = matches.filter(m => doubles ? m.sides.some(side => side.length === 2 && p.members.every(id => side.includes(id))) : m.sides.some(side => side.includes(p.id)));
+          return `${detailBar(title)}<div class="tt-profile">
+            <header class="tt-profile-head">
+              ${doubles ? p.members.map(id => `<button type="button" class="tt-link" data-action="player" data-id="${id}">${escape(player(id).name)} ›</button>`).join('') : `<span class="tt-initials" aria-hidden="true">${initials(p.name)}</span><h2>${escape(p.name)}</h2><p class="tt-small tt-sub">Həvəskar oyunçu</p>`}
+              <div class="tt-stats"><div><span class="tt-stat-number">${p.points}</span><span class="tt-small tt-sub">${doubles ? 'Qoşa xalı' : 'Cari xal'}</span></div><div><span class="tt-stat-number">#${p.rank}</span><span class="tt-small tt-sub">${doubles ? 'Dərc olunmuş mövqe' : 'Həvəskar mövqeyi'}</span></div></div>
+              <div class="tt-freshness">Xal və mövqe · 16 noyabr, 14:30</div>
+              ${doubles ? '<div class="tt-medals"><span>Qızıl · 2</span><span>Gümüş · 1</span><span>Bürünc · 3</span></div>' : '<button type="button" class="tt-link" data-action="chart">Xal tarixçəsi →</button>'}
+            </header>
+            ${doubles ? `<h3>Qoşanın tarixçəsi</h3><p class="tt-small tt-sub">Bu cihazda saxlanmış müşahidələr</p><div class="tt-segments" role="group" aria-label="Tarixçə növü" style="margin-top:12px"><button type="button" data-action="chart-mode" data-id="points" aria-pressed="${state.chart === 'points'}">Xal</button><button type="button" data-action="chart-mode" data-id="rank" aria-pressed="${state.chart === 'rank'}">Mövqe</button></div>${chart()}` : ''}
+            <h3 class="tt-section-title">Oyunlar</h3>${relevant.map(matchCard).join('') || '<p class="tt-sub">Saxlanmış oyun yoxdur.</p>'}
+          </div>`;
+        };
+        const chartContent = () => `${detailBar('Xal tarixçəsi')}<div class="tt-profile"><h2>${escape(player(state.playerId).name)}</h2><p class="tt-sub tt-small" style="margin-top:8px">Reytinq xallarının dəyişməsi</p>${chart()}<div class="tt-observations">${[['01 noyabr',52],['06 noyabr',38],['11 noyabr',26],['16 noyabr',0]].map(([date,offset]) => `<div class="tt-observation"><span class="tt-sub">${date}</span><strong>${player(state.playerId).points-offset} xal</strong></div>`).join('')}</div></div>`;
+        const matchContent = () => {
+          const m = matches.find(match => match.id === state.matchId);
+          return `${detailBar('Oyun təfərrüatları')}<div class="tt-profile"><div class="tt-small tt-sub">${m.type === 'duel' ? 'Duel' : 'Turnir'} · ${m.sides[0].length === 2 ? 'Qoşalar' : 'Tək'}</div><h2 style="font-size:1.5em;margin-top:6px">${escape(m.event)}</h2><p class="tt-sub tt-small" style="margin-top:8px">${m.date} 2026</p>
+            <div class="tt-scoreboard">${m.sides.map((side,i) => `<div class="tt-match-side"><div class="tt-player-links">${side.map(id => `<button type="button" class="tt-link" data-action="player" data-id="${id}">${escape(player(id).name)} ›</button>`).join('')}</div><span class="tt-score">${m.score[i]}</span></div>`).join('')}</div>
+            <p class="tt-small tt-sub">Oyunçu profilini açmaq üçün adına toxunun.</p>
+          </div>`;
+        };
+        function render() {
+          phone.dataset.appearance = state.appearance;
+          phone.dataset.text = state.text;
+          phone.innerHTML = `<div class="tt-system"><span>14:35</span><span>LTE · 92%</span></div><div class="tt-demo">NÜMUNƏ MƏLUMATLAR</div>
+            <div class="tt-screen">${state.screen === 'root' ? toolbar() + (state.destination === 'rankings' ? rankingContent() : resultsContent()) + (layout === 'bottom' ? nav('tt-bottom') : '') : state.screen === 'match' ? matchContent() : state.screen === 'chart' ? chartContent() : profileContent()}</div>
+            ${state.drawer ? `<div class="tt-drawer-backdrop" data-dismiss-drawer><div class="tt-drawer" role="dialog" aria-modal="true" aria-label="Əsas menyu"><button type="button" data-action="close-drawer">‹ Bağla</button><h3>tabletennis.az</h3><nav aria-label="Əsas bölmələr"><button type="button" data-action="destination" data-id="rankings" ${state.destination === 'rankings' ? 'aria-current="page"' : ''}>Reytinq</button><button type="button" data-action="destination" data-id="results" ${state.destination === 'results' ? 'aria-current="page"' : ''}>Nəticələr</button></nav></div></div>` : ''}`;
+          phone.querySelector('.tt-screen').inert = state.drawer;
+          restoreScroll();
+          if (globalThis.lucide) globalThis.lucide.createIcons({attrs:{width:19,height:19}});
+          const debug = phone.closest('.tt-stage').querySelector('.tt-state');
+          debug.querySelector('summary').textContent = `Preview state · ${names[density]} · ${state.screen === 'root' ? state.destination : state.screen}`;
+          debug.querySelector('pre').textContent = JSON.stringify({variant:names[density], ...state, sampleData:true, requests:0, persistence:false},null,2);
+          if (state.drawer) {
+            phone.querySelector('[data-action="close-drawer"]').focus({preventScroll:true});
+          }
+        }
+        function pushScreen(screen,id) {
+          rememberScroll();
+          state.history.push({screen:state.screen, playerId:state.playerId, pairId:state.pairId, matchId:state.matchId});
+          state.screen = screen;
+          if (screen === 'player') state.playerId = id;
+          if (screen === 'pair') state.pairId = id;
+          if (screen === 'match') state.matchId = id;
+          render();
+        }
+        phone.addEventListener('click', event => {
+          const button = event.target.closest('button[data-action]');
+          if (!button) {
+            if (event.target.matches('[data-dismiss-drawer]')) { state.drawer = false; render(); }
+            return;
+          }
+          const id = button.dataset.id;
+          switch (button.dataset.action) {
+            case 'destination': rememberScroll(); state.destination = id; state.screen = 'root'; state.drawer = false; state.history = []; break;
+            case 'mode': rememberScroll(); state.mode = id; break;
+            case 'drawer': state.drawer = true; break;
+            case 'close-drawer': state.drawer = false; break;
+            case 'filter': state.resultType = id; break;
+            case 'player': pushScreen('player',id); return;
+            case 'pair': pushScreen('pair',id); return;
+            case 'match': pushScreen('match',id); return;
+            case 'chart': pushScreen('chart'); return;
+            case 'chart-mode': state.chart = id; break;
+            case 'more': state.more = true; break;
+            case 'refresh': state.refreshed = true; break;
+            case 'back': {
+              const previous = state.history.pop();
+              if (previous) Object.assign(state,previous);
+              render();
+              return;
+            }
+          }
+          render();
+        });
+        phone.addEventListener('input', event => {
+          if (!event.target.matches('[data-search]')) return;
+          state.queries[state.mode] = event.target.value;
+          const temporary = document.createElement('div');
+          temporary.innerHTML = rankingContent();
+          phone.querySelector('[data-rows]').innerHTML = temporary.querySelector('[data-rows]').innerHTML;
+          phone.closest('.tt-stage').querySelector('.tt-state pre').textContent = JSON.stringify({variant:names[density],...state,sampleData:true,requests:0,persistence:false},null,2);
+          if (globalThis.lucide) globalThis.lucide.createIcons({attrs:{width:19,height:19}});
+        });
+        phone.addEventListener('change', event => {
+          if (!event.target.matches('[data-event]')) return;
+          state.event = event.target.value;
+          render();
+        });
+        phone.addEventListener('tt-preview-render', render);
+        phone.addEventListener('tt-preview-settings', event => {
+          state.appearance = event.detail.appearance;
+          state.text = event.detail.text;
+          render();
+        });
+        phone.addEventListener('keydown', event => {
+          if (!state.drawer) return;
+          if (event.key === 'Escape') { state.drawer = false; render(); }
+          if (event.key === 'Tab') {
+            const buttons = [...phone.querySelectorAll('.tt-drawer button')];
+            const index = buttons.indexOf(document.activeElement);
+            if (event.shiftKey && index <= 0) { event.preventDefault(); buttons.at(-1).focus(); }
+            else if (!event.shiftKey && index === buttons.length - 1) { event.preventDefault(); buttons[0].focus(); }
+          }
+        });
+        render();
+        if (globalThis.Tweak) {
+          const tweak = new Tweak({container:phone,onChange:render});
+          tweak.addSelect(state,'appearance',{label:'Appearance', options:[{label:'Follow device',value:'system'},{label:'Light',value:'light'},{label:'Dark',value:'dark'}]});
+          tweak.addSelect(state,'text',{label:'Text size',options:[{label:'Standard',value:'standard'},{label:'Large',value:'large'}]});
+        }
+      });
+    })();
+  </script>
+</div>
+
+<nav id="prototype-switcher" aria-label="Prototype variants"><button type="button" id="previous" aria-label="Previous variant">←</button><select id="variant" aria-label="Ranking layout"><option value="compact">Compact rows</option><option value="comfortable">Comfortable rows</option><option value="cards">Player cards</option></select><span id="prototype-state" aria-live="polite"></span><button type="button" id="next" aria-label="Next variant">→</button></nav>
+<script>
+(() => {
+  const keys = ['compact','comfortable','cards'];
+  const sections = [...document.querySelectorAll('.prototype-variants > section')];
+  const select = document.getElementById('variant');
+  const apply = value => {
+    const key = keys.includes(value) ? value : keys[0];
+    sections.forEach((section,i) => section.hidden = keys[i] !== key);
+    select.value = key;
+    sections[keys.indexOf(key)].querySelector('.tt-phone').dispatchEvent(new Event('tt-preview-render'));
+    document.getElementById('prototype-state').textContent = `${keys.indexOf(key)+1}/3`;
+    const url = new URL(location.href); url.searchParams.set('variant',key); history.replaceState(null,'',url);
+  };
+  const cycle = delta => apply(keys[(keys.indexOf(select.value)+delta+keys.length)%keys.length]);
+  document.getElementById('previous').onclick = () => cycle(-1);
+  document.getElementById('next').onclick = () => cycle(1);
+  select.onchange = () => apply(select.value);
+  document.addEventListener('keydown',event => {
+    if (event.target.closest('input,textarea,select,[contenteditable],.tt-drawer')) return;
+    if (event.key === 'ArrowLeft') {event.preventDefault(); cycle(-1);}
+    if (event.key === 'ArrowRight') {event.preventDefault(); cycle(1);}
+  });
+  const settings = () => document.querySelectorAll('.tt-phone').forEach(phone => phone.dispatchEvent(new CustomEvent('tt-preview-settings',{detail:{appearance:document.getElementById('appearance').value,text:document.getElementById('text-size').value}})));
+  document.getElementById('appearance').onchange = settings;
+  document.getElementById('text-size').onchange = settings;
+  apply(new URL(location.href).searchParams.get('variant'));
+})();
+</script>
+</body>
+</html>
