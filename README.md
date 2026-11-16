@@ -222,6 +222,8 @@ It follows a searched player through the dedicated chart, a match, a participant
 profile, and Android Back, then checks retained search after recreation. Captures
 are written to the app's external-files `issue28` directory. Optional arguments
 `-e playerName '<long name>'` and `-e fallback true` prepare layout/fallback
-scenarios. `-e reuseSaved true` keeps previously prepared files for a separate
+scenarios. For names containing spaces, quote the whole remote `am instrument`
+command as well as the name so ADB preserves it as one argument.
+`-e reuseSaved true` keeps previously prepared files for a separate
 process restart with network disabled. Set system appearance, display size, and
 font scale externally before each run; these are verification controls.

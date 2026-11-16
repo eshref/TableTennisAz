@@ -1,6 +1,7 @@
 package az.tabletennis;
 
 import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.Espresso.onData;
 import static androidx.test.espresso.Espresso.pressBack;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.replaceText;
@@ -34,7 +35,8 @@ public class ProfileDeviceTest {
         // act
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
             onView(withId(R.id.search)).perform(replaceText(name), closeSoftKeyboard());
-            onView(withContentDescription("1. " + name + " — 800 xal")).perform(click());
+            onData(org.hamcrest.Matchers.equalTo("1. " + name + " — 800 xal"))
+                    .inAdapterView(withId(android.R.id.list)).perform(click());
 
             // assert
             onView(withId(R.id.profile_name)).check(matches(withText(name)));
@@ -83,7 +85,9 @@ public class ProfileDeviceTest {
 
             // assert
             onView(withId(R.id.search)).check(matches(withText(name)));
-            onView(withContentDescription("1. " + name + " — 800 xal")).check(matches(withContentDescription("1. " + name + " — 800 xal")));
+            onData(org.hamcrest.Matchers.equalTo("1. " + name + " — 800 xal"))
+                    .inAdapterView(withId(android.R.id.list))
+                    .check(matches(withContentDescription("1. " + name + " — 800 xal")));
         }
     }
 

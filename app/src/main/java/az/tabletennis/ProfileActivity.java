@@ -45,9 +45,9 @@ public class ProfileActivity extends SavedScreen<PlayerProfile> {
         identity.addView(portrait, portraitSize);
         LinearLayout names = new LinearLayout(this);
         names.setOrientation(LinearLayout.VERTICAL);
-        TextView name = label(profile.name, 24);
+        TextView name = label(profile.name, 20);
         name.setId(R.id.profile_name);
-        name.setTypeface(null, Typeface.BOLD);
+        name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         heading(name);
         names.addView(name);
         names.addView(secondary(getString(profile.amateurPosition == null ? R.string.player : R.string.amateur_player)));

@@ -49,9 +49,10 @@ ranking-photo fallback, genuine pre-change serialization, nonblocking delayed
 photos, recreation during image loading, failed replacement images, and durable
 offline reuse after clearing memory. `ProfileLayoutTest` adds eight cases across
 API 26/36, both themes, 320dp portrait and 891dp landscape at 150% text. They
-check full names, separate statistics, accessible identity, portrait fallback,
+check full names without splitting the first name, separate statistics,
+accessible identity, portrait fallback,
 reachable chart navigation and reading-position restoration after stale
-recreation. The standing and stale-scroll regressions failed before their
+recreation. The standing, stale-scroll and long-name regressions failed before their
 respective implementations and passed afterward.
 
 ### Installed Android verification
@@ -62,6 +63,13 @@ process restart with the same saved fixtures and Wi-Fi/mobile data disabled.
 It checks the selected portrait and points/position, opens the dedicated chart,
 follows a shared match card and participant profile, returns through real Android
 Back, and verifies retained ranking search after Activity recreation.
+
+The same installed journey also passed at 320 × 640 px in light appearance
+with a long name and silhouette, and at a genuinely rotated 891 × 412 px in
+dark appearance with the long name and cached portrait, both at 150% text.
+Screenshots retain complete readable names; statistics, chart actions, and
+individual match sides remain reachable by scrolling. These native stress
+checks were repeated after the final typography correction.
 
 Native profile screenshots were compared with Player profile in
 `docs/prototypes/android-final-ui-prototype.html` in both themes: portrait and
@@ -75,13 +83,27 @@ ramdisk without forced encryption. Its initial System UI ANR was dismissed
 after startup settled. The first fixture attempt used a file-copy API absent on
 API 26; the copy loop was corrected. A subsequent selector matched both the
 ranking name and the search field; it now selects the complete accessible
-ranking row. The installed journey passed after those test corrections.
+ranking row, scrolling it into view when required. The installed journey passed
+after those test corrections. Native narrow-screen inspection also led to the
+reference's smaller, medium-weight name typography; the complete first name
+now fits without a mid-word break at 150% text. The full suite was repeated
+after this final presentation correction.
+
+### Review
+
+Independent Standards and Spec reviews compared the implementation with the
+branch's starting commit. Standards: no documented-rule violations; one optional
+Duplicated Code advisory because `WebsiteSource` and `RankingsActivity` each
+calculate amateur competition positions. Sharing that small domain calculation
+would reduce future maintenance. Spec: no missing requirements, scope creep or
+incorrect behavior found. The subsequent adapter-selector and ADB quoting fixes
+and final typography correction were reviewed on both axes with unchanged findings.
 
 ### Artifact and limits
 
 The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. APK Signature
 Scheme v2 verification passes. SHA-256:
-`7d7411e9e13dde215d89d14cd6e9c47a17275632c8eb58548dfda1d5c74ed5a0`.
+`9913542a076edf743f4516f212d361869be087284e9136e92649af89adcd021a`.
 
 Reports and native/reference screenshots are retained in the ignored
 `app/build/reports/issue28/` directory. This is fixture-backed verification;

@@ -52,6 +52,7 @@ public class ProfileLayoutTest extends ProductUiScenario {
         TextView position = activity().findViewById(R.id.profile_position);
         View photo = activity().findViewById(android.R.id.icon);
         assertThat(name.getLayout().getEllipsisCount(name.getLineCount() - 1)).isZero();
+        assertThat(name.getLayout().getLineEnd(0)).isGreaterThanOrEqualTo("Əbdürrəhman".length());
         assertThat(name.getRight()).isLessThanOrEqualTo(((View) name.getParent()).getWidth());
         assertThat(points.getText().toString()).isEqualTo("800 xal");
         assertThat(position.getText().toString()).isEqualTo("#1");
