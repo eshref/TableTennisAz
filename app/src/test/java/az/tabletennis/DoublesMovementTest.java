@@ -43,7 +43,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // act
         screen.pause().resume().visible();
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal");
@@ -53,7 +53,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         ranking(pairRow(110, 11, 800));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");
@@ -75,7 +75,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         ranking(pairRow(110, 9, 800));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
@@ -91,7 +91,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         }
         try {
             // act
-            clickText("Yenilə");
+            activity().findViewById(R.id.refresh).performClick();
 
             // assert
             awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
@@ -118,7 +118,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
 
         // act
         screen.pause().resume().visible();
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");
@@ -142,15 +142,15 @@ public class DoublesMovementTest extends DoublesUiScenario {
         FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofMinutes(2));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
         assertThat(visibleText()).contains("11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2",
                 "15. Işıl Əliyeva / Əli Məmmədov — 600 xal");
         ListView list = activity().findViewById(android.R.id.list);
-        TextView up = (TextView) list.getChildAt(0);
-        TextView down = (TextView) list.getChildAt(1);
+        TextView up = (TextView) findText(list, "9. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 3");
+        TextView down = (TextView) findText(list, "11. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↓ 2");
         assertThat(up.getContentDescription().toString()).contains("3 pillə yüksəlib");
         assertThat(down.getContentDescription().toString()).contains("2 pillə geriləyib");
         Spanned upText = (Spanned) up.getText();
@@ -207,7 +207,7 @@ public class DoublesMovementTest extends DoublesUiScenario {
         ranking(pairRow(110, 4, 800) + pairRow(220, 11, 800) + pairRow(330, 15, 600));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("4. İlqar Həsənov / Əli Məmmədov — 800 xal");
@@ -217,13 +217,13 @@ public class DoublesMovementTest extends DoublesUiScenario {
         ranking(pairRow(110, 3, 800) + pairRow(220, 11, 800) + pairRow(330, 15, 600));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("3. İlqar Həsənov / Əli Məmmədov — 800 xal  ↑ 1");
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("3. İlqar Həsənov / Əli Məmmədov — 800 xal");

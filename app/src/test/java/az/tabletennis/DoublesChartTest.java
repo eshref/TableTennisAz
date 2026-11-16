@@ -29,7 +29,7 @@ public class DoublesChartTest extends DoublesUiScenario {
         ranking(pairRow(220, 1, 950) + pairRow(110, 3, 900));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("3. İlqar Həsənov / Əli Məmmədov — 900 xal  ↑ 6");
@@ -39,7 +39,7 @@ public class DoublesChartTest extends DoublesUiScenario {
         ranking(pairRow(110, 1, 1000) + pairRow(220, 7, 750));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal  ↑ 2");
@@ -86,7 +86,7 @@ public class DoublesChartTest extends DoublesUiScenario {
 
         // act
         back();
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");

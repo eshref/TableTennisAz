@@ -46,16 +46,19 @@ public class RankingsFailureTest extends RankingsUiScenario {
         // assert
         awaitText("Həvəskar reytinqini yükləmək üçün internetə qoşulub yenidən cəhd edin.");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEmpty();
+        assertThat(screen.get().findViewById(R.id.retry).isShown()).isTrue();
+        assertThat(screen.get().findViewById(R.id.retry).isEnabled()).isTrue();
         assertThat(visibleText()).noneMatch(text -> text.matches("\\d+\\. .* — \\d+ xal"));
 
         // arrange
         server.enqueue(html("amateur.html"));
 
         // act
-        screen.get().findViewById(R.id.refresh).performClick();
+        screen.get().findViewById(R.id.retry).performClick();
 
         // assert
         awaitText("1. İlqar Həsənov — 800 xal");
+        assertThat(visibleText()).contains("Məlumat yeniləndi.");
         String successfulUpdate = ((TextView) screen.get().findViewById(R.id.updated)).getText().toString();
         assertThat(successfulUpdate).startsWith("Son uğurlu yenilənmə: ");
 
@@ -77,7 +80,7 @@ public class RankingsFailureTest extends RankingsUiScenario {
         openScreen();
 
         // assert
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
+        awaitText("İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains("1. İlqar Həsənov — 800 xal", "3. Işıl Əliyeva — 600 xal");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEqualTo(successfulUpdate);
     }

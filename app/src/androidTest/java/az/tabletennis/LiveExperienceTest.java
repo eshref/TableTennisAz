@@ -52,7 +52,7 @@ public class LiveExperienceTest {
             awaitSuccessfulData();
 
             // act
-            onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(0).perform(click());
+            onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
 
             // assert
             awaitSuccessfulData();
@@ -72,6 +72,7 @@ public class LiveExperienceTest {
             // act
             pressBack();
             pressBack();
+            onView(withId(R.id.open_menu)).perform(click());
             onView(withText(R.string.results_title)).perform(click());
 
             // assert

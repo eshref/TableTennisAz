@@ -69,12 +69,14 @@ public class SavedScreenFailureTest extends ProductUiScenario {
         awaitText("Məlumat yüklənmədi. İnternet bağlantısını yoxlayın.");
         assertThat(visibleText()).doesNotContain(journey.initialText, "Bu seçim üzrə mənbədə nəticə tapılmadı.");
         assertThat(((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString()).isEmpty();
+        assertThat(activity().findViewById(R.id.retry).isShown()).isTrue();
+        assertThat(activity().findViewById(R.id.retry).isEnabled()).isTrue();
 
         // arrange
         responses.remove(journey.path);
 
         // act
-        activity().findViewById(R.id.refresh).performClick();
+        activity().findViewById(R.id.retry).performClick();
 
         // assert
         awaitText(journey.initialText);

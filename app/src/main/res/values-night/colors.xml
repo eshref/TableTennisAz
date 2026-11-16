@@ -1,0 +1,13 @@
+<resources>
+    <color name="icon_background">#006B5E</color>
+    <color name="background">#101D16</color>
+    <color name="surface">#192A20</color>
+    <color name="text">#E7F1E9</color>
+    <color name="secondary">#B3C8B9</color>
+    <color name="primary">#8BD8B4</color>
+    <color name="on_primary">#003823</color>
+    <color name="soft">#254D38</color>
+    <color name="line">#354C3E</color>
+    <color name="movement_up">#8BD8B4</color>
+    <color name="movement_down">#FFC1B9</color>
+</resources>

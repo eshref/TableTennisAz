@@ -16,6 +16,7 @@ public class BatchedResultsTest extends ProductUiScenario {
         openScreen();
 
         // act
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 
@@ -36,6 +37,7 @@ public class BatchedResultsTest extends ProductUiScenario {
 
         // act
         restart();
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
         clickText("Daha çox yüklə");
@@ -69,6 +71,7 @@ public class BatchedResultsTest extends ProductUiScenario {
 
         // act
         restart();
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 

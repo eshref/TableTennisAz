@@ -38,7 +38,7 @@ final class RatingChartView extends View {
         double range = Math.max(1, maximum - minimum);
         float margin = 20 * getResources().getDisplayMetrics().density;
         Path line = new Path();
-        paint.setColor(android.graphics.Color.rgb(0, 107, 94));
+        paint.setColor(getContext().getColor(R.color.primary));
         paint.setStrokeWidth(3 * getResources().getDisplayMetrics().density);
         for (int i = 0; i < points.size(); i++) {
             float x = margin + (getWidth() - 2 * margin) * i / Math.max(1, points.size() - 1);

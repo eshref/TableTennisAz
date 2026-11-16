@@ -34,6 +34,8 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         select(selection.key(), ResultsFeed.class);
     }
 
+    @Override protected boolean isMainDestination() { return true; }
+
     @Override protected Fetch<ResultsFeed> request(ResultsFeed previous, boolean more) {
         ResultsSelection requested = selection;
         SavedData<EventCatalog> cachedCatalog = catalogStore.read();
@@ -52,18 +54,23 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
 
     private void createFilters() {
         types = new RadioGroup(this);
+        android.content.res.Configuration configuration = getResources().getConfiguration();
+        boolean stackFilters = configuration.screenWidthDp < 360 * configuration.fontScale;
+        types.setOrientation(stackFilters ? RadioGroup.VERTICAL : RadioGroup.HORIZONTAL);
         for (ResultsSelection.Type type : ResultsSelection.Type.values()) {
             RadioButton choice = new RadioButton(this);
             choice.setId(View.generateViewId());
             choice.setTag(type);
             choice.setText(type.label);
-            types.addView(choice);
+            Presentation.segment(choice);
+            types.addView(choice, new RadioGroup.LayoutParams(stackFilters ? -1 : 0, -2, stackFilters ? 0 : 1));
         }
-        root.addView(types, 1);
+        root.addView(types, 0);
         events = new Spinner(this);
         events.setId(R.id.event_filter);
         events.setContentDescription(getString(R.string.choose_event));
-        root.addView(events, 2);
+        events.setMinimumHeight(dp(48));
+        root.addView(events, 1);
         bindFilters();
         types.setOnCheckedChangeListener((group, checkedId) -> {
             if (!binding) choose(new ResultsSelection((ResultsSelection.Type) group.findViewById(checkedId).getTag(), 0));
@@ -108,7 +115,6 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
     @Override protected void render(ResultsFeed feed) {
         catalog = feed.catalog;
         bindFilters();
-        content.addView(label(getString(R.string.results_title), 26));
         content.addView(label(getString(R.string.partial_coverage), 14));
         if (feed.matches.isEmpty()) content.addView(label(getString(R.string.no_results), 16));
         android.widget.LinearLayout rows = new android.widget.LinearLayout(this);

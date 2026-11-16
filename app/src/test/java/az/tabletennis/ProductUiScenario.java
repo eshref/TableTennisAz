@@ -66,6 +66,8 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
         navigation.pop().pause().stop().destroy();
     }
 
+    protected void recreateProductScreen() { navigation.peek().recreate(); }
+
     protected void prepareProfile(long id, String name) throws Exception {
         website.put("/players/" + id, "<div id='center'><div class='player-block'><div class='name-div'>" + name
                 + "</div></div><div id='chart-user-id'>" + id + "</div></div>");
@@ -142,7 +144,7 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
                 + "</div></div><div class='col-3'><div>" + right + "</div></div><div class='col-4'>" + event + "</div></div></a></div></div>";
     }
 
-    private android.view.View findText(android.view.View view, String text) {
+    protected android.view.View findText(android.view.View view, String text) {
         if (view.getVisibility() != android.view.View.VISIBLE) return null;
         if (view instanceof android.widget.TextView label && label.getText().toString().equals(text)) return view;
         if (view instanceof android.view.ViewGroup group) {

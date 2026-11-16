@@ -17,6 +17,7 @@ public class ResultsFilterTest extends ProductUiScenario {
         openScreen();
 
         // act
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 
@@ -80,15 +81,27 @@ public class ResultsFilterTest extends ProductUiScenario {
 
         // arrange
         FixtureApplication.online = false;
+
+        // act
+        activity().findViewById(R.id.refresh).performClick();
+
+        // assert
+        assertThat(visibleText()).contains("İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.",
+                "16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku");
+        assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
+
+        // arrange
         server.shutdown();
 
         // act
         restart();
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku");
+        assertThat(visibleText()).contains("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku",
+                "İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.");
 
         // act
         ((Spinner) activity().findViewById(R.id.event_filter)).setSelection(2);

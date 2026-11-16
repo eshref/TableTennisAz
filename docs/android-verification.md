@@ -1,5 +1,94 @@
 # Android verification
 
+## Drawer and main-screen layout — issue #24
+
+Implemented on `feat/24-drawer-main-screen-layout`, based on `5c8f37a`.
+Rankings and Results now share a compact native title/action bar and a modal
+navigation drawer. The active destination is checked; close, backdrop, and Back
+dismiss the drawer. API 33+ uses the native back-invoked callback, while older
+Android versions retain Activity Back handling. Returning from Results clears
+that destination above the existing Rankings Activity. Rankings preserves both
+mode-specific queries and list positions; Results preserves each selection's
+scroll context through recreation and destination switching.
+
+The additive native-View presentation helpers provide the approved green system
+light/dark palette, scalable labels, 48dp actions, segmented selections, touch
+feedback, and accessible labels. Main-screen feedback distinguishes loading,
+retryable first failure, failed refresh with saved data, offline saved content,
+search misses, verified empty Results, and successful refresh. Losing connectivity
+before pressing refresh updates the notice without losing content or scroll.
+The source/storage policy remains unchanged, including saved-data-first display,
+the strict more-than-15-minute threshold, complete atomic saves, unchanged update
+times after failures, and independent doubles identity loading. Existing chart
+colors use theme resources so unmigrated details remain readable in dark mode.
+Ranking photos/row composition and Results cards belong to later tickets.
+
+`MainNavigationTest` adds the drawer/destination lifecycle at API 26 and 36,
+including drawer recreation, independent Players/Doubles queries, scrolled
+rankings, Results event selection and loaded pages, Results scroll restoration,
+clear search, and refresh after losing connectivity. Existing freshness, failure,
+source parsing, movement, profile/chart, and match workflows are reused. Assertions
+inspect native UI and the external HTTP fixture integration, not private storage.
+The installed `MainNavigationDeviceTest` separately checks Android's real task
+stack, Back dismissal, retained selection/search, and old detail-screen navigation.
+Internal saved fixtures are used only for device setup.
+
+### Verification
+
+The complete native-UI/HTTP-fixture suite passed **80 cases**, with zero failures,
+errors, or skips. Android lint and both debug APK builds pass. The final
+Back/focus checks also pass at API 26 and API 36. The final responsive-filter
+adjustment passed both Results HTTP-fixture workflows plus lint and both APK
+builds. Reproduction:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The debug APK at `app/build/outputs/apk/debug/app-debug.apk` passes signature
+verification. Its SHA-256 is
+`d7edcdf1432e018b0e450521645f6cbd4262440263a1ba3af7805c2bd73506f4`.
+
+### Review
+
+**Standards:** no documented-standard violations. One optional maintenance
+advisory notes that `SavedScreen` now contains Results scroll-retention hooks;
+this remains a small additive seam, with no standalone infrastructure refactor.
+
+**Specification:** two concrete findings were corrected: hard-coded chart colors
+became unreadable on the night background, and an offline refresh could restore
+an older Results scroll position. The retained-context scenario covers the latter;
+native observed/no-history profile captures cover the former.
+
+### Native visual evidence
+
+The installed API 26 application passed the complete fixture-backed device
+journey in both system themes. Captures include Players, Doubles, the drawer,
+Results, and existing pair histories with an observation and without history.
+The shared title/action bar, successful-update label, green surfaces, mode
+controls, and active drawer destination were compared with the approved
+`android-final-ui-prototype.html` reference. Ranking photos/row composition and
+Results cards are deliberately left to their own slices. Large-text inspection
+also exposed automatic initial search focus; the main container now takes
+initial focus so a fresh launch displays the ranking without opening the keyboard.
+At 150% text, native captures verify a 320dp-wide portrait layout in both themes
+and an 891 × 412 px landscape layout. Drawer controls and the main actions remain
+reachable, and content scrolls. Results type filters stack on narrow screens at
+large text sizes, avoiding broken words; landscape keeps the horizontal group.
+
+Evidence is retained under the ignored `app/build/reports/issue24/` directory:
+`screenshots/`, `layouts/`, the approved browser reference, native run logs,
+full-suite XML/HTML, and lint output. Device checks used saved fixtures and normal
+production storage only for setup; source-backed behavior was exercised through
+the native-UI/local-HTTP integration suite. This was not a new live-site journey
+or physical-phone check. API 36 coverage is host integration, not a second
+installed emulator.
+
+The software emulator required a task-owned ramdisk disabling forced data
+encryption and legacy System UI/ANR startup workarounds. These affected only the
+disposable emulator; application TLS/network policy is unchanged. Temporary
+emulator data and task tools were removed after verification.
+
 ## Embedded doubles history — issue #19
 
 Implemented on `issue-19-doubles-history-chart`, based on `5977ed3`.
