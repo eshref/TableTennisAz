@@ -4,6 +4,10 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -21,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 public class RankingsActivity extends Activity {
     private static final Locale AZERBAIJANI = Locale.forLanguageTag("az-AZ");
@@ -74,6 +79,7 @@ public class RankingsActivity extends Activity {
         search.setText(doublesMode ? doublesQuery : playerQuery);
         render();
         restorePosition();
+        if (application.doublesRefresh != null) followDoublesRefresh(application.doublesRefresh);
     }
 
     @Override protected void onResume() {
@@ -153,6 +159,8 @@ public class RankingsActivity extends Activity {
                 row.setTextSize(18);
                 row.setMinHeight(dp(64));
                 row.setPadding(dp(4), dp(12), dp(4), dp(12));
+                if (doublesMode) showMovement(row, visiblePairs.get(position));
+                else row.setContentDescription(null);
                 return row;
             }
         };
@@ -209,11 +217,14 @@ public class RankingsActivity extends Activity {
         if (!application.isOnline()) return;
         if (doublesMode) {
             if (doublesLoading) return;
-            doublesLoading = true;
-            totalPairs = 0;
-            doublesStatus = "";
-            render();
-            application.doublesWorker.execute(this::retrieveDoubles);
+            CompletableFuture<SavedData<DoublesRanking>> pending = application.doublesRefresh;
+            if (pending == null || pending.isDone()) {
+                pending = new CompletableFuture<>();
+                application.doublesRefresh = pending;
+                CompletableFuture<SavedData<DoublesRanking>> started = pending;
+                followDoublesRefresh(started);
+                application.doublesWorker.execute(() -> retrieveDoubles(started));
+            } else followDoublesRefresh(pending);
         } else {
             if (loading) return;
             loading = true;
@@ -243,29 +254,48 @@ public class RankingsActivity extends Activity {
         }
     }
 
-    private void retrieveDoubles() {
+    private void followDoublesRefresh(CompletableFuture<SavedData<DoublesRanking>> pending) {
+        doublesLoading = true;
+        totalPairs = 0;
+        doublesStatus = "";
+        render();
+        if (!pending.isDone()) application.doublesProgress = (completed, total) -> runOnUiThread(() -> {
+            if (isDestroyed()) return;
+            resolvedPairs = completed;
+            totalPairs = total;
+            if (doublesMode) renderStatus();
+        });
+        pending.whenComplete((retrieved, failure) -> runOnUiThread(() -> {
+            if (application.doublesRefresh == pending) {
+                application.doublesRefresh = null;
+                application.doublesProgress = null;
+            }
+            if (isDestroyed()) return;
+            doublesLoading = false;
+            if (failure == null) doubles = retrieved;
+            else doublesStatus = getString(doubles == null ? R.string.data_unavailable : R.string.data_saved_failure);
+            render();
+        }));
+    }
+
+    private void retrieveDoubles(CompletableFuture<SavedData<DoublesRanking>> pending) {
         try {
-            DoublesRanking ranking = doublesRepository.ranking((completed, total) -> runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                resolvedPairs = completed;
-                totalPairs = total;
-                if (doublesMode) renderStatus();
-            }));
-            SavedData<DoublesRanking> retrieved = new SavedData<>(ranking, application.clock().millis());
+            DoublesRanking ranking = doublesRepository.ranking((completed, total) -> {
+                DoublesRepository.Progress listener = application.doublesProgress;
+                if (listener != null) listener.update(completed, total);
+            });
+            // The worker serializes refreshes, including those spanning Activity recreation.
+            // Read the durable baseline here rather than using an Activity's older copy.
+            SavedData<DoublesRanking> previous = doublesStore.read();
+            long observedAt = application.clock().millis();
+            SavedData<DoublesRanking> retrieved = new SavedData<>(
+                    ranking.observedAfter(previous == null ? null : previous.value, observedAt), observedAt);
             doublesStore.write(retrieved);
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                doubles = retrieved;
-                doublesLoading = false;
-                render();
-            });
+            application.doublesProgress = null;
+            pending.complete(retrieved);
         } catch (IOException failure) {
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                doublesLoading = false;
-                doublesStatus = getString(doubles == null ? R.string.data_unavailable : R.string.data_saved_failure);
-                render();
-            });
+            application.doublesProgress = null;
+            pending.completeExceptionally(failure);
         }
     }
 
@@ -338,6 +368,24 @@ public class RankingsActivity extends Activity {
         label.setTextColor(Color.rgb(22, 44, 40));
         label.setTextSize(size);
         return label;
+    }
+
+    private void showMovement(TextView view, DoublesRanking.Row row) {
+        String text = getString(R.string.doubles_row, row.position, row.pair.names(), row.points);
+        if (row.placesGained == 0) {
+            view.setText(text);
+            view.setContentDescription(null);
+            return;
+        }
+        boolean up = row.placesGained > 0;
+        int places = Math.abs(row.placesGained);
+        SpannableString movement = new SpannableString(text + (up ? "  ↑ " : "  ↓ ") + places);
+        int start = text.length() + 2;
+        movement.setSpan(new ForegroundColorSpan(up ? Color.rgb(24, 115, 58) : Color.rgb(179, 38, 30)),
+                start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        movement.setSpan(new RelativeSizeSpan(0.78f), start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        view.setText(movement);
+        view.setContentDescription(text + ", " + getString(up ? R.string.movement_up : R.string.movement_down, places));
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }

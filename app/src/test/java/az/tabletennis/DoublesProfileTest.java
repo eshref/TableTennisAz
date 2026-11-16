@@ -122,11 +122,11 @@ public class DoublesProfileTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("4. İlqar Həsənov / Əli Məmmədov — 801 xal");
+        awaitText("4. İlqar Həsənov / Əli Məmmədov — 801 xal  ↓ 3");
         requestedPaths();
 
         // act
-        clickText("4. İlqar Həsənov / Əli Məmmədov — 801 xal");
+        clickText("4. İlqar Həsənov / Əli Məmmədov — 801 xal  ↓ 3");
         followNavigation();
 
         // assert

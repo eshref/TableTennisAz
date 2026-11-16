@@ -56,6 +56,16 @@ public class DoublesFailureTest extends DoublesUiScenario {
 
         // assert
         awaitText("1. İlqar Həsənov / Əli Məmmədov — 800 xal");
+
+        // arrange
+        website.put("/players/duos", ranking(pairRow(220, 1, 800) + pairRow(110, 2, 800) + pairRow(330, 3, 600)));
+
+        // act
+        clickText("Yenilə");
+
+        // assert
+        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1");
+        assertThat(visibleText()).contains("1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -67,7 +77,30 @@ public class DoublesFailureTest extends DoublesUiScenario {
 
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
-        assertThat(visibleText()).contains(updated, "1. İlqar Həsənov / Əli Məmmədov — 800 xal",
-                "2. İlqar Həsənov / Şəms Quliyeva — 800 xal", "3. Işıl Əliyeva / Əli Məmmədov — 600 xal");
+        assertThat(visibleText()).contains(updated, "2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1",
+                "1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1", "3. Işıl Əliyeva / Əli Məmmədov — 600 xal");
+
+        // arrange
+        FixtureApplication.online = false;
+
+        // act
+        restart();
+        clickText("Qoşalar");
+
+        // assert
+        awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1");
+        assertThat(visibleText()).contains(updated, "1. İlqar Həsənov / Şəms Quliyeva — 800 xal  ↑ 1");
+
+        // arrange
+        FixtureApplication.online = true;
+        responses.remove("/players/duos");
+        website.put("/players/duos", ranking(pairRow(220, 1, 800) + pairRow(330, 3, 600) + pairRow(110, 4, 500)));
+
+        // act
+        screen.pause().resume().visible();
+        clickText("Yenilə");
+
+        // assert
+        awaitText("4. İlqar Həsənov / Əli Məmmədov — 500 xal  ↓ 2");
     }
 }
