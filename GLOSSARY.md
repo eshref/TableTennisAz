@@ -39,3 +39,9 @@ A match between two individual players, with one player on each side.
 
 **Doubles match**:
 A match between two pairs, with two players competing together on each side.
+
+**Doubles pair**:
+A partnership of two players competing together in doubles. Partnerships with different teammates are separate pairs, so a player can belong to more than one pair.
+
+**Doubles ranking**:
+The website's ordered list of doubles pairs, using its published pair positions and points. Each partnership is ranked separately; pairs with equal points can occupy different published positions.

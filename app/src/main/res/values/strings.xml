@@ -24,6 +24,15 @@
     <string name="no_results">Bu seçim üzrə mənbədə nəticə tapılmadı.</string>
     <string name="no_history">Matç tarixçəsi yoxdur.</string>
     <string name="rankings_title">Reytinq</string>
+    <string name="players_mode">Oyunçular</string>
+    <string name="doubles_mode">Qoşalar</string>
+    <string name="doubles_explanation">Qoşaların mənbədə dərc olunmuş yerləri və xalları. Eyni xallı qoşaların yerləri fərqli ola bilər.</string>
+    <string name="doubles_search_hint">Qoşadakı oyunçunun adı ilə axtar</string>
+    <string name="doubles_row">%1$d. %2$s — %3$d xal</string>
+    <string name="doubles_loading">Qoşaların adları yüklənir: %1$d / %2$d</string>
+    <string name="no_pairs">Axtarışa uyğun qoşa tapılmadı.</string>
+    <string name="pair_results">Qoşanın nəticələri</string>
+    <string name="pair_history_coverage">Bu qoşanın yüklənmiş turnir matçları və duelloları. Daha köhnə nəticələr növbəti səhifələrdə ola bilər; eyni gün daxilində dəqiq sıra məlum deyil.</string>
     <string name="rank_explanation">Həvəskar və peşəkar oyunçular birlikdə. Yerlər xal üzrə tətbiqdə hesablanır; rəsmi kateqoriya yerləri deyil.</string>
     <string name="search_hint">Oyunçu adı ilə axtar</string>
     <string name="refresh">Yenilə</string>

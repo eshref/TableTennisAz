@@ -9,6 +9,8 @@ import okhttp3.HttpUrl;
 public class RankingsApplication extends Application {
     // Serialize storage writes, including work spanning Activity recreation.
     final ExecutorService rankingsWorker = Executors.newSingleThreadExecutor();
+    // Full-name hydration can take hundreds of requests; keep other screens responsive.
+    final ExecutorService doublesWorker = Executors.newSingleThreadExecutor();
 
     protected HttpUrl websiteUrl() {
         return HttpUrl.get("https://tabletennis.az/");

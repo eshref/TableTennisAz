@@ -1,5 +1,102 @@
 # Android verification
 
+## Doubles ranking — version 0.3.0
+
+The project owner explicitly requested implementation of the confirmed doubles
+discovery on 2026-11-16, then requested a new task branch. Work is on
+`feat/doubles-rankings`, based on `b6eec08`. The follow-up scope is recorded in
+[discovery](android-app-discovery.md#doubles-ranking-follow-up-discovery).
+
+The debug APK is version 0.3.0, version code 3, with the existing Android 8.0
+minimum. Artifact: `app/build/outputs/apk/debug/app-debug.apk`.
+
+SHA-256: `784f923bedc3f77bb33a172a4b940d92a84b6181ddcd7528afb0341ab2c6762d`.
+
+APK v2 signature verification passes. Normal production TLS and hostname
+verification remain enabled.
+
+### Deterministic checks and review
+
+The complete application integration suite passed **57 cases**, with no failures
+or skips, together with Android lint, debug APK assembly, and test APK assembly:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+After replacing an indexed numeric array with a named source-row type during
+review, all **13 doubles cases**, lint, and both APK builds passed again:
+
+```sh
+./gradlew :app:testDebugUnitTest --tests 'az.tabletennis.Doubles*' :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The existing 44 cases cover the original application behavior; the new cases
+exercise distinct doubles guarantees through native Android views, a real HTTP
+fixture server, production parsing, and durable storage. Assertions inspect
+visible UI state and external HTTP requests.
+
+| Suite | Cases | Distinct doubles guarantees |
+| --- | ---: | --- |
+| DoublesWorkflowTest | 3 | Published positions at tied points, full names, either-partner search, independent partnerships, interrupted identity caching, incomplete-search progress, other screens during loading, failed new-pair refresh preservation, pair history/profile/match navigation, and long-age offline relaunch |
+| DoublesFailureTest | 5 | HTTP failure, missing ranking, partially malformed rows, conflicting pair identities, and conflicting source positions cannot fabricate or replace a complete snapshot |
+| DoublesFreshnessTest | 3 | Below/exactly/above 15 minutes, saved rows before delayed refresh, and reuse of saved pair identities |
+| DoublesHistoryRefreshTest | 1 | JSON/HTML name-whitespace compatibility, atomic refresh of all loaded pages, retry without losing coverage, and rejection of another partnership sharing a player |
+| DoublesNavigationTest | 1 | Exact list offset and search preservation after real pause/resume, activity recreation, and switching between rankings; explicit empty pair history |
+
+Independent Standards and Spec reviews found no hard standards violations and
+no confirmed specification gaps. The optional named-source-row advisory was
+resolved. Tests run on API 26; the existing individual-ranking workflow also
+runs on API 36. Batch sizes remain the website's source pages, and dates do not
+establish exact within-day ordering.
+
+### Live compatibility
+
+`LiveDoublesTest` is the separate installed-app check for doubles ranking HTML,
+full-name metadata JSON, and pair-history HTML. The opt-in CI `live_site` job
+runs it alongside the existing complete application journey. Its first-load
+timeout allows for the website's per-pair metadata lookups.
+
+The final APK installs and launches on an Android 8.0 / API 26 x86_64 emulator.
+`LiveDoublesTest.liveDoublesShowFullNamesAndOpenTheirPublishedPairHistory`
+passed: **OK (1 test)** in 270.192 seconds. It starts without saved data, loads
+Players, switches to Doubles, resolves all 848 published pair identities, and
+opens a pair's published results. Visible first-load progress was inspected;
+the test requires a successful update and readable pair rows before navigation.
+No fixed live names, counts, or scores are asserted by the automated test.
+
+The first Gradle connected-test attempt was stopped after a ddmlib property
+timeout during slow emulator startup, before application testing began. Both
+final APKs were then installed through ADB and the same test was run directly:
+
+```sh
+adb shell am instrument -w -r -e class az.tabletennis.LiveDoublesTest az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The legacy image needed an explicit vendor image and disabled emulator
+EncryptUserData feature to boot with the current emulator. Initial System UI
+startup dialogs were dismissed before testing. Live HTTPS traverses this
+workspace's proxy; its public CA was installed only in the temporary emulator's
+system trust store. App TLS verification was not relaxed. A physical phone,
+unproxied connection, and current-version Android device were not tested.
+
+### Packaged offline restart
+
+After the live journey, an external ADB/UIAutomator check captured visible
+doubles ranking rows, their successful-update time, and the selected pair's
+history content, profile-link text, and update time. Wi-Fi and mobile data were
+disabled, the app process was force-stopped, and the same screens were opened
+in a new process. All captured rows, history content, and update times matched;
+refresh was disabled on both offline screens. The check passed and connectivity
+was restored afterward. Assertions and polling used fresh native accessibility
+trees, with unavailable trees retried rather than reusing an older capture.
+No private stored files or internal tables supplied assertion evidence.
+
+The temporary emulator, source downloads, and task tools were removed after
+verification. Full-suite XML and verification logs are retained as ignored build
+artifacts under `app/build/reports/doubles-implementation/`; the APK remains at
+the path above.
+
 ## Complete first test APK — issues #2–#9
 
 Implementation of the remaining first-delivery tickets was explicitly requested

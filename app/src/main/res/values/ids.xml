@@ -1,4 +1,6 @@
 <resources>
+    <item name="players_mode" type="id" />
+    <item name="doubles_mode" type="id" />
     <item name="chart" type="id" />
     <item name="event_filter" type="id" />
     <item name="profile_name" type="id" />

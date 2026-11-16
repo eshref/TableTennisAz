@@ -207,6 +207,39 @@ final class WebsiteSource {
         return new ProfileLoad(new PlayerProfile(id, name, points, rows, loaded, next), verified);
     }
 
+    PairHistory pairHistory(DoublesPair pair, PairHistory previous, boolean more) throws IOException {
+        List<String> loaded = previous == null ? new ArrayList<>() : new ArrayList<>(previous.pages);
+        List<String> requested = new ArrayList<>();
+        if (previous == null) requested.add("/matches/results/duo/" + pair.id);
+        else if (more) {
+            if (previous.nextPage == null) return previous;
+            requested.add(previous.nextPage);
+        } else requested.addAll(loaded);
+        java.util.Map<Long, MatchSummary> matches = new java.util.LinkedHashMap<>();
+        if (previous != null && more) mergeResults(matches, previous.matches);
+        String next = null;
+        for (String path : requested) {
+            ResultPage page = resultPage(new ResultsFeed.Page(path, 0, "", false));
+            for (MatchSummary match : page.matches) {
+                if (match.left.size() != 2 || match.right.size() != 2
+                        || (!pairSide(match.left, pair) && !pairSide(match.right, pair))) {
+                    throw new IOException("Result does not describe this partnership");
+                }
+            }
+            mergeResults(matches, page.matches);
+            if (!loaded.contains(path)) loaded.add(path);
+            next = page.next == null ? null : page.next.path;
+        }
+        List<MatchSummary> rows = new ArrayList<>(matches.values());
+        sortResults(rows);
+        return new PairHistory(pair, rows, loaded, next);
+    }
+
+    private boolean pairSide(List<String> names, DoublesPair pair) {
+        return names.size() == 2 && ((names.get(0).equals(pair.first.name) && names.get(1).equals(pair.second.name))
+                || (names.get(1).equals(pair.first.name) && names.get(0).equals(pair.second.name)));
+    }
+
     private boolean containsPlayer(List<MatchDetails.PlayerLink> players, long id) {
         for (MatchDetails.PlayerLink player : players) if (player.id == id) return true;
         return false;
