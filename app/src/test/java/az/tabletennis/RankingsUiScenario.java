@@ -49,7 +49,9 @@ public abstract class RankingsUiScenario {
         server.shutdown();
         RankingsApplication application = (RankingsApplication) RuntimeEnvironment.getApplication();
         application.rankingsWorker.shutdown();
+        application.doublesWorker.shutdown();
         application.rankingsWorker.awaitTermination(5, TimeUnit.SECONDS);
+        application.doublesWorker.awaitTermination(5, TimeUnit.SECONDS);
     }
 
     protected void openScreen() {

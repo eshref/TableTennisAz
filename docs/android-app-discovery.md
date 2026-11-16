@@ -164,6 +164,75 @@ the first-delivery scope at Q22, explicitly limiting approval to the plan.
 Additional profile features and public store distribution are outside this
 agreed first delivery unless explicitly added later.
 
+## Doubles-ranking follow-up discovery
+
+This follow-up interview on 2026-11-16 explored the previously deferred
+doubles-pair ranking. The project owner confirmed shared understanding and
+approved the plan at Q14. Discovery is complete; this approval does not
+authorize tracker publication. Application implementation was subsequently
+explicitly requested with the implement skill, on a new task branch.
+
+Confirmed decisions:
+
+- Rank doubles pairs separately. A player can appear in multiple partnerships.
+- Use the website's published pair positions and points, including distinct
+  positions for pairs with equal points. The individual-player combined-rank
+  rule remains unchanged.
+- Add a Players / Doubles switch to Rankings, with Players selected when the
+  app opens. Interface wording remains subject to the agreed Azerbaijani language.
+- Each doubles row shows position, both players' full names, and pair points. Bonus
+  and medal counts are outside this feature's first version.
+- Selecting a pair opens its match results, with links to both player profiles.
+- Pair history includes tournament matches and doubles duels played by those
+  two players together as partners, using the website's pair identity.
+- Pair results start with the newest matches and offer Load more for older
+  results.
+- Returning from pair results or a player profile restores the Doubles
+  selection, search text, and ranking scroll position. A fresh app launch still
+  opens on Players.
+- Name search matches either player's full name, including partial-name
+  searches, shows all matching partnerships, and retains published positions.
+- Resolve and save full names for all pairs on first load, displaying progress
+  until the ranking and name search are complete. Reuse saved identities on
+  later visits. Do not present a search over unresolved names as complete.
+- Name search is the only doubles-ranking filter in this version; event
+  filtering is deferred.
+- Doubles rankings and pair results follow the existing saved-data policy:
+  display saved information immediately with its last successful update time;
+  refresh on opening when online and over 15 minutes old; allow manual refresh
+  online. Retain saved information offline and on refresh failure. The existing
+  first-load and retention rules also apply.
+
+Read-only website inspection on 2026-11-16 established that
+[doubles rankings](https://tabletennis.az/players/duos) publishes pair identities,
+abbreviated names, positions, and points. Equal points can have separate source
+positions. The inspected response contained 848 pairs in approximately 4.17 MB
+of HTML, without ranking pagination. The site offers player and event filters;
+the app's first doubles-ranking version uses name search only.
+
+The public `/api/getDuoInfo?id=<pairId>` endpoint supplies both players' identities,
+full names, profile links, and a pair-results link. The inspected
+[pair-results page](https://tabletennis.az/matches/results/duo/584) is paginated.
+The ranking page includes a directory of full player names and IDs but does not
+map pair IDs to their members. Its abbreviated pair names are ambiguous, so
+matching abbreviations to the directory cannot reliably establish membership.
+No bulk membership interface has been identified; the known route needs a
+metadata lookup per pair. This can make first load slow, a trade-off accepted
+to preserve full names and accurate search.
+
+Pair-history inspection confirmed both event matches and doubles duels: pair
+151's page 6 includes duel 20006 as well as tournament matches. Pair 584's
+six-page history had 275 matches with dates descending across pages. Rows supply
+dates without times, so exact within-day order is not established. Respect
+pagination's disabled controls; an out-of-range page can return HTTP 200 with
+an empty list. These observations do not establish archive-wide completeness.
+
+Decisions through Q13 are recorded above and were confirmed together at Q14.
+The subsequent implement request authorizes application coding and a local
+commit on the requested task branch. Tracker publication has not been requested.
+Implementation and verification are recorded in
+[the doubles verification notes](android-verification.md#doubles-ranking--version-030).
+
 ## Remaining engineering work and external uncertainties
 
 - Tune feed batch sizes and source-page scheduling during implementation,

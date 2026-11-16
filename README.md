@@ -4,6 +4,22 @@ Native Azerbaijani rankings, player profiles, rating history, and match results
 for Android 8.0 (API 26) and newer. The app opens on combined individual-player
 rankings. This implements the first-delivery scope in issues #1–#9.
 
+Rankings also has an Oyunçular / Qoşalar switch. Doubles ranks partnerships using
+the website's published positions and points, so equal points can have different
+positions. Rows show both full names; searching either partner keeps source
+positions. Each partnership has its own history of tournament matches and duels,
+with player-profile links, match details, and Load more for older results.
+
+The website supplies pair membership through individual metadata requests. The
+first doubles load resolves all full names and shows progress; search becomes
+available once the complete ranking is ready. Completed identity lookups are
+saved and reused after interruptions and on later visits. Other screens remain
+usable during this load. Failed loads preserve the last complete ranking.
+Returning to Rankings retains the active selection, search, and scroll position;
+a fresh app launch opens Players. Doubles uses the same offline and refresh
+policy as the rest of the app. Bonus, medal counts, and event filtering are
+outside this doubles version.
+
 Rankings combine the amateur and professional website lists by source identity,
 ordered by points descending. Equal points share competition ranks (1, 2, 2, 4).
 These app-defined positions differ from the website's category-specific ranks.
@@ -75,7 +91,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n az.tabletennis/.RankingsActivity
 ```
 
-The first complete test APK is version **0.2.0**, version code **2**, at
+The doubles-ranking test APK is version **0.3.0**, version code **3**, at
 `app/build/outputs/apk/debug/app-debug.apk`. Transfer it to your phone, open it,
 and allow installation from the browser/file manager if Android asks. Existing
 saved data can be retained with an update signed by the same debug key. If an
@@ -87,8 +103,8 @@ and its participants. In Results, try the three result types, choose an event,
 and use Load more. After loading these screens, disconnect and restart the app
 to check previously visited screens and their update times.
 
-This debug APK is for testing. Google Play publication, production signing, pair
-rankings, reservations, and other deferred features are outside this delivery.
+This debug APK is for testing. Google Play publication, production signing,
+reservations, and other deferred features are outside this delivery.
 The app fetches public website HTML/JSON directly. Website markup changes may
 require an updated APK; feed coverage is partial as described above.
 
@@ -118,5 +134,8 @@ profile. It asserts visible data without fixed live names, counts, or scores:
 This needs a connected emulator/device and website connectivity. The GitHub
 workflow keeps it opt-in using the `live_site` input. Automatic CI runs the
 fixture suite, lint and APK build, and publishes the APK and reports.
+The separate `az.tabletennis.LiveDoublesTest` connected-test class checks the live
+doubles ranking, full-name metadata, and pair results. Its first load can take
+several minutes; run it with the same instrumentation argument shown above.
 See [verification notes](docs/android-verification.md) for actual checks and
 compatibility limits.
