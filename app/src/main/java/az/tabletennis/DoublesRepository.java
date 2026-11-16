@@ -57,8 +57,39 @@ final class DoublesRepository {
         SavedDataStore<DoublesPair> store = new SavedDataStore<>(context, "duo-" + id, DoublesPair.class);
         SavedData<DoublesPair> cached = store.read();
         if (cached != null && cached.value.id == id) return cached.value;
+        DoublesPair pair = parsePair(id, pairInfo(id));
+        store.write(new SavedData<>(pair, System.currentTimeMillis()));
+        return pair;
+    }
+
+    PairMedals medals(DoublesPair expected) throws IOException {
+        JSONObject data = pairInfo(expected.id);
+        DoublesPair actual = parsePair(expected.id, data);
+        if (!((actual.first.id == expected.first.id && actual.second.id == expected.second.id)
+                || (actual.first.id == expected.second.id && actual.second.id == expected.first.id))) {
+            throw new IOException("Metadata does not describe this partnership");
+        }
+        return new PairMedals(medalCount(data, "firstPlaceCount"), medalCount(data, "secondPlaceCount"),
+                medalCount(data, "thirdPlaceCount"));
+    }
+
+    private JSONObject pairInfo(long id) throws IOException {
+        try { return new JSONObject(client.get("/api/getDuoInfo?id=" + id)); }
+        catch (JSONException invalid) { throw new IOException("Unusable doubles metadata", invalid); }
+    }
+
+    private Integer medalCount(JSONObject data, String key) throws IOException {
+        if (data.isNull(key)) return null;
+        Object value = data.opt(key);
+        if (!(value instanceof Number) || !value.toString().matches("[0-9]+")) {
+            throw new IOException("Invalid pair medal count");
+        }
+        try { return Integer.valueOf(value.toString()); }
+        catch (NumberFormatException invalid) { throw new IOException("Invalid pair medal count", invalid); }
+    }
+
+    private DoublesPair parsePair(long id, JSONObject data) throws IOException {
         try {
-            JSONObject data = new JSONObject(client.get("/api/getDuoInfo?id=" + id));
             long first = data.getLong("player1Id");
             long second = data.getLong("player2Id");
             String firstName = data.getString("player1FullName").replaceAll("[\\s\\u00a0]+", " ").trim();
@@ -68,10 +99,8 @@ final class DoublesRepository {
                     || results == null || !results.encodedPath().equals("/matches/results/duo/" + id)) {
                 throw new IOException("Unusable doubles identity");
             }
-            DoublesPair pair = new DoublesPair(id, new MatchDetails.PlayerLink(first, firstName),
+            return new DoublesPair(id, new MatchDetails.PlayerLink(first, firstName),
                     new MatchDetails.PlayerLink(second, secondName));
-            store.write(new SavedData<>(pair, System.currentTimeMillis()));
-            return pair;
         } catch (JSONException invalid) {
             throw new IOException("Unusable doubles identity", invalid);
         }

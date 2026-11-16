@@ -3,6 +3,8 @@ package az.tabletennis;
 import android.app.Activity;
 
 enum SavedScreenCase {
+    PAIR(PairResultsActivity.class, "pairId", 110, "/api/getDuoInfo?id=110", "\"firstPlaceCount\":4", "\"firstPlaceCount\":7",
+            "Qızıl medal: 4", "Qızıl medal: 7"),
     PROFILE(ProfileActivity.class, "playerId", 12, "/players/12", "İlqar Həsənov", "Yenilənmiş oyunçu", "İlqar Həsənov", "Yenilənmiş oyunçu"),
     MATCH(MatchActivity.class, "matchId", 501, "/matches/501", ">3</div>", ">4</div>", "3-2", "4-2"),
     CHART(ChartActivity.class, "playerId", 12, "/api/getPlayerPoints?id=12", "435.55002", "999", "31.12 — 435.55 xal", "31.12 — 999 xal"),
