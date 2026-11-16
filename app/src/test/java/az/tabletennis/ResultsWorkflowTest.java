@@ -22,6 +22,7 @@ public class ResultsWorkflowTest extends ProductUiScenario {
         awaitText("1. İlqar Həsənov — 800 xal");
 
         // act
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 
@@ -52,6 +53,7 @@ public class ResultsWorkflowTest extends ProductUiScenario {
 
         // act
         restart();
+        activity().findViewById(R.id.open_menu).performClick();
         clickText("Nəticələr");
         followNavigation();
 

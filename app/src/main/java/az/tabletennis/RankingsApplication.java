@@ -14,6 +14,7 @@ public class RankingsApplication extends Application {
     final ExecutorService doublesWorker = Executors.newSingleThreadExecutor();
     // Main-thread refresh ownership survives Activity recreation; workers report progress here.
     CompletableFuture<SavedData<DoublesRanking>> doublesRefresh;
+    android.os.Bundle resultsScrollPositions;
     volatile DoublesRepository.Progress doublesProgress;
 
     protected HttpUrl websiteUrl() {

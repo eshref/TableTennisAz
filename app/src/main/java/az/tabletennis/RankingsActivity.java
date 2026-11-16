@@ -1,7 +1,6 @@
 package az.tabletennis;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.text.SpannableString;
@@ -36,6 +35,9 @@ public class RankingsActivity extends Activity {
     private SavedDataStore<DoublesRanking> doublesStore;
     private SavedData<DoublesRanking> doubles;
     private DoublesRepository doublesRepository;
+    private MainScreenChrome chrome;
+    private Button retry;
+    private Button clearSearch;
     private EditText search;
     private TextView explanation;
     private TextView status;
@@ -79,6 +81,7 @@ public class RankingsActivity extends Activity {
         search.setText(doublesMode ? doublesQuery : playerQuery);
         render();
         restorePosition();
+        if (state != null && state.getBoolean("drawer")) chrome.openDrawer();
         if (application.doublesRefresh != null) followDoublesRefresh(application.doublesRefresh);
     }
 
@@ -91,6 +94,7 @@ public class RankingsActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         rememberSelection();
+        state.putBoolean("drawer", chrome.isDrawerOpen());
         state.putBoolean("doubles", doublesMode);
         state.putString("playerQuery", playerQuery);
         state.putString("doublesQuery", doublesQuery);
@@ -99,63 +103,74 @@ public class RankingsActivity extends Activity {
     }
 
     private void createScreen() {
+        chrome = new MainScreenChrome(this, true, this::refreshRankings);
+        updated = chrome.updated;
+        refresh = chrome.refresh;
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(245, 250, 248));
-        int padding = dp(16);
-        root.setPadding(padding, padding, padding, padding);
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
-            view.setPadding(padding + insets.getSystemWindowInsetLeft(), padding + insets.getSystemWindowInsetTop(),
-                    padding + insets.getSystemWindowInsetRight(), padding + insets.getSystemWindowInsetBottom());
-            return insets;
-        });
-        TextView title = label(R.string.rankings_title, 28);
-        if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
-        root.addView(title);
         RadioGroup modes = new RadioGroup(this);
         modes.setOrientation(LinearLayout.HORIZONTAL);
         RadioButton players = new RadioButton(this);
         players.setId(R.id.players_mode);
         players.setText(R.string.players_mode);
-        modes.addView(players);
+        Presentation.segment(players);
+        modes.addView(players, new RadioGroup.LayoutParams(0, -2, 1));
         RadioButton pairs = new RadioButton(this);
         pairs.setId(R.id.doubles_mode);
         pairs.setText(R.string.doubles_mode);
-        modes.addView(pairs);
+        Presentation.segment(pairs);
+        modes.addView(pairs, new RadioGroup.LayoutParams(0, -2, 1));
         modes.check(doublesMode ? R.id.doubles_mode : R.id.players_mode);
         modes.setOnCheckedChangeListener((group, checked) -> choose(checked == R.id.doubles_mode));
-        root.addView(modes);
-        Button results = new Button(this);
-        results.setText(R.string.results_title);
-        results.setOnClickListener(view -> startActivity(new android.content.Intent(this, ResultsActivity.class)));
-        root.addView(results);
+        modes.setPadding(dp(3), dp(3), dp(3), dp(3));
+        modes.setBackground(Presentation.shape(this, R.color.soft));
+        LinearLayout.LayoutParams modeLayout = new LinearLayout.LayoutParams(-1, -2);
+        modeLayout.bottomMargin = dp(12);
+        chrome.body.addView(modes, modeLayout);
         explanation = label(0, 14);
         root.addView(explanation);
         search = new EditText(this);
         search.setId(R.id.search);
         search.setSingleLine(true);
         search.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-        root.addView(search, new LinearLayout.LayoutParams(-1, dp(56)));
-        refresh = new Button(this);
-        refresh.setId(R.id.refresh);
-        refresh.setText(R.string.refresh);
-        refresh.setOnClickListener(view -> refreshRankings());
-        root.addView(refresh);
+        LinearLayout.LayoutParams searchLayout = new LinearLayout.LayoutParams(-1, dp(56));
+        searchLayout.bottomMargin = dp(8);
+        chrome.body.addView(search, searchLayout);
+        search.setTextColor(getColor(R.color.text));
+        search.setHintTextColor(getColor(R.color.secondary));
+        search.setBackground(Presentation.shape(this, R.color.surface));
+        search.setPadding(dp(12), 0, dp(12), 0);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setContentDescription(getString(R.string.loading));
         root.addView(progress, new LinearLayout.LayoutParams(-1, dp(4)));
-        updated = label(0, 13);
-        updated.setId(R.id.updated);
-        root.addView(updated);
         status = label(0, 14);
         status.setId(R.id.status);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         root.addView(status);
+        retry = new Button(this);
+        retry.setId(R.id.retry);
+        retry.setText(R.string.retry);
+        Presentation.action(retry);
+        retry.setOnClickListener(view -> refreshRankings());
+        root.addView(retry);
+        empty = label(R.string.no_matches, 16);
+        empty.setVisibility(View.GONE);
+        root.addView(empty);
+        clearSearch = new Button(this);
+        clearSearch.setId(R.id.clear_search);
+        clearSearch.setText(R.string.clear_search);
+        Presentation.action(clearSearch);
+        clearSearch.setOnClickListener(view -> search.setText(""));
+        root.addView(clearSearch);
         list = new ListView(this);
+        list.addHeaderView(root, null, false);
+        list.setDivider(new android.graphics.drawable.ColorDrawable(getColor(R.color.line)));
+        list.setDividerHeight(dp(1));
         list.setId(android.R.id.list);
         rows = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, new ArrayList<>()) {
             @Override public View getView(int position, View recycled, ViewGroup parent) {
                 TextView row = (TextView) super.getView(position, recycled, parent);
-                row.setTextColor(Color.rgb(22, 44, 40));
+                row.setTextColor(getColor(R.color.text));
                 row.setTextSize(18);
                 row.setMinHeight(dp(64));
                 row.setPadding(dp(4), dp(12), dp(4), dp(12));
@@ -166,21 +181,19 @@ public class RankingsActivity extends Activity {
         };
         list.setAdapter(rows);
         list.setOnItemClickListener((parent, view, position, id) -> {
+            position -= list.getHeaderViewsCount();
+            if (position < 0) return;
             if (doublesMode) startActivity(new android.content.Intent(this, PairResultsActivity.class)
                     .putExtra("pairId", visiblePairs.get(position).pair.id));
             else startActivity(new android.content.Intent(this, ProfileActivity.class)
                     .putExtra("playerId", visiblePlayers.get(position).id));
         });
-        root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
-        empty = label(R.string.no_matches, 16);
-        empty.setVisibility(View.GONE);
-        root.addView(empty);
+        chrome.body.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         search.addTextChangedListener(new android.text.TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { render(); }
             @Override public void afterTextChanged(android.text.Editable value) { }
         });
-        setContentView(root);
     }
 
     private void choose(boolean pairs) {
@@ -214,7 +227,7 @@ public class RankingsActivity extends Activity {
     }
 
     private void refreshRankings() {
-        if (!application.isOnline()) return;
+        if (!application.isOnline()) { renderStatus(); return; }
         if (doublesMode) {
             if (doublesLoading) return;
             CompletableFuture<SavedData<DoublesRanking>> pending = application.doublesRefresh;
@@ -242,6 +255,7 @@ public class RankingsActivity extends Activity {
                 if (isDestroyed()) return;
                 snapshot = retrieved;
                 loading = false;
+                playerStatus = getString(R.string.refresh_success);
                 render();
             });
         } catch (IOException failure) {
@@ -272,8 +286,10 @@ public class RankingsActivity extends Activity {
             }
             if (isDestroyed()) return;
             doublesLoading = false;
-            if (failure == null) doubles = retrieved;
-            else doublesStatus = getString(doubles == null ? R.string.data_unavailable : R.string.data_saved_failure);
+            if (failure == null) {
+                doubles = retrieved;
+                doublesStatus = getString(R.string.refresh_success);
+            } else doublesStatus = getString(doubles == null ? R.string.data_unavailable : R.string.data_saved_failure);
             render();
         }));
     }
@@ -312,10 +328,14 @@ public class RankingsActivity extends Activity {
         }
         if (busy) status.setText(doublesMode && totalPairs > 0
                 ? getString(R.string.doubles_loading, resolvedPairs, totalPairs) : getString(R.string.loading));
-        else if (!application.isOnline()) status.setText(doublesMode
-                ? (hasData ? R.string.data_saved_failure : R.string.data_unavailable)
-                : (hasData ? R.string.saved_offline : R.string.unavailable));
+        else if (!application.isOnline()) status.setText(hasData ? R.string.offline_saved
+                : (doublesMode ? R.string.data_unavailable : R.string.unavailable));
         else status.setText(doublesMode ? doublesStatus : playerStatus);
+        if (!busy && !hasData && application.isOnline() && status.getText().length() == 0)
+            status.setText(doublesMode ? R.string.data_unavailable : R.string.unavailable);
+        status.setVisibility(status.getText().length() == 0 ? View.GONE : View.VISIBLE);
+        retry.setVisibility(!busy && !hasData ? View.VISIBLE : View.GONE);
+        retry.setEnabled(application.isOnline());
     }
 
     private void render() {
@@ -358,15 +378,15 @@ public class RankingsActivity extends Activity {
         rows.addAll(visible);
         list.onRestoreInstanceState(position);
         empty.setText(doublesMode ? R.string.no_pairs : R.string.no_matches);
-        empty.setVisibility(time != 0 && visible.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean noMatches = time != 0 && visible.isEmpty();
+        empty.setVisibility(noMatches ? View.VISIBLE : View.GONE);
+        clearSearch.setVisibility(noMatches && !query.isEmpty() ? View.VISIBLE : View.GONE);
         renderStatus();
     }
 
     private TextView label(int resource, int size) {
-        TextView label = new TextView(this);
-        if (resource != 0) label.setText(resource);
-        label.setTextColor(Color.rgb(22, 44, 40));
-        label.setTextSize(size);
+        TextView label = Presentation.label(this, resource == 0 ? "" : getString(resource), size);
+        label.setTextColor(getColor(R.color.secondary));
         return label;
     }
 
@@ -381,11 +401,17 @@ public class RankingsActivity extends Activity {
         int places = Math.abs(row.placesGained);
         SpannableString movement = new SpannableString(text + (up ? "  ↑ " : "  ↓ ") + places);
         int start = text.length() + 2;
-        movement.setSpan(new ForegroundColorSpan(up ? Color.rgb(24, 115, 58) : Color.rgb(179, 38, 30)),
+        movement.setSpan(new ForegroundColorSpan(getColor(up ? R.color.movement_up : R.color.movement_down)),
                 start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         movement.setSpan(new RelativeSizeSpan(0.78f), start, movement.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         view.setText(movement);
         view.setContentDescription(text + ", " + getString(up ? R.string.movement_up : R.string.movement_down, places));
+    }
+
+    // Legacy Back dispatch; MainScreenChrome registers the native gesture callback on API 33+.
+    @android.annotation.SuppressLint("GestureBackNavigation")
+    @Override public void onBackPressed() {
+        if (!chrome.closeDrawer()) super.onBackPressed();
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }

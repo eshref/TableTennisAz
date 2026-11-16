@@ -4,6 +4,11 @@ Native Azerbaijani rankings, player profiles, rating history, and match results
 for Android 8.0 (API 26) and newer. The app opens on amateur individual-player
 rankings. This implements the first-delivery scope in issues #1–#9.
 
+Open the menu in the top bar to switch between Rankings and Results. The refresh
+icon updates the active selection, and the app follows the phone’s light/dark
+appearance. Returning to Rankings preserves each mode’s search and scroll;
+Results also retains its selection and browsing position.
+
 Rankings also has an Oyunçular / Qoşalar switch. Doubles ranks partnerships using
 the website's published positions and points, so equal points can have different
 positions. Rows show both full names; searching either partner keeps source

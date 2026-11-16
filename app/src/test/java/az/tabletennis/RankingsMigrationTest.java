@@ -67,7 +67,7 @@ public class RankingsMigrationTest extends RankingsUiScenario {
         openScreen();
 
         // assert
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
+        awaitText("İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains("1. İlqar Həsənov — 800 xal", "1. Əli Məmmədov — 800 xal", "3. Işıl Əliyeva — 600 xal")
                 .doesNotContain("1. Şəms Quliyeva — 950 xal");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEqualTo(updated);

@@ -2,7 +2,6 @@ package az.tabletennis;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.View;
@@ -68,7 +67,7 @@ final class DoublesHistoryView extends LinearLayout {
         button.setId(id);
         button.setText(text);
         button.setTextSize(16);
-        button.setTextColor(Color.rgb(22, 44, 40));
+        button.setTextColor(getContext().getColor(R.color.text));
         button.setMinHeight(dp(48));
         return button;
     }
@@ -77,7 +76,7 @@ final class DoublesHistoryView extends LinearLayout {
         TextView label = new TextView(getContext());
         label.setText(text);
         label.setTextSize(14);
-        label.setTextColor(Color.rgb(22, 44, 40));
+        label.setTextColor(getContext().getColor(R.color.text));
         label.setPadding(0, dp(6), 0, dp(6));
         return label;
     }
@@ -129,17 +128,17 @@ final class DoublesHistoryView extends LinearLayout {
             float bottom = getHeight() - 2 * paint.getTextSize() - dp(18);
             for (long value : new long[] {minimum, maximum}) {
                 float y = plotY((value - (double) minimum) / (maximum - (double) minimum), top, bottom);
-                paint.setColor(Color.rgb(210, 224, 219));
+                paint.setColor(getContext().getColor(R.color.line));
                 paint.setStrokeWidth(dp(1));
                 canvas.drawLine(left, y, right, y, paint);
-                paint.setColor(Color.rgb(22, 44, 40));
+                paint.setColor(getContext().getColor(R.color.text));
                 paint.setTextAlign(Paint.Align.RIGHT);
                 canvas.drawText(tick(value), left - dp(8), y + paint.getTextSize() / 3, paint);
             }
             long start = observations.get(0).time;
             long end = observations.get(observations.size() - 1).time;
             Path line = new Path();
-            paint.setColor(Color.rgb(0, 107, 94));
+            paint.setColor(getContext().getColor(R.color.primary));
             for (int i = 0; i < observations.size(); i++) {
                 Point point = observations.get(i);
                 float x = end == start ? (left + right) / 2
@@ -153,7 +152,7 @@ final class DoublesHistoryView extends LinearLayout {
             paint.setStrokeWidth(dp(2));
             canvas.drawPath(line, paint);
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.rgb(22, 44, 40));
+            paint.setColor(getContext().getColor(R.color.text));
             drawDate(canvas, start, 0, bottom, Paint.Align.LEFT);
             if (end != start) drawDate(canvas, end, getWidth(), bottom, Paint.Align.RIGHT);
         }

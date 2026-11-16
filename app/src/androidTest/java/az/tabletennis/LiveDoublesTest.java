@@ -47,13 +47,13 @@ public class LiveDoublesTest {
 
             java.util.concurrent.atomic.AtomicReference<String> selected = new java.util.concurrent.atomic.AtomicReference<>();
             scenario.onActivity(activity -> selected.set(((android.widget.ListView) activity.findViewById(android.R.id.list))
-                    .getAdapter().getItem(0).toString()));
+                    .getAdapter().getItem(1).toString()));
             java.util.regex.Matcher row = java.util.regex.Pattern.compile("^(\\d+)\\. (.+) / (.+) — (\\d+) xal$")
                     .matcher(selected.get());
             if (!row.matches()) throw new AssertionError("Unreadable published doubles row: " + selected.get());
 
             // act
-            onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(0).perform(click());
+            onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
 
             // assert
             awaitSuccessfulData(150_000);

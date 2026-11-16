@@ -51,7 +51,7 @@ public class DoublesRefreshRecreationTest extends DoublesUiScenario {
         });
         try {
             // act
-            clickText("Yenilə");
+            activity().findViewById(R.id.refresh).performClick();
 
             // assert
             assertThat(requested.await(5, TimeUnit.SECONDS)).isTrue();
@@ -69,7 +69,7 @@ public class DoublesRefreshRecreationTest extends DoublesUiScenario {
             website.put("/players/duos", ranking(pairRow(110, 11, 800)));
 
             // act
-            clickText("Yenilə");
+            activity().findViewById(R.id.refresh).performClick();
 
             // assert
             awaitText("11. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 2");

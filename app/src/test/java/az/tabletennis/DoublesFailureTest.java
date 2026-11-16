@@ -61,7 +61,7 @@ public class DoublesFailureTest extends DoublesUiScenario {
         website.put("/players/duos", ranking(pairRow(220, 1, 800) + pairRow(110, 2, 800) + pairRow(330, 3, 600)));
 
         // act
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("2. İlqar Həsənov / Əli Məmmədov — 800 xal  ↓ 1");
@@ -98,7 +98,7 @@ public class DoublesFailureTest extends DoublesUiScenario {
 
         // act
         screen.pause().resume().visible();
-        clickText("Yenilə");
+        activity().findViewById(R.id.refresh).performClick();
 
         // assert
         awaitText("4. İlqar Həsənov / Əli Məmmədov — 500 xal  ↓ 2");

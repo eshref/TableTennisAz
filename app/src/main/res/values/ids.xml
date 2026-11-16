@@ -19,4 +19,13 @@
     <item name="refresh" type="id" />
     <item name="status" type="id" />
     <item name="updated" type="id" />
+    <item name="open_menu" type="id" />
+    <item name="close_menu" type="id" />
+    <item name="drawer" type="id" />
+    <item name="destination_rankings" type="id" />
+    <item name="destination_results" type="id" />
+    <item name="main_body" type="id" />
+    <item name="main_scroll" type="id" />
+    <item name="retry" type="id" />
+    <item name="clear_search" type="id" />
 </resources>

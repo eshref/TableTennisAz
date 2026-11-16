@@ -64,7 +64,7 @@ public class RankingsWorkflowTest extends RankingsUiScenario {
         screen.get().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
+        awaitText("İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains("1. Nigar Əliyeva — 900 xal",
                 "2. İlqar Həsənov — 800 xal", "2. Əli Məmmədov — 800 xal", "4. Işıl Əliyeva — 600 xal")
                 .doesNotContain("1. Şəms Quliyeva — 950 xal");
