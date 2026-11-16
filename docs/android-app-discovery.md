@@ -270,3 +270,108 @@ primary source for the decision. Prototype code is not production Android code.
 
 Create glossary entries when domain terminology is settled. Record architectural
 decisions when a meaningful trade-off has been resolved.
+
+## Doubles-profile follow-up discovery
+
+The project owner approved this interview's complete plan after Q9 on
+2026-11-16 and requested specification publication using the to-spec skill.
+Production implementation has not been requested.
+
+Confirmed decisions:
+
+- Q1: A doubles pair's profile must offer both rating points over time and
+  ranking position over time. The existing singles chart shows rating points
+  only; it does not define the full scope of the requested doubles charts.
+
+- Q2: Selecting a pair in Doubles rankings opens that pair's profile, following
+  the individual-player profile experience. It shows the pair's latest
+  matches, medal counts, and the agreed rating and ranking histories. Medal
+  counts extend the previous doubles-ranking version's scope.
+
+Read-only source inspection on 2026-11-16:
+
+- The doubles ranking supplies current pair positions and points;
+  `/api/getDuoInfo?id=584` supplies membership, medal counts, and a results link.
+- No verified doubles rating-history or ranking-history source was found in
+  the inspected public JavaScript, metadata, results, and match details.
+  Probed `getDuoPoints` and `getDuoPositions` routes returned 404. This bounded
+  inspection does not establish that no other interface exists.
+- The individual-player history endpoints use player identities even when
+  passed a pair's numeric ID; they cannot be reused as pair histories.
+- Inspected pair results and match details have no pair rating deltas or
+  historical positions. Old event winner cards match current pair values
+  and do not establish historical ranking snapshots.
+- Q3 resolved historical-data acquisition: save published pair points and
+  positions on the device when doubles rankings refresh, building both
+  histories from these observations. History begins with the first saved
+  observation; earlier history is unavailable and refresh gaps remain. See
+  [the history-source decision](adr/0005-doubles-history-observations.md).
+
+Additional requested scope, raised with the Q3 answer:
+
+- After refresh, the Doubles ranking should show a small icon and the number
+  of places a pair has moved.
+- Q4: Compare each pair's new published position with its position in the
+  previous successful ranking refresh saved on the same device. Moving from
+  #12 to #9 shows a green upward arrow with 3; moving from #9 to #11 shows
+  a red downward arrow with 2.
+- Q6 (also revising Q5): Show no movement indicator when the published
+  position is unchanged or when no previous saved position exists. This
+  includes the first download and a pair absent from the previous saved
+  ranking. Display neither a dash nor a zero for these cases.
+
+Initial history presentation:
+
+- Q8: After the first saved observation, each history chart displays one
+  dated point and a note that further history will appear after future
+  ranking refreshes. Do not require two observations before showing history.
+
+### Doubles-profile chart prototype outcome
+
+Q7: The project owner selected **Switchable chart** (variant A): embed one
+chart in the pair profile with a Points / Rank switch and place rank #1 at
+the top of the ranking chart. The selected layout includes current pair
+points and rank, gold/silver/bronze counts, and recent matches.
+
+The throwaway comparison used illustrative observations and contrasted this
+layout with two stacked charts and a separate history screen. The comparison
+and verdict are preserved on the local `prototype/doubles-profile-charts`
+branch in `docs/prototypes/doubles-profile-prototype.html`; prototype code
+is not part of the main branch or the production Android implementation.
+To revisit it, open that branch in a worktree and serve its `docs/prototypes`
+with `~/.codex/bin/skill-python -m http.server 8765 --bind 127.0.0.1 --directory docs/prototypes`.
+The preview route is `/doubles-profile-prototype.html?variant=A` (or B/C).
+
+### Scope confirmation
+
+The project owner approved the complete doubles-profile and ranking-movement
+scope after Q9. Existing pair-result behavior (both player-profile links,
+tournament matches and doubles duels, newest-first ordering, and Load more)
+and the existing saved-data/refresh policy carry forward.
+
+The subsequent to-spec request authorizes specification publication to the
+GitHub issue tracker with the ready-for-agent label. The owner also approved
+the existing Android UI integration-test boundary with real local HTTP
+fixtures and durable storage, plus device checks for chart layout and arrow
+colors. The specification is recorded in [the doubles profiles spec](specs/doubles-profiles.md).
+Production implementation has not been requested.
+
+Published as [GitHub issue #16](https://github.com/eshref/TableTennisAz/issues/16)
+with the `ready-for-agent` label. The published body and label were verified
+against the local specification.
+
+### Implementation-ticket publication
+
+The project owner approved the three-ticket breakdown and authorized
+publication using the to-tickets skill. All tickets are native sub-issues
+of specification #16 and carry the `ready-for-agent` label:
+
+- [#17: Doubles profile](https://github.com/eshref/TableTennisAz/issues/17), no blockers.
+- [#18: Ranking movement and saved observations](https://github.com/eshref/TableTennisAz/issues/18), no blockers.
+- [#19: Switchable history chart](https://github.com/eshref/TableTennisAz/issues/19), natively blocked by #17 and #18.
+
+Bodies, labels, native parent links, and native blocking links were verified.
+The parent specification's title, body, state, and labels remain unchanged.
+Local ticket acceptance criteria and the dependency map are preserved in
+[the doubles-profile tickets](tickets/doubles-profiles/README.md).
+Production implementation has not been requested.
