@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">TableTennisAz</string>
+    <string name="rankings_title">Reytinq</string>
+    <string name="rank_explanation">Həvəskar və peşəkar oyunçular birlikdə. Yerlər xal üzrə tətbiqdə hesablanır; rəsmi kateqoriya yerləri deyil.</string>
+    <string name="search_hint">Oyunçu adı ilə axtar</string>
+    <string name="refresh">Yenilə</string>
+    <string name="loading">Reytinq yüklənir…</string>
+    <string name="unavailable">Reytinq yüklənmədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.</string>
+    <string name="saved_offline">Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.</string>
+    <string name="updated_at">Son uğurlu yenilənmə: %1$s</string>
+    <string name="no_matches">Axtarışa uyğun oyunçu tapılmadı.</string>
+    <plurals name="player_row">
+        <item quantity="one">%1$d. %2$s — %3$d xal</item>
+        <item quantity="other">%1$d. %2$s — %3$d xal</item>
+    </plurals>
+</resources>
