@@ -8,6 +8,22 @@ import java.util.concurrent.Executors;
 import okhttp3.HttpUrl;
 
 public class RankingsApplication extends Application {
+    private PlayerPhotos photos;
+
+    PlayerPhotos photos() {
+        if (photos == null) photos = new PlayerPhotos(this, websiteUrl());
+        return photos;
+    }
+
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (photos != null) photos.trimMemory();
+    }
+
+    @Override public void onTerminate() {
+        if (photos != null) photos.close();
+        super.onTerminate();
+    }
     // Serialize storage writes, including work spanning Activity recreation.
     final ExecutorService rankingsWorker = Executors.newSingleThreadExecutor();
     // Full-name hydration can take hundreds of requests; keep other screens responsive.

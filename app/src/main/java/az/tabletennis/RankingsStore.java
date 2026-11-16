@@ -27,7 +27,9 @@ final class RankingsStore {
             List<RankingSnapshot.Player> players = new ArrayList<>();
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i);
-                players.add(new RankingSnapshot.Player(row.getLong("id"), row.getString("name"), row.getInt("points")));
+                Object photo = row.opt("photoUrl");
+                players.add(new RankingSnapshot.Player(row.getLong("id"), row.getString("name"), row.getInt("points"),
+                        photo instanceof String ? (String) photo : null));
             }
             if (players.isEmpty() || saved.getLong("updatedAt") <= 0) return null;
             return new RankingSnapshot(players, saved.getLong("updatedAt"));
@@ -41,7 +43,8 @@ final class RankingsStore {
         try {
             JSONArray rows = new JSONArray();
             for (RankingSnapshot.Player player : snapshot.players) {
-                rows.put(new JSONObject().put("id", player.id).put("name", player.name).put("points", player.points));
+                rows.put(new JSONObject().put("id", player.id).put("name", player.name).put("points", player.points)
+                        .put("photoUrl", player.photoUrl));
             }
             byte[] bytes = new JSONObject().put("category", "amateur").put("updatedAt", snapshot.updatedAt).put("players", rows)
                     .toString().getBytes(StandardCharsets.UTF_8);

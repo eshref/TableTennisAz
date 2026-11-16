@@ -84,6 +84,12 @@ public abstract class RankingsUiScenario {
 
     private void collectText(View view, List<String> text) {
         if (view.getVisibility() != View.VISIBLE) return;
+        // Structured ranking rows expose their complete values as one TalkBack announcement.
+        if (view instanceof ViewGroup && view.getParent() instanceof android.widget.ListView
+                && view.getContentDescription() != null) {
+            text.add(view.getContentDescription().toString());
+            return;
+        }
         if (view instanceof TextView label) text.add(label.getText().toString());
         if (view instanceof ViewGroup group) {
             for (int i = 0; i < group.getChildCount(); i++) collectText(group.getChildAt(i), text);
