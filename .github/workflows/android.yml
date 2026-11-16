@@ -53,4 +53,4 @@ jobs:
           api-level: 26
           target: default
           arch: x86_64
-          script: ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveRankingsTest
+          script: ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveExperienceTest

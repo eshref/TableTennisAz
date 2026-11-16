@@ -53,6 +53,7 @@ public class RankingsWorkflowTest extends RankingsUiScenario {
 
         // act
         screen.pause().stop().destroy();
+        FixtureApplication.online = false;
         server.shutdown();
         FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, Duration.ofDays(365));
         openScreen();

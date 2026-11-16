@@ -15,4 +15,10 @@ public class RankingsApplication extends Application {
     }
 
     protected Clock clock() { return Clock.systemUTC(); }
+
+    protected boolean isOnline() {
+        android.net.ConnectivityManager connectivity = getSystemService(android.net.ConnectivityManager.class);
+        android.net.NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(connectivity.getActiveNetwork());
+        return capabilities != null && capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
+    }
 }

@@ -34,6 +34,8 @@ public class RankingsActivity extends Activity {
     private Button refresh;
     private ProgressBar progress;
     private ArrayAdapter<String> rows;
+    private final List<RankingSnapshot.Player> visiblePlayers = new ArrayList<>();
+    private boolean loading;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -42,16 +44,18 @@ public class RankingsActivity extends Activity {
         source = new RankingsSource(application.websiteUrl());
         createScreen();
         if (state != null) search.setText(state.getString("query", ""));
-        setLoading(true);
-        application.rankingsWorker.execute(() -> {
-            RankingSnapshot saved = store.read();
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                snapshot = saved;
-                render();
-            });
-            retrieveRankings();
-        });
+        snapshot = store.read();
+        render();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (!application.isOnline()) {
+            refresh.setEnabled(false);
+            status.setText(snapshot == null ? R.string.unavailable : R.string.saved_offline);
+        } else if (snapshot == null || SavedData.needsRefresh(snapshot.updatedAt, application.clock().millis())) {
+            refreshRankings();
+        } else refresh.setEnabled(!loading);
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -73,6 +77,10 @@ public class RankingsActivity extends Activity {
         TextView title = label(R.string.rankings_title, 28);
         if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
         root.addView(title);
+        Button results = new Button(this);
+        results.setText(R.string.results_title);
+        results.setOnClickListener(view -> startActivity(new android.content.Intent(this, ResultsActivity.class)));
+        root.addView(results);
         root.addView(label(R.string.rank_explanation, 14));
         search = new EditText(this);
         search.setId(R.id.search);
@@ -84,10 +92,7 @@ public class RankingsActivity extends Activity {
         refresh = new Button(this);
         refresh.setId(R.id.refresh);
         refresh.setText(R.string.refresh);
-        refresh.setOnClickListener(view -> {
-            setLoading(true);
-            application.rankingsWorker.execute(this::retrieveRankings);
-        });
+        refresh.setOnClickListener(view -> refreshRankings());
         root.addView(refresh);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setIndeterminate(true);
@@ -112,6 +117,8 @@ public class RankingsActivity extends Activity {
             }
         };
         list.setAdapter(rows);
+        list.setOnItemClickListener((parent, view, position, id) -> startActivity(new android.content.Intent(this, ProfileActivity.class)
+                .putExtra("playerId", visiblePlayers.get(position).id)));
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         empty = label(R.string.no_matches, 16);
         empty.setVisibility(View.GONE);
@@ -145,14 +152,22 @@ public class RankingsActivity extends Activity {
         }
     }
 
+    private void refreshRankings() {
+        if (loading || !application.isOnline()) return;
+        setLoading(true);
+        application.rankingsWorker.execute(this::retrieveRankings);
+    }
+
     private void setLoading(boolean loading) {
-        refresh.setEnabled(!loading);
+        this.loading = loading;
+        refresh.setEnabled(!loading && application.isOnline());
         progress.setVisibility(loading ? View.VISIBLE : View.INVISIBLE);
         if (loading) status.setText(R.string.loading);
     }
 
     private void render() {
         List<String> visible = new ArrayList<>();
+        visiblePlayers.clear();
         if (snapshot != null) {
             DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, AZERBAIJANI);
             updated.setText(getString(R.string.updated_at, format.format(new Date(snapshot.updatedAt))));
@@ -164,6 +179,7 @@ public class RankingsActivity extends Activity {
                 if (player.points != previousPoints) rank = i + 1;
                 previousPoints = player.points;
                 if (player.name.toLowerCase(AZERBAIJANI).contains(query)) {
+                    visiblePlayers.add(player);
                     visible.add(getResources().getQuantityString(R.plurals.player_row, player.points, rank, player.name, player.points));
                 }
             }

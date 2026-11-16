@@ -74,6 +74,7 @@ public class RankingsFailureTest extends RankingsUiScenario {
 
         // act
         screen.pause().stop().destroy();
+        FixtureApplication.online = false;
         server.shutdown();
         openScreen();
 
