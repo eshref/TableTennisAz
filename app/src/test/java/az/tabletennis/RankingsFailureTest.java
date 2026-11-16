@@ -42,9 +42,9 @@ public class RankingsFailureTest extends RankingsUiScenario {
 
         // act
         openScreen();
-        awaitText("Reytinq yüklənmədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.");
 
         // assert
+        awaitText("Reytinq yüklənmədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEmpty();
         assertThat(visibleText()).noneMatch(text -> text.matches("\\d+\\. .* — \\d+ xal"));
 
@@ -54,9 +54,9 @@ public class RankingsFailureTest extends RankingsUiScenario {
 
         // act
         screen.get().findViewById(R.id.refresh).performClick();
-        awaitText("1. Şəms Quliyeva — 950 xal");
 
         // assert
+        awaitText("1. Şəms Quliyeva — 950 xal");
         String successfulUpdate = ((TextView) screen.get().findViewById(R.id.updated)).getText().toString();
         assertThat(successfulUpdate).startsWith("Son uğurlu yenilənmə: ");
 
@@ -66,9 +66,9 @@ public class RankingsFailureTest extends RankingsUiScenario {
 
         // act
         screen.get().findViewById(R.id.refresh).performClick();
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
 
         // assert
+        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
         assertThat(visibleText()).contains("1. Şəms Quliyeva — 950 xal", "4. Işıl Əliyeva — 600 xal");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEqualTo(successfulUpdate);
 
@@ -76,9 +76,9 @@ public class RankingsFailureTest extends RankingsUiScenario {
         screen.pause().stop().destroy();
         server.shutdown();
         openScreen();
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
 
         // assert
+        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
         assertThat(visibleText()).contains("1. Şəms Quliyeva — 950 xal", "4. Işıl Əliyeva — 600 xal");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEqualTo(successfulUpdate);
     }

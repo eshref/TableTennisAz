@@ -27,6 +27,7 @@ public class LiveRankingsTest {
 
         // act
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // assert
             long deadline = SystemClock.elapsedRealtime() + 90_000;
             while (true) {
                 try {
@@ -38,7 +39,6 @@ public class LiveRankingsTest {
                 }
             }
 
-            // assert
             onView(withText(R.string.rankings_title)).check(matches(isDisplayed()));
             onView(withId(android.R.id.list)).check(matches(hasMinimumChildCount(1)));
         }

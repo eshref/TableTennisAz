@@ -23,9 +23,9 @@ public class RankingsWorkflowTest extends RankingsUiScenario {
 
         // act
         openScreen();
-        awaitText("1. Şəms Quliyeva — 950 xal");
 
         // assert
+        awaitText("1. Şəms Quliyeva — 950 xal");
         assertThat(visibleText()).containsSubsequence(
                 "1. Şəms Quliyeva — 950 xal", "2. İlqar Həsənov — 800 xal",
                 "2. Əli Məmmədov — 800 xal", "4. Işıl Əliyeva — 600 xal");
@@ -57,9 +57,9 @@ public class RankingsWorkflowTest extends RankingsUiScenario {
         FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, Duration.ofDays(365));
         openScreen();
         screen.get().findViewById(R.id.refresh).performClick();
-        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
 
         // assert
+        awaitText("Yeniləmək mümkün olmadı. Saxlanmış reytinq göstərilir.");
         assertThat(visibleText()).contains("1. Şəms Quliyeva — 950 xal",
                 "2. İlqar Həsənov — 800 xal", "2. Əli Məmmədov — 800 xal", "4. Işıl Əliyeva — 600 xal");
         assertThat(((TextView) screen.get().findViewById(R.id.updated)).getText().toString()).isEqualTo(updated);

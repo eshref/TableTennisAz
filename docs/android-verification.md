@@ -32,6 +32,11 @@ The workflow test first failed against the loading-only Activity, then passed
 with the implemented ranking workflow. Host-side simulation cannot establish
 real Android TLS compatibility or device installation on its own.
 
+Final deterministic verification passed: six cases, Android lint (zero errors),
+debug APK assembly and connected-test APK assembly. The standards/specification
+reviews found no outstanding issues after assertion polling was moved into the
+Assert phases.
+
 ## APK and live source verification
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk` and
@@ -47,6 +52,20 @@ The HTTP client requests HTML explicitly, supplies Azerbaijani language
 preferences and a browser-compatible user-agent identifying TableTennisAz.
 HTTPS uses normal platform certificate and hostname verification; the app does
 not disable TLS checks or permit cleartext production traffic.
+
+On 2026-11-16, the APK installed and launched successfully on an Android 8.0
+(API 26, x86_64) emulator. The connected live UI test passed: `OK (1 test)`.
+Both live categories passed the production HTTPS requests and parsing, and the
+native UI displayed ranking rows plus a successful-update time. The complete
+connected test took about 106 seconds on this software-emulated device.
+
+This Linux environment has no `/dev/kvm`. The first connected attempt was
+blocked by an Android system-process ANR dialog and lost window focus. After
+initial startup settled, the dialog was dismissed and emulator animations were
+disabled; the retry passed. The sandbox's public proxy CA was installed only in
+the emulator system trust store so its HTTPS proxy could be used. No app TLS
+configuration was relaxed. API 36 was exercised under Robolectric; an API 36
+emulator/device was not available for this run.
 
 ## Reproduction
 
