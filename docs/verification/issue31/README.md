@@ -32,7 +32,27 @@ complete timestamp/observation text and reachable actions. These are host checks
 not installed-device evidence. The debug and instrumentation APKs compile,
 including the new `DoublesProfileDeviceTest` and adapted `LiveDoublesTest`.
 
-The final full-suite/lint result will be recorded after branch review.
+The final complete run passed **168 tests in 42 suites**, with zero failures,
+errors or skips. Lint passed with **zero errors and 26 warnings**. Both the debug
+APK and instrumentation APK assembled successfully. The command was:
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=<managed-sdk> \
+  ./gradlew --no-daemon --project-cache-dir <session>/gradle-cache \
+  -I <session>/build-paths.gradle \
+  :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The Gradle init script placed every project's build output under the isolated
+session directory `/c/src/.codex-issue31-cDa4Q3/build`. That temporary directory
+was removed after retaining the APKs, JUnit XML/HTML, lint reports and execution
+logs in `.android-verification/evidence/issue31-host-kStWmC/`.
+The [machine-readable results](host-results.json) include final APK checksums.
+
+Standards review: no documented-standard violations or actionable code smells.
+Spec review: no confirmed implementation defects or scope creep. The review's
+pending full-suite/lint gap is closed by the final run; installed visual
+acceptance remains open below.
 
 ## Installed preflight failed — native visual acceptance remains open
 

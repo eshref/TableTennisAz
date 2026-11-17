@@ -1,0 +1,33 @@
+{
+  "verifiedAt": "2026-11-17T18:34:54.369704+00:00",
+  "implementationCommit": "ca6b61684d718114d6d6e2265c94ae3fd7261e0c",
+  "branch": "issue-31-doubles-profile",
+  "hostChecks": "passed",
+  "junit": {
+    "suites": 42,
+    "tests": 168,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 26
+  },
+  "artifacts": {
+    "directory": "/c/src/TableTennisAz/.android-verification/evidence/issue31-host-kStWmC",
+    "debugApkSha256": "eaa283f67f68c5a54912de28f72856c92087fa812b0f68b6424fa0478aa43e3a",
+    "testApkSha256": "301729ae98b4ab213acffe6462b5e39bb4bcf985203a5c19496debee7d11720c"
+  },
+  "reviews": {
+    "standardsFindings": 0,
+    "specImplementationFindings": 0
+  },
+  "installed": {
+    "preflight": "failed",
+    "profileJourney": "not-run",
+    "matrix": "not-run",
+    "nativeComparison": "not-performed",
+    "evidence": ".android-verification/evidence/run-20261117T171014Z-1eJg7J"
+  }
+}

@@ -1,5 +1,21 @@
 # Android verification
 
+## Doubles profile, medals and inline history — issue #31
+
+Implemented on `issue-31-doubles-profile`, starting at `78fe089`. The profile
+reuses split portraits and Results cards, links each partner separately, groups
+published pair standing, distinguishes unknown medals from zero, and presents
+inline Xal/Mövqe controls with complete, selectable dated observations.
+
+The full host suite passed 168 tests with no failures, errors or skips. Lint
+passed with zero errors and 26 warnings; both APK builds passed. Standards and
+Spec reviews found no implementation defects. Initial API 36 software preflight
+failed on screenshot-directory creation and its instrumentation timeout, with
+cleanup complete. Installed pair verification, native captures and reference
+comparison remain open; further device checks stopped at that failed result.
+
+See the [detailed evidence and remaining acceptance checks](verification/issue31/README.md).
+
 ## Match scoreboard and participant navigation — issue #30
 
 Implemented [issue #30](https://github.com/eshref/TableTennisAz/issues/30) on
