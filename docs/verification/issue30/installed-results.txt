@@ -1,0 +1,160 @@
+Installed APK: 8e7faa8ea31d85100fe79b0966ccf9246cd0aa374e2d93e3a2157e2107b98272
+Android 16 / API 36, AOSP ATD x86_64, software emulation
+Each command: am instrument -w -r -e class az.tabletennis.MatchDeviceTest -e capturePrefix <configuration> az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+Dark reuse adds: -e reuseSaved true
+
+Standard light
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+az.tabletennis.MatchDeviceTest:
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 260.211
+
+OK (2 tests)
+
+
+INSTRUMENTATION_CODE: -1
+
+Dark saved-data reuse
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+az.tabletennis.MatchDeviceTest:
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 231.919
+
+OK (2 tests)
+
+
+INSTRUMENTATION_CODE: -1
+
+320x568 at 150% text
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+az.tabletennis.MatchDeviceTest:
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 214.201
+
+OK (2 tests)
+
+
+INSTRUMENTATION_CODE: -1
+
+891x320 at 150% text
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+az.tabletennis.MatchDeviceTest:
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[singles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=az.tabletennis.MatchDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=scoreboardLinksEveryParticipantAndReturnsToTheSavedMatchAfterRecreation[doubles]
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 294.186
+
+OK (2 tests)
+
+
+INSTRUMENTATION_CODE: -1

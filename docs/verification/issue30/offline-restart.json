@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "network": "none",
+  "before": {
+    "left": "3",
+    "right": "2",
+    "updated": "Son uğurlu yenilənmə: 17 noy 2026 06:05",
+    "names": [
+      "İlqar Həsənov",
+      "Əli Məmmədov",
+      "Şəms Quliyeva",
+      "Işıl Əliyeva"
+    ]
+  },
+  "after": {
+    "left": "3",
+    "right": "2",
+    "updated": "Son uğurlu yenilənmə: 17 noy 2026 06:05",
+    "names": [
+      "İlqar Həsənov",
+      "Əli Məmmədov",
+      "Şəms Quliyeva",
+      "Işıl Əliyeva"
+    ]
+  },
+  "refreshEnabled": false
+}

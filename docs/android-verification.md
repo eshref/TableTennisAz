@@ -78,43 +78,73 @@ incompatibility in the new installed-test setup's stream-copy method; a buffered
 copy fixes it. The final instrumentation APK compiles that correction. Native
 visual acceptance is reported separately below.
 
-### Rendering evidence and installed-device limitation
+### Installed Android verification
 
-A separate task-owned rendering probe captured the actual Activity views using
-Robolectric's native graphics backend on API 36, at 411dp by 891dp and standard
-text, for singles/doubles in light/dark appearance. These host images were
-inspected against the approved browser reference: the compact chrome, event/date
-hierarchy, bordered panel, grouped participants, separated scores, silhouette
-portraits and explicit winner label follow its composition. Different fixture
-names/images and Android typography prevent a literal pixel comparison. These
-are **host renders**, not installed Android screenshots or native visual acceptance.
+Both APKs installed successfully on a disposable Android 16 / API 36 AOSP ATD
+x86_64 emulator. `MatchDeviceTest` passed **eight installed cases**: singles and
+doubles in each configuration below. Every case checks both recorded scores,
+opens every participant's profile, returns with Android Back, and checks Activity
+recreation. Preparation contains no scenario assertions. Complete runner output
+is in [installed-results.txt](verification/issue30/installed-results.txt).
 
-Installed verification was attempted with a disposable Android 8.0 / API 26
-x86_64 emulator, using software emulation because `/dev/kvm` is unavailable.
-Its default 6GB data partition exceeded available temporary storage. An explicit
-550MiB source data image and temporary ramdisk disabling obsolete forced
-encryption produced a valid `/data` mount. Android eventually reported boot
-completion, but app installation remained stalled. The first install attempt
-timed out after 180 seconds; diagnostic screenshot retrieval produced no PNG.
-No app installation, installed `MatchDeviceTest` result, actual match screenshot,
-installed dark/large-text/orientation acceptance, physical-phone check or live
-app HTTP journey is claimed. Native screenshot comparison remains outstanding.
+| Configuration | Singles screenshot | Doubles screenshot |
+| --- | --- | --- |
+| Light, 412×891, standard text | [Singles](verification/issue30/singles-light.png) | [Doubles](verification/issue30/doubles-light.png) |
+| Dark, 412×891, saved data offline | [Singles](verification/issue30/singles-dark-offline.png) | [Doubles](verification/issue30/doubles-dark-offline.png) |
+| Light, 320×568, 150% text | [Singles](verification/issue30/singles-narrow-large.png) | [Doubles](verification/issue30/doubles-narrow-large.png) |
+| Dark, 891×320, 150% text | [Singles](verification/issue30/singles-landscape-large.png) | [Doubles](verification/issue30/doubles-landscape-large.png) |
 
-`MatchDeviceTest` is built and documented in the README for a usable Android
-emulator or device. It prepares saved singles/doubles details and a cached portrait,
-follows every participant to their profile, returns with Android Back, checks
-recreation, and captures both scoreboards. External system theme, text, display
-and rotation controls support visual acceptance; `reuseSaved` supports a separate
-offline restart. Preparation contains no scenario assertions.
+These are screenshots from the installed app. Standard light/dark captures were
+compared with the approved browser reference: compact chrome, event/date
+hierarchy, bordered panel, grouped participants, separated scores, portraits,
+independent silhouette fallbacks and the explicit winner label follow its
+composition. Fixture names, photos and Android typography differ from the
+reference. Large-text layouts wrap and scroll; the installed journeys reach every
+participant. Very long identical names, exact action dimensions and accessible
+score descriptions remain covered by the API 26/36 host layout checks.
+
+Additional scrolled doubles captures show the
+[complete narrow scoreboard](verification/issue30/doubles-narrow-scoreboard.png)
+and successive landscape views of the
+[winner label](verification/issue30/doubles-landscape-winner.png),
+[first pair](verification/issue30/doubles-landscape-first-side.png) and
+[second pair](verification/issue30/doubles-landscape-second-side.png).
+
+The dark run reused the previously saved singles/doubles fixtures without
+restaging them. Both screenshots retain their earlier successful-update labels
+and cached portrait while showing the offline notice. A separate external
+ADB/UIAutomator comparison captured the doubles match, disabled connectivity,
+confirmed **Active default network: none**, force-stopped the app, and opened the
+match in a cold process. Visible scores, all four names and the successful-update
+time matched exactly; the offline notice appeared and Refresh was disabled.
+Assertions and polling used the native accessibility tree, with no private-file
+assertion evidence. See the [comparison result](verification/issue30/offline-restart.json)
+and [offline screenshot](verification/issue30/doubles-offline-restart.png).
+
+The earlier API 26 installation timeout was overcome using an API 36 image with
+its data disk on the larger workspace filesystem. This host has no `/dev/kvm`;
+all installed checks used software CPU/GPU emulation. Slow system startup
+required `ro.hw_timeout_multiplier=10`, followed by a zygote restart. An initial
+system ANR dialog was dismissed. ATD initially disabled drawing; setting
+`debug.hwui.drawing_enabled=1` enabled real screenshots. A portrait capture showed
+that this image ignored the requested user rotation, so landscape was rerun with
+`wm size 891x320`; the PNG dimensions were verified before testing. These are
+disposable test-device settings, with no application changes.
+
+Host native-graphics renders remain supplementary evidence. No physical phone
+or new installed live-source HTTP journey was checked for issue #30; production
+HTTP parsing, photo failure and source attribution remain covered by the host
+integration journeys above. Installed checks use saved fixtures and cached photos.
 
 The signed debug APK is `app/build/outputs/apk/debug/app-debug.apk`; the test APK is
 `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`. Signature
 verification passed. Debug APK SHA-256:
 `8e7faa8ea31d85100fe79b0966ccf9246cd0aa374e2d93e3a2157e2107b98272`.
 
-Verification logs, reports, host captures and browser references are retained in
-`/tmp/codex-issue30-x1Wrbh/`. Disposable emulator images and processes are removed
-after the attempt; the repository's APK copies remain available for phone testing.
+Host logs, reports, renders and browser references are retained in
+`/tmp/codex-issue30-x1Wrbh/`. Installed verification evidence is retained in
+`/tmp/codex-issue30-device-evidence-haxqhd/`. The repository's APK copies remain
+available for phone testing.
 
 ## Dedicated singles rating history — issue #29
 
