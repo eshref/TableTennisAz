@@ -7,6 +7,7 @@ import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed;
 import static java.util.Arrays.asList;
 
 import android.content.Context;
@@ -17,7 +18,10 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Properties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -52,6 +56,7 @@ public class MatchDeviceTest {
         // arrange
         givenSavedMatch();
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        boolean preflight = "true".equals(InstrumentationRegistry.getArguments().getString("preflight"));
         Intent intent = new Intent(context, MatchActivity.class).putExtra("matchId", match.id);
         java.util.List<MatchDetails.PlayerLink> players = new java.util.ArrayList<>(match.left);
         players.addAll(match.right);
@@ -61,7 +66,12 @@ public class MatchDeviceTest {
             // assert
             onView(withId(R.id.match_score_left)).check(matches(withText(leftScore)));
             onView(withId(R.id.match_score_right)).check(matches(withText(rightScore)));
-            capture();
+            if (preflight) {
+                onView(withId(R.id.match_score_left)).check(matches(isCompletelyDisplayed()));
+                onView(withId(R.id.match_score_right)).check(matches(isCompletelyDisplayed()));
+            }
+            capture(scenario);
+            if (preflight) return;
 
             for (MatchDetails.PlayerLink player : players) {
                 // act
@@ -108,11 +118,20 @@ public class MatchDeviceTest {
         }
     }
 
-    private void capture() throws Exception {
+    private void capture(ActivityScenario<MatchActivity> scenario) throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         File directory = new File(context.getExternalFilesDir(null), "issue30");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
+        Properties visible = new Properties();
+        scenario.onActivity(activity -> {
+            visible.setProperty("windowFocused", Boolean.toString(activity.getWindow().getDecorView().hasWindowFocus()));
+            visible.setProperty("leftScore", ((android.widget.TextView) activity.findViewById(R.id.match_score_left)).getText().toString());
+            visible.setProperty("rightScore", ((android.widget.TextView) activity.findViewById(R.id.match_score_right)).getText().toString());
+            visible.setProperty("updated", ((android.widget.TextView) activity.findViewById(R.id.updated)).getText().toString());
+            visible.setProperty("status", ((android.widget.TextView) activity.findViewById(R.id.status)).getText().toString());
+            visible.setProperty("refreshEnabled", Boolean.toString(activity.findViewById(R.id.refresh).isEnabled()));
+        });
         Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         if (screenshot == null) {
             try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
@@ -124,5 +143,8 @@ public class MatchDeviceTest {
         try (var output = new FileOutputStream(new File(directory, prefix + "-" + match.id + ".png"))) {
             if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
         } finally { screenshot.recycle(); }
+        try (var output = new OutputStreamWriter(new FileOutputStream(new File(directory, prefix + "-" + match.id + ".properties")), StandardCharsets.UTF_8)) {
+            visible.store(output, "Visible installed match UI at screenshot capture");
+        }
     }
 }
