@@ -52,47 +52,85 @@ The [machine-readable results](host-results.json) include final APK checksums.
 Standards review: no documented-standard violations or actionable code smells.
 Spec review: no confirmed implementation defects or scope creep. The review's
 pending full-suite/lint gap is closed by the final run; installed visual
-acceptance remains open below.
+acceptance is established by the scoped follow-up below.
 
-## Installed preflight failed — native visual acceptance remains open
+## Installed Android follow-up
 
-On 2026-11-17, before host builds/tests, ran:
+Two fresh managed API 36 software runs failed readiness. The initial run retained
+its [result](preflight.properties) and [instrumentation output](preflight-tests.txt):
+screenshot-directory creation failed, then instrumentation timed out. Cleanup
+completed. The authorized repeat at
+`.android-verification/evidence/run-20261117T184105Z-SC9byF/` failed with unavailable
+UiAutomation and screenshot-directory errors. These managed results remain failed.
 
-```sh
-scripts/android-verify --preflight-only
-```
+The user authorized further diagnosis. Restarting that retained, initialized
+emulator allowed the **clean, unmodified smoke journey to pass both cases in
+63.512 seconds**. Its screenshots establish actual 412×891 captures, window focus
+and the expected saved scores (3–2 and 1–3). Temporary in-app diagnostics confirmed
+mounted external app storage and connected UiAutomation. A shell `run-as` storage
+probe had different namespace/SELinux access and did not establish an app storage
+failure. No permanent infrastructure fix or fresh cold-start success is claimed.
 
-This initial readiness check built the unchanged starting application. API 36
-software emulation required the runner's one automatic boot recovery. Both APKs
-installed and bytecode compilation succeeded, but the singles smoke case failed
-with `IllegalStateException: Cannot save screenshots`. The command then reached
-its 12-minute instrumentation timeout after the doubles case started.
-
-The overall attempt lasted about 42 minutes. Its result is `status=failed`,
-`phase=preflight`, `cleanup=complete`; there is no passing installed preflight.
-The [result properties](preflight.properties) and [instrumentation output](preflight-tests.txt)
-are retained here. Full local evidence remains at
-`.android-verification/evidence/run-20261117T171014Z-1eJg7J/`.
-The APK checksum in that preflight record belongs to the starting build.
-
-Stopped installed verification at this failed result, following the
-[repository guide](../../agents/android-verification.md). No further emulator
-troubleshooting, full device matrix, new pair-profile installed journey or
-native screenshot comparison was performed. Physical phones, API 26 installation
-and the live-source journey were not tested.
+The first profile attempt captured a closed drawer and then failed Back. A second
+attempt explicitly checked drawer visibility and failed before Back. Temporary
+touch logging showed that Espresso's hamburger tap lasted **2.580 seconds**,
+without invoking its click listener. The same installed app opened the drawer and
+closed it with Android Back through manual system input. For the follow-up matrix,
+the disposable emulator's long-press threshold was raised to 10 seconds; production
+behavior, Espresso tap/Back actions and committed verification caps are unchanged.
+All temporary logging was removed and the clean APKs reinstalled before that run.
 
 The approved reference is `docs/prototypes/android-final-ui-prototype.html` at
-`8cd6a1999d6a4522332249e7a56175989b08655a`. Its default pair's public portraits,
-names, points, published position and medals are represented in the new installed
-fixture for a comparable future capture. The assets are test-only; fixture
-matches and observations do not become production data.
+`8cd6a1999d6a4522332249e7a56175989b08655a`. The pair fixture uses its public portraits,
+names, points, published position and medals; matches/observations are test data.
 
-After authorized environment follow-up, run:
+The drawer follow-up corrects the differences visible in the supplied phone photo:
+rounded trailing corners, 85% width capped at 310dp, green branding, navigation
+icons, a pale selected row, transparent unselected row and bottom footer. The
+[actual native drawer capture](drawer-light.png) comes from the API 36 emulator.
+It is not a capture from the user's physical phone.
 
-```sh
-scripts/android-verify --tests az.tabletennis.DoublesProfileDeviceTest
-```
+The final host repeat passed **168 tests in 42 suites**, zero failures/errors/skips;
+lint reported **zero errors and 26 warnings**; both APK builds passed. Evidence and
+the update-compatible phone APK are retained under
+`.android-verification/evidence/issue31-followup-e2XAzI/`. Its phone APK and the
+emulator APK have identical ZIP contents apart from signing metadata, and the phone
+APK retains the original shared debug signing key.
 
-Require passed preflight, matrix and overall status plus complete cleanup, then
-inspect the actual `issue31` PNGs against the approved reference. Until then,
-native visual acceptance for this issue is incomplete.
+## Final initialized-device result
+
+After the clean preflight, all four complete profile journeys passed within the
+documented 45-minute matrix budget. Each configuration ran one combined product
+scenario, including drawer Back, both partner links, match Back, mode/observation
+inspection, recreation, ranking search restoration and long-name fallbacks.
+
+| Configuration | Dimensions | Text | Saved-data reuse |
+| --- | --- | --- | --- |
+| Light | 412×891 | 100% | Newly prepared fixture |
+| Dark/offline | 412×891 | 100% | No default network; process restarted |
+| Narrow/light | 320×568 | 150% | Offline, process restarted |
+| Landscape/dark | 891×320 | 150% | Offline, process restarted |
+
+All **24 native PNGs** passed actual dimension/nonblank checks and were inspected.
+The [capture folders](screenshots/) retain each drawer, profile, points, rank,
+match-card and long-name viewport. The rendered-frame wait prevents screenshots
+from racing immediate scroll/mode changes. Portrait and narrow captures show full
+plots and complete timestamps; landscape captures show scrolled panel portions,
+with navigation/reachability established by the passing journey. These are native
+viewport images, not full-page composites.
+
+Visual comparison against the approved reference confirmed split identity,
+linked names, standing columns, medal tiles, both inline modes, shared match cards
+and drawer composition. Long names and footer text wrap; unknown and zero medal
+values remain distinct. Fresh Standards and Spec reviews of the drawer and capture
+changes found zero implementation findings.
+
+The [machine-readable installed result](installed-results.json) describes this
+controlled follow-up on an initialized API 36 software emulator. It does not turn
+either failed fresh managed run into a pass, establish a permanent cold-start fix,
+or establish a successful empty-cache invocation of `scripts/android-verify`.
+Physical phones, API 26 installation and live HTTP acquisition were not tested.
+
+Cleanup completed: the owned emulator, private ADB server and netsimd stopped;
+the retained disposable device and both task build directories were removed.
+Only the retained evidence directory and reusable managed tool caches remain.
