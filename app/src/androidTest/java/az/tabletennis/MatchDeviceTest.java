@@ -35,7 +35,7 @@ public class MatchDeviceTest {
         this.rightScore = rightScore;
     }
 
-    @Parameterized.Parameters(name = "{0}") public static Collection<Object[]> matches() {
+    @Parameterized.Parameters(name = "{0}") public static Collection<Object[]> scenarios() {
         return asList(new Object[][] {
                 {"singles", new MatchDetails(502,
                         asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov")),
@@ -101,7 +101,11 @@ public class MatchDeviceTest {
         File portraits = new File(context.getFilesDir(), "player-portraits");
         if (!portraits.isDirectory() && !portraits.mkdirs()) throw new IllegalStateException("Cannot prepare portraits");
         try (var input = InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("portraits/ilqar.png");
-             var output = new FileOutputStream(new File(portraits, "12.png"))) { input.transferTo(output); }
+             var output = new FileOutputStream(new File(portraits, "12.png"))) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+        }
     }
 
     private void capture() throws Exception {
@@ -118,7 +122,7 @@ public class MatchDeviceTest {
         }
         if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
         try (var output = new FileOutputStream(new File(directory, prefix + "-" + match.id + ".png"))) {
-            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output);
+            if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
         } finally { screenshot.recycle(); }
     }
 }

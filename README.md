@@ -99,9 +99,14 @@ Individual games nested inside team fixtures are supported. For player history,
 matching names only select candidates; match-detail participant IDs verify that
 the result belongs to the selected player. Verified details are saved as well.
 
-Match details show source scores, dates, and times when available. Every singles
-or doubles participant links to their own profile; Android Back returns through
-the match and originating history/feed.
+Match details group each side's participants beside its recorded score, with
+an explicit Qalib label for the higher-scoring side. Source event, date, and
+available time stay separate from the scoreboard; missing times are omitted.
+Every singles or doubles participant links to their own profile, with a shared
+cached portrait or local silhouette. Optional images load independently, and
+ambiguous unlinked doubles photos are not assigned by their display order.
+Android Back returns through the match and originating history/feed, retaining
+the reading position. Older saved match details remain usable offline.
 
 ## Results coverage
 
@@ -246,3 +251,19 @@ Native screenshots are saved in the app's external-files `issue29` directory.
 Use `-e reuseSaved true` after a separate offline process restart; the optional
 `playerName` argument prepares a long-name scenario. Set theme, font scale,
 display size and rotation externally, as for `ProfileDeviceTest`.
+
+
+`az.tabletennis.MatchDeviceTest` checks the installed saved-fixture singles and
+doubles scoreboards, every participant link, Android Back, and recreation:
+
+```sh
+adb shell am instrument -w -r -e class az.tabletennis.MatchDeviceTest \
+  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+It saves native screenshots under the app's external-files `issue30` directory.
+Run in both system appearances, with larger text, narrow display and landscape;
+use `-e reuseSaved true` for a separate offline restart. The fixture contains
+one cached participant portrait and independent silhouette fallbacks. Production
+HTTP, ambiguous image attribution and photo-failure coverage remain in the host
+match journeys. See the verification notes for completed checks and limitations.

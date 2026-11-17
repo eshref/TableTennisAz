@@ -1,5 +1,121 @@
 # Android verification
 
+## Match scoreboard and participant navigation — issue #30
+
+Implemented [issue #30](https://github.com/eshref/TableTennisAz/issues/30) on
+`feat/30-match-scoreboard`, starting at `2c19bbd`. Match details now use compact
+Back/Refresh chrome, secondary update information, source event/date/time and
+a bordered scoreboard. Each side groups its actual participants with a separate
+large score. The higher recorded score receives the explicit **Qalib** label and
+bold names; ties receive no winner label. No missing time or outcome is added.
+
+All singles and doubles participant actions retain source player IDs independently
+of names or amateur eligibility. Full names wrap, and each named profile action
+has a minimum 48dp height. Scores expose their side's full participant names to
+accessibility services. Saved reading position survives Back and recreation.
+
+Participant portraits use the existing asynchronous loader and independent
+portrait cache. The match response supplies optional explicitly linked images;
+an unlinked image can be used for a side with one participant. Read-only live
+inspection of matches 30799 and 8659 confirmed the singles image container and
+showed that doubles image order can differ from name order. Ambiguous unlinked
+doubles images are therefore omitted rather than assigned by position. Existing
+cached portraits still load by player ID. No extra full-profile requests support
+this screen. Failed/slow images leave details, links and update times usable.
+Both serialized version identifiers remain unchanged.
+
+### Host integration verification
+
+The complete native-UI/real-HTTP suite passed **160 cases**, with zero failures,
+errors or skips. Android lint completed with **0 errors and 26 warnings**;
+debug and instrumentation APK assembly passed. The new scoreboard regression
+first failed against the previous screen; the portrait regression first failed
+because match parsing discarded its metadata. Both passed after implementation.
+
+New checks add distinct observable guarantees:
+
+- `MatchScoreboardTest`: singles/doubles score attribution, winner on either side,
+  tied scores without a winner, source metadata and compact Refresh semantics.
+- `MatchLayoutTest`: eight API 26/36 light/dark, 320dp portrait and 891dp landscape
+  cases at 150% text. Every one of four identical long-name participants opens
+  the correct profile history, including a professional-only player. Names,
+  accessible side scores, 48dp actions and restored reading position are checked.
+- `MatchPhotosTest`: a legacy four-participant snapshot opens offline, enriches
+  online without waiting for portraits, retains independently failed/missing
+  fallbacks and usable profile navigation, and reuses downloaded images offline
+  after recreation and memory eviction without changing the match update time.
+- `MatchPhotoAttributionTest`: singles image metadata works; ambiguous unlinked
+  doubles pictures cannot be assigned to the wrong player.
+
+Existing `MatchJourneyTest`, `ResultsWorkflowTest`, `DoublesWorkflowTest` and
+`PlayerHistoryPagingTest` retain their combined journey/offline/identity guarantees.
+`ScreenFreshnessTest` and `SavedScreenFailureTest` continue to exercise missing
+and stale data, the exact 15-minute boundary, Retry, malformed/incomplete sources,
+failed-refresh preservation and long offline reuse. Their selectors now assert
+both visible scores, preserving the previous complete-score guarantee.
+
+The successful command used JDK 21 and SDK 36, with isolated Gradle output:
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
+ANDROID_HOME=/tmp/tabletennis-android-tools/sdk \
+./gradlew --project-cache-dir /tmp/codex-issue30-x1Wrbh/gradle-cache \
+  -I /tmp/codex-issue30-x1Wrbh/build-paths.gradle \
+  :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The init script redirects each project's build directory under the task-owned
+`/tmp/codex-issue30-x1Wrbh/build`. It avoids overlapping output with other sessions;
+no build configuration change is required for normal README commands.
+
+### Review
+
+Independent Standards and Spec reviews compared `2c19bbd...HEAD` against the
+repository guidance and issue #30. Standards: **0 hard violations**, with one
+optional duplicated-code advisory to share screenshot capture across installed
+tests. Spec: **0 functional defects or scope creep**. Review identified an API 26
+incompatibility in the new installed-test setup's stream-copy method; a buffered
+copy fixes it. The final instrumentation APK compiles that correction. Native
+visual acceptance is reported separately below.
+
+### Rendering evidence and installed-device limitation
+
+A separate task-owned rendering probe captured the actual Activity views using
+Robolectric's native graphics backend on API 36, at 411dp by 891dp and standard
+text, for singles/doubles in light/dark appearance. These host images were
+inspected against the approved browser reference: the compact chrome, event/date
+hierarchy, bordered panel, grouped participants, separated scores, silhouette
+portraits and explicit winner label follow its composition. Different fixture
+names/images and Android typography prevent a literal pixel comparison. These
+are **host renders**, not installed Android screenshots or native visual acceptance.
+
+Installed verification was attempted with a disposable Android 8.0 / API 26
+x86_64 emulator, using software emulation because `/dev/kvm` is unavailable.
+Its default 6GB data partition exceeded available temporary storage. An explicit
+550MiB source data image and temporary ramdisk disabling obsolete forced
+encryption produced a valid `/data` mount. Android eventually reported boot
+completion, but app installation remained stalled. The first install attempt
+timed out after 180 seconds; diagnostic screenshot retrieval produced no PNG.
+No app installation, installed `MatchDeviceTest` result, actual match screenshot,
+installed dark/large-text/orientation acceptance, physical-phone check or live
+app HTTP journey is claimed. Native screenshot comparison remains outstanding.
+
+`MatchDeviceTest` is built and documented in the README for a usable Android
+emulator or device. It prepares saved singles/doubles details and a cached portrait,
+follows every participant to their profile, returns with Android Back, checks
+recreation, and captures both scoreboards. External system theme, text, display
+and rotation controls support visual acceptance; `reuseSaved` supports a separate
+offline restart. Preparation contains no scenario assertions.
+
+The signed debug APK is `app/build/outputs/apk/debug/app-debug.apk`; the test APK is
+`app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`. Signature
+verification passed. Debug APK SHA-256:
+`8e7faa8ea31d85100fe79b0966ccf9246cd0aa374e2d93e3a2157e2107b98272`.
+
+Verification logs, reports, host captures and browser references are retained in
+`/tmp/codex-issue30-x1Wrbh/`. Disposable emulator images and processes are removed
+after the attempt; the repository's APK copies remain available for phone testing.
+
 ## Dedicated singles rating history — issue #29
 
 Implemented [issue #29](https://github.com/eshref/TableTennisAz/issues/29) on
