@@ -4,7 +4,10 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -24,6 +27,10 @@ final class DoublesHistoryView extends LinearLayout {
     private final DateTimeFormatter dates = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss.SSS",
             Locale.forLanguageTag("az-AZ")).withZone(ZoneId.systemDefault());
     private boolean rankMode;
+    private int selected;
+    private final List<Button> rows = new ArrayList<>();
+    private TextView selectedDate;
+    private TextView selectedValue;
 
     DoublesHistoryView(Context context, DoublesRanking ranking, long pairId, boolean rankMode,
                        Consumer<Boolean> selection) {
@@ -38,21 +45,65 @@ final class DoublesHistoryView extends LinearLayout {
             }
         }
         observations.sort(Comparator.comparingLong(point -> point.time));
+        selected = observations.size() - 1;
+        addView(label(context.getString(R.string.pair_chart_local)));
         RadioGroup modes = new RadioGroup(context);
         modes.setOrientation(HORIZONTAL);
+        modes.setPadding(dp(3), dp(3), dp(3), dp(3));
+        modes.setBackground(Presentation.shape(context, R.color.soft));
         modes.addView(mode(R.id.pair_chart_points, R.string.pair_chart_points), new RadioGroup.LayoutParams(0, -2, 1));
         modes.addView(mode(R.id.pair_chart_rank, R.string.pair_chart_rank), new RadioGroup.LayoutParams(0, -2, 1));
         modes.check(rankMode ? R.id.pair_chart_rank : R.id.pair_chart_points);
         addView(modes);
         if (observations.isEmpty()) {
             addView(label(context.getString(R.string.pair_chart_empty)));
-            modes.setOnCheckedChangeListener((group, id) -> selection.accept(id == R.id.pair_chart_rank));
+            modes.setOnCheckedChangeListener((group, id) -> {
+                this.rankMode = id == R.id.pair_chart_rank;
+                selection.accept(this.rankMode);
+            });
             return;
         }
         Chart chart = new Chart(context);
-        addView(chart, new LayoutParams(-1, dp(220)));
+        LinearLayout panel = new LinearLayout(context);
+        panel.setOrientation(VERTICAL);
+        panel.setPadding(dp(12), dp(14), dp(12), dp(8));
+        android.graphics.drawable.GradientDrawable background = Presentation.shape(context, R.color.surface);
+        background.setStroke(dp(1), context.getColor(R.color.line));
+        panel.setBackground(background);
+        LayoutParams spacing = new LayoutParams(-1, -2);
+        spacing.topMargin = dp(14);
+        addView(panel, spacing);
+        panel.addView(chart, new LayoutParams(-1, dp(168)));
+        LinearLayout endpoints = new LinearLayout(context);
+        boolean stack = getResources().getConfiguration().screenWidthDp < 360 * getResources().getConfiguration().fontScale;
+        endpoints.setOrientation(stack ? VERTICAL : HORIZONTAL);
+        TextView first = label(dates.format(Instant.ofEpochMilli(observations.get(0).time)));
+        if (observations.size() == 1) first.setGravity(Gravity.CENTER);
+        endpoints.addView(first, new LayoutParams(stack ? -1 : 0, -2, stack ? 0 : 1));
+        if (observations.size() > 1) {
+            TextView last = label(dates.format(Instant.ofEpochMilli(observations.get(observations.size() - 1).time)));
+            last.setGravity(Gravity.END);
+            endpoints.addView(last, new LayoutParams(stack ? -1 : 0, -2, stack ? 0 : 1));
+        }
+        // The chart announces every observation; individually actionable values are also available below.
+        endpoints.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        panel.addView(endpoints);
+        LinearLayout inspected = new LinearLayout(context);
+        inspected.setOrientation(VERTICAL);
+        inspected.setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_POLITE);
+        selectedDate = label("");
+        selectedDate.setId(R.id.chart_selected_date);
+        selectedValue = Presentation.label(context, "", 18);
+        selectedValue.setId(R.id.chart_selected_value);
+        selectedValue.setTextColor(context.getColor(R.color.primary));
+        selectedValue.setTypeface(null, Typeface.BOLD);
+        inspected.addView(selectedDate);
+        inspected.addView(selectedValue);
+        panel.addView(inspected);
         addView(label(context.getString(observations.size() == 1 ? R.string.pair_chart_first : R.string.pair_chart_coverage)));
-        TextView values = label("");
+        LinearLayout values = new LinearLayout(context);
+        values.setOrientation(VERTICAL);
+        values.setId(R.id.chart_observations);
         addView(values);
         showValues(chart, values);
         modes.setOnCheckedChangeListener((group, id) -> {
@@ -66,22 +117,17 @@ final class DoublesHistoryView extends LinearLayout {
         RadioButton button = new RadioButton(getContext());
         button.setId(id);
         button.setText(text);
-        button.setTextSize(16);
-        button.setTextColor(getContext().getColor(R.color.text));
-        button.setMinHeight(dp(48));
+        Presentation.segment(button);
         return button;
     }
 
     private TextView label(String text) {
-        TextView label = new TextView(getContext());
-        label.setText(text);
-        label.setTextSize(14);
-        label.setTextColor(getContext().getColor(R.color.text));
-        label.setPadding(0, dp(6), 0, dp(6));
+        TextView label = Presentation.label(getContext(), text, 13);
+        label.setTextColor(getContext().getColor(R.color.secondary));
         return label;
     }
 
-    private void showValues(Chart chart, TextView values) {
+    private void showValues(Chart chart, LinearLayout values) {
         List<String> descriptions = new ArrayList<>();
         for (Point point : observations) {
             String date = dates.format(Instant.ofEpochMilli(point.time));
@@ -89,7 +135,42 @@ final class DoublesHistoryView extends LinearLayout {
                     : getContext().getString(R.string.history_point, date, Integer.toString(point.entry.points)));
         }
         chart.setContentDescription(String.join("; ", descriptions));
-        values.setText(String.join("\n", descriptions));
+        values.removeAllViews();
+        rows.clear();
+        for (int i = 0; i < descriptions.size(); i++) {
+            int index = i;
+            Button row = new Button(getContext());
+            Presentation.action(row);
+            row.setText(descriptions.get(i));
+            row.setTextSize(16);
+            row.setMaxLines(Integer.MAX_VALUE);
+            row.setEllipsize(null);
+            row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(12), dp(12), dp(12), dp(12));
+            row.setStateListAnimator(null);
+            row.setOnClickListener(view -> inspect(chart, index));
+            values.addView(row, new LayoutParams(-1, -2));
+            rows.add(row);
+            View divider = new View(getContext());
+            divider.setBackgroundColor(getContext().getColor(R.color.line));
+            values.addView(divider, new LayoutParams(-1, dp(1)));
+        }
+        inspect(chart, selected);
+    }
+
+    private void inspect(Chart chart, int index) {
+        selected = index;
+        Point point = observations.get(index);
+        selectedDate.setText(dates.format(Instant.ofEpochMilli(point.time)));
+        selectedValue.setText(rankMode ? getContext().getString(R.string.rank_number, point.entry.position)
+                : getContext().getString(R.string.points, point.entry.points));
+        for (int i = 0; i < rows.size(); i++) {
+            Button row = rows.get(i);
+            row.setSelected(i == index);
+            row.setTypeface(null, i == index ? Typeface.BOLD : Typeface.NORMAL);
+            row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getContext().getColor(
+                    i == index ? R.color.soft : R.color.surface)));
+        }
         chart.invalidate();
     }
 
@@ -120,18 +201,18 @@ final class DoublesHistoryView extends LinearLayout {
                 if (!rankMode) minimum = Math.max(0, minimum - 1);
                 maximum++;
             }
-            paint.setTextSize(14 * getResources().getDisplayMetrics().scaledDensity);
+            paint.setTextSize(13 * getResources().getDisplayMetrics().scaledDensity);
             paint.setStyle(Paint.Style.FILL);
             float left = Math.max(paint.measureText(tick(minimum)), paint.measureText(tick(maximum))) + dp(12);
             float right = getWidth() - dp(10);
             float top = paint.getTextSize() + dp(8);
-            float bottom = getHeight() - 2 * paint.getTextSize() - dp(18);
+            float bottom = getHeight() - dp(10);
             for (long value : new long[] {minimum, maximum}) {
                 float y = plotY((value - (double) minimum) / (maximum - (double) minimum), top, bottom);
                 paint.setColor(getContext().getColor(R.color.line));
                 paint.setStrokeWidth(dp(1));
                 canvas.drawLine(left, y, right, y, paint);
-                paint.setColor(getContext().getColor(R.color.text));
+                paint.setColor(getContext().getColor(R.color.secondary));
                 paint.setTextAlign(Paint.Align.RIGHT);
                 canvas.drawText(tick(value), left - dp(8), y + paint.getTextSize() / 3, paint);
             }
@@ -146,15 +227,11 @@ final class DoublesHistoryView extends LinearLayout {
                 double fraction = ((rankMode ? point.entry.position : point.entry.points) - (double) minimum) / (maximum - (double) minimum);
                 float y = plotY(fraction, top, bottom);
                 if (i == 0) line.moveTo(x, y); else line.lineTo(x, y);
-                canvas.drawCircle(x, y, dp(4), paint);
+                canvas.drawCircle(x, y, dp(i == selected ? 5 : 3), paint);
             }
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(dp(2));
             canvas.drawPath(line, paint);
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(getContext().getColor(R.color.text));
-            drawDate(canvas, start, 0, bottom, Paint.Align.LEFT);
-            if (end != start) drawDate(canvas, end, getWidth(), bottom, Paint.Align.RIGHT);
         }
 
         private String tick(long value) { return rankMode ? "#" + value : Long.toString(value); }
@@ -163,11 +240,5 @@ final class DoublesHistoryView extends LinearLayout {
             return rankMode ? top + (float) fraction * (bottom - top) : bottom - (float) fraction * (bottom - top);
         }
 
-        private void drawDate(Canvas canvas, long time, float x, float bottom, Paint.Align alignment) {
-            String[] date = dates.format(Instant.ofEpochMilli(time)).split(" ");
-            paint.setTextAlign(alignment);
-            canvas.drawText(date[0], x, bottom + paint.getTextSize() + dp(8), paint);
-            canvas.drawText(date[1], x, bottom + 2 * paint.getTextSize() + dp(10), paint);
-        }
     }
 }

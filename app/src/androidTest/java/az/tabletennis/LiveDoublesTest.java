@@ -60,8 +60,8 @@ public class LiveDoublesTest {
             onView(withText(R.string.pair_profile)).check(matches(isDisplayed()));
             onView(withText(row.group(2))).check(matches(isDisplayed()));
             onView(withText(row.group(3))).check(matches(isDisplayed()));
-            onView(withId(R.id.profile_points)).check(matches(withText(row.group(4) + " xal")));
-            onView(withId(R.id.pair_position)).check(matches(withText("Reytinqdə yer: #" + row.group(1))));
+            onView(withId(R.id.profile_points)).check(matches(withText(row.group(4))));
+            onView(withId(R.id.pair_position)).check(matches(withText("#" + row.group(1))));
             assertMedal(R.id.pair_gold, "Qızıl medal");
             assertMedal(R.id.pair_silver, "Gümüş medal");
             assertMedal(R.id.pair_bronze, "Bürünc medal");
@@ -73,7 +73,7 @@ public class LiveDoublesTest {
     private void assertMedal(int id, String description) {
         onView(withId(id)).check((view, missing) -> {
             if (missing != null) throw missing;
-            String text = ((android.widget.TextView) view).getText().toString();
+            String text = view.getContentDescription().toString();
             if (!text.matches(description + ": [0-9]+")) throw new AssertionError("Missing published medal count: " + text);
         });
     }

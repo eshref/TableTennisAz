@@ -181,10 +181,10 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        awaitText("16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello");
+        awaitText("16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
         assertThat(visibleText()).containsSubsequence(
-                "16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello",
-                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+                "16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel",
+                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -194,13 +194,13 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa");
+        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa · Qoşalar · Turnir");
         assertThat(visibleText()).contains(updated, "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0")
                 .doesNotContain("Daha çox yüklə");
-        assertThat(visibleText().stream().filter(text -> text.endsWith("· Kupa"))).hasSize(1);
+        assertThat(visibleText().stream().filter(text -> text.endsWith("· Kupa · Qoşalar · Turnir"))).hasSize(1);
 
         // act
-        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
         followNavigation();
 
         // assert
@@ -262,7 +262,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         // assert
         assertThat(visibleText()).contains(updated, "800 xal", "Reytinqdə yer: #1",
                 "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0",
-                "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa");
+                "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa · Qoşalar · Turnir");
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
     }
 }

@@ -92,7 +92,11 @@ public abstract class RankingsUiScenario {
         }
         if (view.getId() == R.id.match_card && view.getContentDescription() != null)
             text.add(view.getContentDescription().toString());
-        if (view instanceof TextView label) text.add(label.getText().toString());
+        if (view instanceof TextView label) {
+            text.add(label.getText().toString());
+            if (view.getContentDescription() != null && !view.getContentDescription().toString().equals(label.getText().toString()))
+                text.add(view.getContentDescription().toString());
+        }
         if (view instanceof ViewGroup group) {
             for (int i = 0; i < group.getChildCount(); i++) collectText(group.getChildAt(i), text);
         }

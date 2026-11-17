@@ -26,6 +26,14 @@ saved identities discover optional photo metadata separately, so usable rankings
 search, and navigation do not wait for photos. Movement retains its accessible
 direction and number of places.
 
+Doubles profiles reuse the split portrait and link each full partner name to the
+correct individual profile. A grouped summary separates current pair points and
+published position from the ranking update time. Medal tiles show the pair's own
+counts; an em dash means unknown, while zero remains a known count. The inline
+Xal/Mövqe chart retains actual timestamp spacing and exposes dated, selectable
+observations. Its mode survives refresh and Activity recreation. Pair matches
+use the shared Results cards, including saved duels and paginated older results.
+
 The website supplies pair membership through individual metadata requests. The
 first doubles load resolves all full names and shows progress; search becomes
 available once the complete ranking is ready. Completed identity lookups are
@@ -249,6 +257,19 @@ command as well as the name so ADB preserves it as one argument.
 `-e reuseSaved true` keeps previously prepared files for a separate
 process restart with network disabled. Set system appearance, display size, and
 font scale externally before each run; these are verification controls.
+
+The saved-fixture doubles profile journey uses the approved reference pair's
+portraits, linked partners, inline chart modes, match navigation and Back context:
+
+```sh
+scripts/android-verify --tests az.tabletennis.DoublesProfileDeviceTest
+```
+
+It captures the profile, both history modes, match cards and long-name fallbacks
+in the app's external-files `issue31` directory. The verifier supplies the theme,
+viewport, text-scale and offline-restart matrix. Installed readiness must pass
+first; see [the issue #31 verification record](docs/verification/issue31/README.md)
+for the actual result and remaining device checks.
 
 `az.tabletennis.RatingHistoryDeviceTest` is the installed saved-fixture chart
 journey. It opens the selected player's dedicated history, inspects an

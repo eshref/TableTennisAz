@@ -1,4 +1,12 @@
 <resources>
+    <string name="pair_points">Qoşa xalı</string>
+    <string name="pair_published_position">Dərc olunmuş mövqe</string>
+    <string name="medal_gold">Qızıl</string>
+    <string name="medal_silver">Gümüş</string>
+    <string name="medal_bronze">Bürünc</string>
+    <string name="pair_chart_local">Yalnız bu cihazda saxlanmış reytinq müşahidələri.</string>
+    <string name="pair_identity_title">Qoşa profili</string>
+    <string name="pair_identity_subtitle">İki oyunçu, bir tərəfdaşlıq</string>
     <string name="match_winner">Qalib</string>
     <string name="match_profile_hint">Oyunçu profilinə keçmək üçün adına toxunun.</string>
     <string name="match_side_score">%1$s · Hesab: %2$s</string>

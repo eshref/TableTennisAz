@@ -160,7 +160,7 @@ public class DoublesProfileTest extends DoublesUiScenario {
         // assert
         assertThat(visibleText()).contains("800 xal", "Reytinqdə yer: #2", "Qızıl medal: məlumat mövcud deyil",
                 "Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb.",
-                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa",
+                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir",
                 "Daha çox yüklə");
         assertThat(activity().<android.view.View>findViewById(R.id.chart)).isNull();
         java.util.ArrayList<android.view.View> pagination = new java.util.ArrayList<>();
@@ -182,15 +182,17 @@ public class DoublesProfileTest extends DoublesUiScenario {
 
         // assert
         awaitText("Qızıl medal: 5");
-        assertThat(visibleText()).contains("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa",
+        assertThat(visibleText()).contains("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir",
                 "Daha çox yüklə");
-        assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110");
+        // Legacy portraits discover optional metadata independently of the mutable medal refresh.
+        assertThat(requestedPaths()).containsExactlyInAnyOrder("/api/getDuoInfo?id=110", "/api/getDuoInfo?id=110",
+                "/matches/results/duo/110");
 
         // act
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello");
+        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
         assertThat(visibleText()).contains("Qızıl medal: 5", "Gümüş medal: 2", "Bürünc medal: 1")
                 .doesNotContain("Daha çox yüklə");
         assertThat(requestedPaths()).containsExactly("/matches/results/duo/110?page=2");
