@@ -9,6 +9,7 @@ import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -34,6 +35,8 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,7 +58,12 @@ public class DoublesProfileDeviceTest {
             onView(withId(R.id.doubles_mode)).perform(click());
             search(scenario, "xəyal");
             onView(withId(R.id.open_menu)).perform(click());
+
+            // assert
+            onView(withId(R.id.destination_rankings)).check(matches(isDisplayed()));
             capture("drawer");
+
+            // act
             pressBack();
             onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
 
@@ -71,15 +79,16 @@ public class DoublesProfileDeviceTest {
             capture("profile");
 
             // act
-            onView(withId(R.id.pair_chart_points)).perform(scrollTo());
+            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
             capture("points");
-            onView(withId(R.id.pair_chart_rank)).perform(click());
+            onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
 
             // assert
             onView(withId(R.id.chart_selected_value)).check(matches(withText("#2")));
-            capture("rank");
 
             // act
+            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
+            capture("rank");
             onView(withText(endsWith("— #9"))).perform(scrollTo(), click());
 
             // assert
@@ -114,6 +123,7 @@ public class DoublesProfileDeviceTest {
             // act
             pressBack();
             onView(withText(R.string.match_history)).perform(scrollTo());
+            onView(withText("Bakı həvəskarlar kuboku")).perform(scrollTo());
             capture("matches");
             onView(withText("Bakı həvəskarlar kuboku")).perform(scrollTo(), click());
 
@@ -262,6 +272,19 @@ public class DoublesProfileDeviceTest {
     }
 
     private void capture(String name) throws Exception {
+        CountDownLatch committed = new CountDownLatch(1);
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (Activity activity : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)) {
+                View root = activity.getWindow().getDecorView();
+                if (android.os.Build.VERSION.SDK_INT >= 29 && root.isHardwareAccelerated())
+                    root.getViewTreeObserver().registerFrameCommitCallback(committed::countDown);
+                else root.postOnAnimation(committed::countDown);
+                root.invalidate();
+                return;
+            }
+            throw new IllegalStateException("No resumed activity to capture");
+        });
+        if (!committed.await(30, TimeUnit.SECONDS)) throw new IllegalStateException("Android did not commit the screenshot frame");
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         File directory = new File(context.getExternalFilesDir(null), "issue31");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
