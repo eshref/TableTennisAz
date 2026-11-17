@@ -308,7 +308,20 @@ final class WebsiteSource {
             if (link == null) throw new IOException("Missing participant profile link");
             var identity = Pattern.compile("/players/(\\d+)/?").matcher(link.attr("href"));
             if (!identity.matches() || name == null || name.text().trim().isEmpty()) throw new IOException("Unusable match participant");
-            players.add(new MatchDetails.PlayerLink(sourceId(identity.group(1)), name.text()));
+            String photoUrl = null;
+            // Match images in doubles can be unlinked and ordered differently from the names.
+            // Only attribute metadata with an explicit profile link, or an unambiguous singles side.
+            for (Element candidate : side.select("a[href]")) {
+                if (!candidate.attr("href").equals(link.attr("href"))) continue;
+                Element image = candidate.selectFirst("img[src]");
+                if (image != null) photoUrl = client.photoUrl(image.attr("src"));
+                if (photoUrl != null) break;
+            }
+            if (photoUrl == null && side.select(".match-player-name").size() == 1) {
+                Element image = side.selectFirst(".match-player-image-div img[src]");
+                if (image != null) photoUrl = client.photoUrl(image.attr("src"));
+            }
+            players.add(new MatchDetails.PlayerLink(sourceId(identity.group(1)), name.text(), photoUrl));
         }
         if (players.isEmpty() || players.size() > 2) throw new IOException("Missing match participants");
         return players;

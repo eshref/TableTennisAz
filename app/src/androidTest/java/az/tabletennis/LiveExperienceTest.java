@@ -83,7 +83,8 @@ public class LiveExperienceTest {
 
             // assert
             awaitSuccessfulData();
-            onView(withId(R.id.match_score)).check(matches(withText(not(isEmptyOrNullString()))));
+            onView(withId(R.id.match_score_left)).check(matches(withText(not(isEmptyOrNullString()))));
+            onView(withId(R.id.match_score_right)).check(matches(withText(not(isEmptyOrNullString()))));
 
             // act
             onView(withId(R.id.participants_left)).perform(clickFirstChild());

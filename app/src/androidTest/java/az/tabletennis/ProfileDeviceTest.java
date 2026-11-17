@@ -63,7 +63,8 @@ public class ProfileDeviceTest {
             onView(withText("Şəms Quliyeva")).perform(scrollTo(), click());
 
             // assert
-            onView(withId(R.id.match_score)).check(matches(withText("3-1")));
+            onView(withId(R.id.match_score_left)).check(matches(withText("3")));
+            onView(withId(R.id.match_score_right)).check(matches(withText("1")));
 
             // act
             onView(withText("Şəms Quliyeva")).perform(scrollTo(), click());

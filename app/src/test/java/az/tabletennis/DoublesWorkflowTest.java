@@ -205,7 +205,8 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
 
         // assert
         awaitText("Matç haqqında");
-        awaitText("3-2");
+        awaitText("3");
+        assertThat(visibleText()).contains("2");
 
         // act
         back();

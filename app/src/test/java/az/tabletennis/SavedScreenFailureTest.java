@@ -67,7 +67,7 @@ public class SavedScreenFailureTest extends ProductUiScenario {
 
         // assert
         awaitText("Məlumat yüklənmədi. İnternet bağlantısını yoxlayın.");
-        assertThat(visibleText()).doesNotContain(journey.initialText, "Bu seçim üzrə mənbədə nəticə tapılmadı.");
+        assertThat(visibleText()).doesNotContainAnyElementsOf(journey.initialText).doesNotContain("Bu seçim üzrə mənbədə nəticə tapılmadı.");
         assertThat(((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString()).isEmpty();
         assertThat(activity().findViewById(R.id.retry).isShown()).isTrue();
         assertThat(activity().findViewById(R.id.retry).isEnabled()).isTrue();
@@ -79,7 +79,7 @@ public class SavedScreenFailureTest extends ProductUiScenario {
         activity().findViewById(R.id.retry).performClick();
 
         // assert
-        awaitText(journey.initialText);
+        for (String text : journey.initialText) awaitText(text);
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
         assertThat(updated).startsWith("Son uğurlu yenilənmə: ");
 
@@ -91,9 +91,9 @@ public class SavedScreenFailureTest extends ProductUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        assertThat(visibleText()).contains(journey.initialText, updated);
+        assertThat(visibleText()).containsAll(journey.initialText).contains(updated);
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
-        assertThat(visibleText()).contains(journey.initialText, updated);
+        assertThat(visibleText()).containsAll(journey.initialText).contains(updated);
 
         // arrange
         closeProductScreens();
@@ -105,7 +105,7 @@ public class SavedScreenFailureTest extends ProductUiScenario {
         openDirect(journey.activity, journey.identity, journey.id);
 
         // assert
-        assertThat(visibleText()).contains(journey.initialText, updated);
+        assertThat(visibleText()).containsAll(journey.initialText).contains(updated);
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
     }
 }

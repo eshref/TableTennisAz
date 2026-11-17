@@ -20,10 +20,10 @@ public class ScreenFreshnessTest extends ProductUiScenario {
     private final SavedScreenCase journey;
     private final long age;
     private final String expectedRequest;
-    private final String expectedText;
+    private final java.util.List<String> expectedText;
     private final boolean unchangedTime;
 
-    public ScreenFreshnessTest(String name, SavedScreenCase journey, long age, String expectedRequest, String expectedText, boolean unchangedTime) {
+    public ScreenFreshnessTest(String name, SavedScreenCase journey, long age, String expectedRequest, java.util.List<String> expectedText, boolean unchangedTime) {
         this.journey = journey;
         this.age = age;
         this.expectedRequest = expectedRequest;
@@ -47,7 +47,7 @@ public class ScreenFreshnessTest extends ProductUiScenario {
         openDirect(journey.activity, journey.identity, journey.id);
 
         // assert
-        awaitText(journey.initialText);
+        for (String text : journey.initialText) awaitText(text);
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
         assertThat(updated).startsWith("Son uğurlu yenilənmə: ");
         requestedPaths();
@@ -62,9 +62,9 @@ public class ScreenFreshnessTest extends ProductUiScenario {
         openDirect(journey.activity, journey.identity, journey.id);
 
         // assert
-        assertThat(visibleText()).contains(journey.initialText, updated);
+        assertThat(visibleText()).containsAll(journey.initialText).contains(updated);
         assertThat(requestTo(journey.path)).isEqualTo(expectedRequest);
-        awaitText(expectedText);
+        for (String text : expectedText) awaitText(text);
         assertThat(((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString().equals(updated)).isEqualTo(unchangedTime);
     }
 }

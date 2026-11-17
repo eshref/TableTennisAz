@@ -67,6 +67,6 @@ public class PlayerHistoryPagingTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("Matç haqqında", "3-1", "15 Nov. 2026");
+        assertThat(visibleText()).contains("Matç haqqında", "3", "1", "15 Nov. 2026");
     }
 }
