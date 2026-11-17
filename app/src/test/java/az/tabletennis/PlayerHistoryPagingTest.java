@@ -24,9 +24,9 @@ public class PlayerHistoryPagingTest extends ProductUiScenario {
         openDirect(ProfileActivity.class, "playerId", 12);
 
         // assert
-        awaitText("15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası");
-        assertThat(visibleText().stream().filter(text -> text.endsWith("· Komanda Liqası"))).hasSize(1);
-        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Liqa");
+        awaitText("15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası · Tək · Turnir");
+        assertThat(visibleText().stream().filter(text -> text.endsWith("· Komanda Liqası · Tək · Turnir"))).hasSize(1);
+        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Liqa · Tək · Turnir");
         assertThat(requestedPaths()).contains("/matches/601", "/matches/603").doesNotContain("/matches/604");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
@@ -37,9 +37,19 @@ public class PlayerHistoryPagingTest extends ProductUiScenario {
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("13 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
-        assertThat(visibleText()).contains(updated, "15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası");
+        awaitText("13 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
+        assertThat(visibleText()).contains(updated, "15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası · Tək · Turnir");
         assertThat(requestedPaths()).containsExactly("/matches/results/player/12?page=2");
+
+        // act
+        recreateProductScreen();
+        activity().findViewById(R.id.refresh).performClick();
+
+        // assert
+        awaitText("Məlumat yeniləndi.");
+        assertThat(visibleText()).contains("13 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
+        assertThat(requestedPaths()).contains("/matches/results/player/12", "/matches/results/player/12?page=2");
+        updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
         closeProductScreens();
@@ -50,10 +60,10 @@ public class PlayerHistoryPagingTest extends ProductUiScenario {
         openDirect(ProfileActivity.class, "playerId", 12);
 
         // assert
-        assertThat(visibleText()).contains(updated, "13 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        assertThat(visibleText()).contains(updated, "13 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
 
         // act
-        clickText("15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası");
+        clickText("15 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Komanda Liqası · Tək · Turnir");
         followNavigation();
 
         // assert

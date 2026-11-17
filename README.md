@@ -74,13 +74,21 @@ are excluded, with no category toggle. Equal points share competition ranks
 preserves a matching player's amateur rank. Professional profiles, match results,
 and doubles participation remain accessible.
 
-Select a player to see current points and singles/doubles match history, with
-Load more for older source pages. Current
+Select a player to see their portrait or local silhouette, current points, and
+known amateur position. Professional-only and unlisted profiles have no amateur
+position; unavailable points are explicit. Profiles reuse the Results match
+cards for singles/doubles history, with Load more for older source pages. Current
 points come from the source rankings: the profile's `Reytinq` ratio is not a
 points total. Open Xal tarixçəsi for the player's points chart and accessible
 observation labels. Supplied dates and source order are retained; missing years
 are never invented. Historical points are shown to two decimal places to remove
 observed binary floating-point noise. A missing series has a no-history state.
+
+Optional portraits come from the existing profile or ranking responses and use
+the shared player cache. Photos load independently of profile data and remain
+usable offline. Older saved profiles without photo or position metadata remain
+readable. Back and recreation retain the profile's reading position, including
+when a stale profile automatically refreshes its already loaded history pages.
 
 Individual games nested inside team fixtures are supported. For player history,
 matching names only select candidates; match-detail participant IDs verify that
@@ -201,3 +209,21 @@ position with the selected row and checking medal metadata and pair results. Its
 several minutes; run it with the same instrumentation argument shown above.
 See [verification notes](docs/android-verification.md) for actual checks and
 compatibility limits.
+
+`az.tabletennis.ProfileDeviceTest` is the separate installed, saved-fixture
+profile journey. After installing the app and test APKs, run:
+
+```sh
+adb shell am instrument -w -r -e class az.tabletennis.ProfileDeviceTest \
+  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+It follows a searched player through the dedicated chart, a match, a participant
+profile, and Android Back, then checks retained search after recreation. Captures
+are written to the app's external-files `issue28` directory. Optional arguments
+`-e playerName '<long name>'` and `-e fallback true` prepare layout/fallback
+scenarios. For names containing spaces, quote the whole remote `am instrument`
+command as well as the name so ADB preserves it as one argument.
+`-e reuseSaved true` keeps previously prepared files for a separate
+process restart with network disabled. Set system appearance, display size, and
+font scale externally before each run; these are verification controls.

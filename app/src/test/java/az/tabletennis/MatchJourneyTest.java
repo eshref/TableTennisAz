@@ -30,7 +30,7 @@ public class MatchJourneyTest extends ProductUiScenario {
         awaitText("800 xal");
 
         // act
-        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
         followNavigation();
 
         // assert
@@ -67,7 +67,7 @@ public class MatchJourneyTest extends ProductUiScenario {
         // act
         clickText("1. İlqar Həsənov — 800 xal");
         followNavigation();
-        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
         followNavigation();
 
         // assert
