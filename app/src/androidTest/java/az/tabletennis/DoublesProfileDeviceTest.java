@@ -54,6 +54,9 @@ public class DoublesProfileDeviceTest {
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
             onView(withId(R.id.doubles_mode)).perform(click());
             search(scenario, "xəyal");
+            onView(withId(R.id.open_menu)).perform(click());
+            capture("drawer");
+            pressBack();
             onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
 
             // assert

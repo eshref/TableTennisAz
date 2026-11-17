@@ -1,4 +1,5 @@
 <resources>
+    <string name="drawer_footer">Oyunçular, qoşalar və matç nəticələri.</string>
     <string name="pair_points">Qoşa xalı</string>
     <string name="pair_published_position">Dərc olunmuş mövqe</string>
     <string name="medal_gold">Qızıl</string>
