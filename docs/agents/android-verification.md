@@ -168,8 +168,10 @@ passing journeys establish that participants below it remain reachable.
 The [screenshots](../verification/android-workflow/screenshots/) and
 [validation record](../verification/android-workflow/results.properties)
 distinguish functional verification from the command's incomplete orchestration.
-The preflight cap is 60 minutes; the full-phase cap remains 30 pending approval
-of the recommended 45-minute allowance for collection and host variation.
+The approved caps are now 60 minutes for preflight and 45 minutes for the full
+phase, allowing time for collection and host variation. The recorded run used
+the earlier 30-minute full-phase cap; the suite was not rerun for this
+configuration-only increase.
 Empty-cache provisioning, KVM and physical-device execution were not rerun.
 
 Software preflight requests Android's `speed` compiler filter for the app and
