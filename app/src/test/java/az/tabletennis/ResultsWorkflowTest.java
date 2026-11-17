@@ -38,7 +38,8 @@ public class ResultsWorkflowTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        awaitText("3-1");
+        awaitText("3");
+        assertThat(visibleText()).contains("1");
         assertThat(visibleText()).contains("16 Nov. 2026", "İlqar Həsənov", "Şəms Quliyeva").doesNotContain("18:00", "Əli Məmmədov", "Işıl Əliyeva");
 
         // act

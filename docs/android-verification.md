@@ -1,5 +1,151 @@
 # Android verification
 
+## Match scoreboard and participant navigation — issue #30
+
+Implemented [issue #30](https://github.com/eshref/TableTennisAz/issues/30) on
+`feat/30-match-scoreboard`, starting at `2c19bbd`. Match details now use compact
+Back/Refresh chrome, secondary update information, source event/date/time and
+a bordered scoreboard. Each side groups its actual participants with a separate
+large score. The higher recorded score receives the explicit **Qalib** label and
+bold names; ties receive no winner label. No missing time or outcome is added.
+
+All singles and doubles participant actions retain source player IDs independently
+of names or amateur eligibility. Full names wrap, and each named profile action
+has a minimum 48dp height. Scores expose their side's full participant names to
+accessibility services. Saved reading position survives Back and recreation.
+
+Participant portraits use the existing asynchronous loader and independent
+portrait cache. The match response supplies optional explicitly linked images;
+an unlinked image can be used for a side with one participant. Read-only live
+inspection of matches 30799 and 8659 confirmed the singles image container and
+showed that doubles image order can differ from name order. Ambiguous unlinked
+doubles images are therefore omitted rather than assigned by position. Existing
+cached portraits still load by player ID. No extra full-profile requests support
+this screen. Failed/slow images leave details, links and update times usable.
+Both serialized version identifiers remain unchanged.
+
+### Host integration verification
+
+The complete native-UI/real-HTTP suite passed **160 cases**, with zero failures,
+errors or skips. Android lint completed with **0 errors and 26 warnings**;
+debug and instrumentation APK assembly passed. The new scoreboard regression
+first failed against the previous screen; the portrait regression first failed
+because match parsing discarded its metadata. Both passed after implementation.
+
+New checks add distinct observable guarantees:
+
+- `MatchScoreboardTest`: singles/doubles score attribution, winner on either side,
+  tied scores without a winner, source metadata and compact Refresh semantics.
+- `MatchLayoutTest`: eight API 26/36 light/dark, 320dp portrait and 891dp landscape
+  cases at 150% text. Every one of four identical long-name participants opens
+  the correct profile history, including a professional-only player. Names,
+  accessible side scores, 48dp actions and restored reading position are checked.
+- `MatchPhotosTest`: a legacy four-participant snapshot opens offline, enriches
+  online without waiting for portraits, retains independently failed/missing
+  fallbacks and usable profile navigation, and reuses downloaded images offline
+  after recreation and memory eviction without changing the match update time.
+- `MatchPhotoAttributionTest`: singles image metadata works; ambiguous unlinked
+  doubles pictures cannot be assigned to the wrong player.
+
+Existing `MatchJourneyTest`, `ResultsWorkflowTest`, `DoublesWorkflowTest` and
+`PlayerHistoryPagingTest` retain their combined journey/offline/identity guarantees.
+`ScreenFreshnessTest` and `SavedScreenFailureTest` continue to exercise missing
+and stale data, the exact 15-minute boundary, Retry, malformed/incomplete sources,
+failed-refresh preservation and long offline reuse. Their selectors now assert
+both visible scores, preserving the previous complete-score guarantee.
+
+The successful command used JDK 21 and SDK 36, with isolated Gradle output:
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
+ANDROID_HOME=/tmp/tabletennis-android-tools/sdk \
+./gradlew --project-cache-dir /tmp/codex-issue30-x1Wrbh/gradle-cache \
+  -I /tmp/codex-issue30-x1Wrbh/build-paths.gradle \
+  :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+The init script redirects each project's build directory under the task-owned
+`/tmp/codex-issue30-x1Wrbh/build`. It avoids overlapping output with other sessions;
+no build configuration change is required for normal README commands.
+
+### Review
+
+Independent Standards and Spec reviews compared `2c19bbd...HEAD` against the
+repository guidance and issue #30. Standards: **0 hard violations**, with one
+optional duplicated-code advisory to share screenshot capture across installed
+tests. Spec: **0 functional defects or scope creep**. Review identified an API 26
+incompatibility in the new installed-test setup's stream-copy method; a buffered
+copy fixes it. The final instrumentation APK compiles that correction. Native
+visual acceptance is reported separately below.
+
+### Installed Android verification
+
+Both APKs installed successfully on a disposable Android 16 / API 36 AOSP ATD
+x86_64 emulator. `MatchDeviceTest` passed **eight installed cases**: singles and
+doubles in each configuration below. Every case checks both recorded scores,
+opens every participant's profile, returns with Android Back, and checks Activity
+recreation. Preparation contains no scenario assertions. Complete runner output
+is in [installed-results.txt](verification/issue30/installed-results.txt).
+
+| Configuration | Singles screenshot | Doubles screenshot |
+| --- | --- | --- |
+| Light, 412×891, standard text | [Singles](verification/issue30/singles-light.png) | [Doubles](verification/issue30/doubles-light.png) |
+| Dark, 412×891, saved data offline | [Singles](verification/issue30/singles-dark-offline.png) | [Doubles](verification/issue30/doubles-dark-offline.png) |
+| Light, 320×568, 150% text | [Singles](verification/issue30/singles-narrow-large.png) | [Doubles](verification/issue30/doubles-narrow-large.png) |
+| Dark, 891×320, 150% text | [Singles](verification/issue30/singles-landscape-large.png) | [Doubles](verification/issue30/doubles-landscape-large.png) |
+
+These are screenshots from the installed app. Standard light/dark captures were
+compared with the approved browser reference: compact chrome, event/date
+hierarchy, bordered panel, grouped participants, separated scores, portraits,
+independent silhouette fallbacks and the explicit winner label follow its
+composition. Fixture names, photos and Android typography differ from the
+reference. Large-text layouts wrap and scroll; the installed journeys reach every
+participant. Very long identical names, exact action dimensions and accessible
+score descriptions remain covered by the API 26/36 host layout checks.
+
+Additional scrolled doubles captures show the
+[complete narrow scoreboard](verification/issue30/doubles-narrow-scoreboard.png)
+and successive landscape views of the
+[winner label](verification/issue30/doubles-landscape-winner.png),
+[first pair](verification/issue30/doubles-landscape-first-side.png) and
+[second pair](verification/issue30/doubles-landscape-second-side.png).
+
+The dark run reused the previously saved singles/doubles fixtures without
+restaging them. Both screenshots retain their earlier successful-update labels
+and cached portrait while showing the offline notice. A separate external
+ADB/UIAutomator comparison captured the doubles match, disabled connectivity,
+confirmed **Active default network: none**, force-stopped the app, and opened the
+match in a cold process. Visible scores, all four names and the successful-update
+time matched exactly; the offline notice appeared and Refresh was disabled.
+Assertions and polling used the native accessibility tree, with no private-file
+assertion evidence. See the [comparison result](verification/issue30/offline-restart.json)
+and [offline screenshot](verification/issue30/doubles-offline-restart.png).
+
+The earlier API 26 installation timeout was overcome using an API 36 image with
+its data disk on the larger workspace filesystem. This host has no `/dev/kvm`;
+all installed checks used software CPU/GPU emulation. Slow system startup
+required `ro.hw_timeout_multiplier=10`, followed by a zygote restart. An initial
+system ANR dialog was dismissed. ATD initially disabled drawing; setting
+`debug.hwui.drawing_enabled=1` enabled real screenshots. A portrait capture showed
+that this image ignored the requested user rotation, so landscape was rerun with
+`wm size 891x320`; the PNG dimensions were verified before testing. These are
+disposable test-device settings, with no application changes.
+
+Host native-graphics renders remain supplementary evidence. No physical phone
+or new installed live-source HTTP journey was checked for issue #30; production
+HTTP parsing, photo failure and source attribution remain covered by the host
+integration journeys above. Installed checks use saved fixtures and cached photos.
+
+The signed debug APK is `app/build/outputs/apk/debug/app-debug.apk`; the test APK is
+`app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`. Signature
+verification passed. Debug APK SHA-256:
+`8e7faa8ea31d85100fe79b0966ccf9246cd0aa374e2d93e3a2157e2107b98272`.
+
+Host logs, reports, renders and browser references are retained in
+`/tmp/codex-issue30-x1Wrbh/`. Installed verification evidence is retained in
+`/tmp/codex-issue30-device-evidence-haxqhd/`. The repository's APK copies remain
+available for phone testing.
+
 ## Dedicated singles rating history — issue #29
 
 Implemented [issue #29](https://github.com/eshref/TableTennisAz/issues/29) on

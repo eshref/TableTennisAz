@@ -28,7 +28,14 @@ final class MatchDetails implements Serializable {
         private static final long serialVersionUID = 1L;
         final long id;
         final String name;
+        final String photoUrl;
 
-        PlayerLink(long id, String name) { this.id = id; this.name = name; }
+        PlayerLink(long id, String name) { this(id, name, null); }
+
+        PlayerLink(long id, String name, String photoUrl) {
+            this.id = id;
+            this.name = name;
+            this.photoUrl = photoUrl;
+        }
     }
 }

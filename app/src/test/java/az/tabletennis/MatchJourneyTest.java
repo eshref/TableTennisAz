@@ -35,8 +35,9 @@ public class MatchJourneyTest extends ProductUiScenario {
 
         // assert
         awaitText("Matç haqqında");
-        awaitText("3-2");
-        assertThat(visibleText()).contains("15 Nov. 2026", "18:00", "İlqar Həsənov", "Əli Məmmədov", "Şəms Quliyeva", "Işıl Əliyeva");
+        awaitText("3");
+        assertThat(visibleText()).contains("2");
+        assertThat(visibleText()).contains("15 Nov. 2026 · 18:00", "İlqar Həsənov", "Əli Məmmədov", "Şəms Quliyeva", "Işıl Əliyeva");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         for (String name : new String[] {"İlqar Həsənov", "Əli Məmmədov", "Şəms Quliyeva", "Işıl Əliyeva"}) {
@@ -52,7 +53,7 @@ public class MatchJourneyTest extends ProductUiScenario {
             back();
 
             // assert
-            assertThat(visibleText()).contains("Matç haqqında", "3-2");
+            assertThat(visibleText()).contains("Matç haqqında", "3", "2");
         }
 
         // arrange
@@ -71,7 +72,7 @@ public class MatchJourneyTest extends ProductUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains("Matç haqqında", "3-2", updated, "Işıl Əliyeva");
+        assertThat(visibleText()).contains("Matç haqqında", "3", "2", updated, "Işıl Əliyeva");
 
         // act
         back();

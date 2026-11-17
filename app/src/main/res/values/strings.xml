@@ -1,4 +1,7 @@
 <resources>
+    <string name="match_winner">Qalib</string>
+    <string name="match_profile_hint">Oyunçu profilinə keçmək üçün adına toxunun.</string>
+    <string name="match_side_score">%1$s · Hesab: %2$s</string>
     <string name="rating_history_subtitle">Reytinq xallarının dəyişməsi</string>
     <string name="observations">Müşahidələr</string>
     <string name="observation_points">%1$s xal</string>
