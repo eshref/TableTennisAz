@@ -82,7 +82,12 @@ points come from the source rankings: the profile's `Reytinq` ratio is not a
 points total. Open Xal tarixçəsi for the player's points chart and accessible
 observation labels. Supplied dates and source order are retained; missing years
 are never invented. Historical points are shown to two decimal places to remove
-observed binary floating-point noise. A missing series has a no-history state.
+observed binary floating-point noise. A missing series has a no-history state. The dedicated screen uses compact
+Back/Refresh controls, a labeled chart, and individually accessible observation
+rows. Select a row to highlight its source point and inspect its date and value;
+this makes no request and keeps the successful-update time. Selection and the
+reading position survive recreation. A single observation is explicitly
+identified without claiming a change.
 
 Optional portraits come from the existing profile or ranking responses and use
 the shared player cache. Photos load independently of profile data and remain
@@ -227,3 +232,17 @@ command as well as the name so ADB preserves it as one argument.
 `-e reuseSaved true` keeps previously prepared files for a separate
 process restart with network disabled. Set system appearance, display size, and
 font scale externally before each run; these are verification controls.
+
+`az.tabletennis.RatingHistoryDeviceTest` is the installed saved-fixture chart
+journey. It opens the selected player's dedicated history, inspects an
+observation, and returns with Android Back to the correct profile:
+
+```sh
+adb shell am instrument -w -r -e class az.tabletennis.RatingHistoryDeviceTest \
+  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Native screenshots are saved in the app's external-files `issue29` directory.
+Use `-e reuseSaved true` after a separate offline process restart; the optional
+`playerName` argument prepares a long-name scenario. Set theme, font scale,
+display size and rotation externally, as for `ProfileDeviceTest`.

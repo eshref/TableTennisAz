@@ -1,5 +1,87 @@
 # Android verification
 
+## Dedicated singles rating history — issue #29
+
+Implemented [issue #29](https://github.com/eshref/TableTennisAz/issues/29) on
+`feat/29-singles-rating-history`, starting at `39407c5`. The dedicated native
+screen now uses the shared compact Back/Refresh chrome, the player's name,
+secondary source-coverage information, and a bordered chart panel. Scalable
+native labels identify the actual minimum/maximum values and first/last source
+dates. Equal spacing preserves source order without implying calendar intervals
+for yearless dates. A single observation is centered and explicitly identified;
+an empty source series remains distinct from unavailable data.
+
+Individually accessible observation actions select the corresponding plotted
+point, with a ring, larger marker, bold row and selected state. A live summary
+provides the selected source date and value. Inspecting observations does not
+request data or change the successful-update time. Selection and reading
+position survive Activity recreation; Back returns to the selected player.
+Existing parsing, decimal formatting, serialization and refresh rules remain
+unchanged.
+
+### Host integration verification
+
+The complete native-UI/real-HTTP suite passed **146 cases**, with zero failures,
+errors or skips. Android lint completed with **0 errors and 26 warnings**;
+debug and instrumentation APK assembly both passed. `RatingHistoryTest` retains
+production parsing, source order,
+yearless dates, decimal values, no-history and offline-reopening guarantees. New
+cases cover explicit single-observation presentation and selection surviving
+recreation without HTTP traffic or update-time changes. The selection regression
+failed before implementation and passed afterward.
+
+Eight `RatingHistoryLayoutTest` cases cover API 26/36, both themes, 320dp
+portrait and 891dp landscape at 150% text. They verify full readable labels,
+accessible values, reachable 48dp actions, selection/scroll restoration, and Back
+to the correct long-name player. These checks exposed a clipped numeric-axis
+column; sizing it from the scaled text measurement corrected the defect. A
+single-point selector initially matched the chart's legitimate identical
+accessible description rather than its row; scoping it to observations corrected
+the assertion.
+
+Existing `ScreenFreshnessTest` and `SavedScreenFailureTest` CHART scenarios
+continue to cover saved data before refresh, the exact 15-minute boundary,
+manual refresh, initial unavailability/retry, malformed responses, failed-refresh
+preservation and long offline reuse. These guarantees were reused rather than
+duplicated in new tests.
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/tmp/tabletennis-android-tools/sdk ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+### Installed verification limitation
+
+The built app and test APKs are ready, and `RatingHistoryDeviceTest` provides the
+installed saved-fixture journey and captures. That journey did **not** complete
+in this session. The disposable API 26 x86_64 emulator has no KVM acceleration.
+Its first setup hit Android 8's incompatibility with the host's newer ext4
+features; a task-owned compatible disk and ramdisk removed that obstacle. The
+restarted emulator eventually reported boot completion after about 464 seconds,
+but APK installation remained stalled, screenshots were black, and Android
+logged `crash_dump helper failed to exec` for its system-server process. No app
+installation, native chart screenshot comparison, native large-text/theme/
+orientation acceptance, physical-phone check or live-source journey is claimed.
+
+The approved browser chart reference was rendered in both themes for inspection;
+those images are reference material, not installed Android evidence. The eight
+host layout cases above remain the completed light/dark, narrow/landscape and
+large-text checks. Device acceptance remains outstanding. Use the README's
+`RatingHistoryDeviceTest` command on a usable Android device/emulator, with the
+external theme/text/display controls and offline saved-data reuse described
+there. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`.
+
+Diagnostic logs and reference captures are retained under
+`/tmp/codex-issue29-kd358f/`; the disposable emulator and its disk images were
+removed after the unsuccessful installed attempt.
+
+### Review
+
+Independent Standards and Spec reviews inspected the staged implementation
+against `39407c5`. Standards: no documented-rule violations; one optional
+maintenance advisory to share the installed-test screenshot helper with
+`ProfileDeviceTest`. Spec: no implementation defects or scope creep. Native
+rendering evidence is recorded separately from the host checks.
+
 ## Player profile and match-history journey — issue #28
 
 Implemented [issue #28](https://github.com/eshref/TableTennisAz/issues/28) on

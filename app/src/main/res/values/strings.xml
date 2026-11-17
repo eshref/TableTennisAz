@@ -1,4 +1,8 @@
 <resources>
+    <string name="rating_history_subtitle">Reytinq xallarının dəyişməsi</string>
+    <string name="observations">Müşahidələr</string>
+    <string name="observation_points">%1$s xal</string>
+    <string name="single_rating_observation">Mənbədə yalnız bir xal müşahidəsi var. Dəyişmə göstərilmir.</string>
     <string name="player_profile">Oyunçu profili</string>
     <string name="player">Oyunçu</string>
     <string name="amateur_player">Həvəskar oyunçu</string>
