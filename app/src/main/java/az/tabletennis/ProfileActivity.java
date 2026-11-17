@@ -71,7 +71,7 @@ public class ProfileActivity extends SavedScreen<PlayerProfile> {
         statsSpacing.bottomMargin = dp(8);
         content.addView(stats, statsSpacing);
         android.widget.Button chart = button(getString(R.string.rating_history), () -> startActivity(new Intent(this, ChartActivity.class)
-                .putExtra("playerId", profile.id)));
+                .putExtra("playerId", profile.id).putExtra("playerName", profile.name)));
         chart.setId(R.id.profile_history_action);
         chart.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         chart.setPadding(dp(14), dp(10), dp(14), dp(10));

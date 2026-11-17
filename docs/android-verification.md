@@ -1,5 +1,60 @@
 # Android verification
 
+## Dedicated singles rating history — issue #29
+
+Implemented [issue #29](https://github.com/eshref/TableTennisAz/issues/29) on
+`feat/29-singles-rating-history`, starting at `39407c5`. The dedicated native
+screen now uses the shared compact Back/Refresh chrome, the player's name,
+secondary source-coverage information, and a bordered chart panel. Scalable
+native labels identify the actual minimum/maximum values and first/last source
+dates. Equal spacing preserves source order without implying calendar intervals
+for yearless dates. A single observation is centered and explicitly identified;
+an empty source series remains distinct from unavailable data.
+
+Individually accessible observation actions select the corresponding plotted
+point, with a ring, larger marker, bold row and selected state. A live summary
+provides the selected source date and value. Inspecting observations does not
+request data or change the successful-update time. Selection and reading
+position survive Activity recreation; Back returns to the selected player.
+Existing parsing, decimal formatting, serialization and refresh rules remain
+unchanged.
+
+### Host integration verification
+
+The complete native-UI/real-HTTP suite passed **146 cases**, with zero failures,
+errors or skips. `RatingHistoryTest` retains production parsing, source order,
+yearless dates, decimal values, no-history and offline-reopening guarantees. New
+cases cover explicit single-observation presentation and selection surviving
+recreation without HTTP traffic or update-time changes. The selection regression
+failed before implementation and passed afterward.
+
+Eight `RatingHistoryLayoutTest` cases cover API 26/36, both themes, 320dp
+portrait and 891dp landscape at 150% text. They verify full readable labels,
+accessible values, reachable 48dp actions, selection/scroll restoration, and Back
+to the correct long-name player. These checks exposed a clipped numeric-axis
+column; sizing it from the scaled text measurement corrected the defect. A
+single-point selector initially matched the chart's legitimate identical
+accessible description rather than its row; scoping it to observations corrected
+the assertion.
+
+Existing `ScreenFreshnessTest` and `SavedScreenFailureTest` CHART scenarios
+continue to cover saved data before refresh, the exact 15-minute boundary,
+manual refresh, initial unavailability/retry, malformed responses, failed-refresh
+preservation and long offline reuse. These guarantees were reused rather than
+duplicated in new tests.
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/tmp/tabletennis-android-tools/sdk ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+### Review
+
+Independent Standards and Spec reviews inspected the staged implementation
+against `39407c5`. Standards: no documented-rule violations; one optional
+maintenance advisory to share the installed-test screenshot helper with
+`ProfileDeviceTest`. Spec: no implementation defects or scope creep. Native
+rendering evidence is recorded separately from the host checks.
+
 ## Player profile and match-history journey — issue #28
 
 Implemented [issue #28](https://github.com/eshref/TableTennisAz/issues/28) on
