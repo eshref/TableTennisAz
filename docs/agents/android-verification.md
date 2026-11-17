@@ -151,21 +151,30 @@ cache before calling the new configuration supported.
 
 ## Current validation
 
-On 2026-11-17, both APKs built, all 160 host tests and lint passed, and the
-launcher/provisioner syntax and Java compilation passed. Interruption cleanup
-completed and retained its result without truncation.
+On 2026-11-17, installed preflight passed both cases on a fresh API 36 data disk
+using cached pinned tools, software CPU/GPU emulation and a Windows-backed
+workspace. It took about 33 minutes 8 seconds. The installed
+[singles](../verification/android-workflow/screenshots/preflight-502.png) and
+[doubles](../verification/android-workflow/screenshots/preflight-501.png) captures
+passed focus, score, nonblank and dimension checks; visual inspection confirmed
+the approved reference's composition and readable participants and scores.
 
-This host has no KVM and uses a Windows-backed workspace. The initial extended
-measurement ended before framework readiness. A subsequent uninterrupted run
-reached boot completion and app installation, but the runner's three-minute
-install cutoff failed preflight after about 25 minutes, while its approved
-60-minute total still had time remaining. The install log reported `Success`
-near the cutoff, but the ADB client did not exit before its deadline; no
-instrumentation ran.
+The measured cached-tool preflight exceeded the original 30-minute cap. The
+authorized default is now 60 minutes, leaving room for cold tool setup and host
+variation; the full-phase cap remains 30 minutes. Empty-cache provisioning and
+KVM execution were not rerun in this measurement.
 
-Software installation now uses the remaining phase budget. This correction
-compiled, but has no subsequent device verification. Installed preflight,
-screenshots and the full matrix remain outstanding. The original default cap is
-retained pending a passing measurement. See the concise
+Both APKs built, all 160 host tests passed without failures or skips, and lint
+reported zero errors and 25 warnings. Light, dark/offline and narrow large-text
+participant journeys also passed.
+The 30-minute full-phase limit expired as landscape started; landscape and the
+complete matrix remain unverified. Cleanup completed. See the
 [validation record](../verification/android-workflow/results.properties) for
-evidence locations and measured checks.
+the complete result, earlier failures and evidence locations.
+
+The next software run will compile the app and instrumentation APK bytecode with
+Android's `speed` filter inside the preflight budget. This aims to reduce repeated
+instrumentation startup and execution time while keeping the full-phase cap.
+The command is supported by the [Android 16 ART shell implementation](https://android.googlesource.com/platform/art/+/refs/tags/android-16.0.0_r1/libartservice/service/java/com/android/server/art/ArtShellCommand.java).
+This preparation step has compiled but has not been exercised on a device; its
+runtime benefit remains a hypothesis. The passing evidence above predates it.

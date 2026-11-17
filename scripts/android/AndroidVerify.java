@@ -61,8 +61,8 @@ class AndroidVerify {
         catch (Exception failure) {
             exit = 1;
             runner.result.setProperty("status", "failed");
-            runner.result.setProperty("failure", failure.toString());
-            System.err.println("FAILED during " + runner.phase + ": " + failure.getMessage());
+            runner.result.putIfAbsent("failure", failure.toString());
+            System.err.println("FAILED during " + runner.phase + ": " + runner.result.getProperty("failure"));
             runner.diagnose();
         } finally {
             runner.result.setProperty("phase", runner.phase);
@@ -351,6 +351,12 @@ class AndroidVerify {
         int installSeconds = software ? Math.toIntExact(remaining()) : 180;
         adb("install-app", installSeconds, true, "install", "--no-streaming", "-r", evidence.resolve("app-debug.apk").toString());
         adb("install-tests", installSeconds, true, "install", "--no-streaming", "-r", "-t", evidence.resolve("app-debug-androidTest.apk").toString());
+        if (software) {
+            note("Compiling app and test bytecode before installed checks (within the preflight budget)");
+            for (String target : List.of("az.tabletennis", "az.tabletennis.test"))
+                shell("compile-" + target, Math.toIntExact(remaining()), true, "cmd package compile --primary-dex -m speed " + target);
+            result.setProperty("softwareCompilation", "passed");
+        }
         instrument("preflight", "az.tabletennis.MatchDeviceTest", true, false, 412, 891);
         for (int id : List.of(501, 502)) {
             Properties proof = proof("preflight", id);
