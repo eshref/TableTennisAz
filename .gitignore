@@ -39,3 +39,6 @@ google-services.json
 
 # Visual Studio temp something
 .vs/
+
+# Local Android verification tools, disposable devices and evidence
+/.android-verification/

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Internal bootstrap, always invoked within the launcher's outer deadline.
+set -euo pipefail
+umask 077
+jdk_cache="$1"
+jdk_sha="$2"
+remaining_seconds() {
+  local remaining=$((ANDROID_VERIFY_STARTED + ANDROID_VERIFY_PREFLIGHT_SECONDS - $(date +%s)))
+  (( remaining > 0 )) || exit 124
+  echo "$remaining"
+}
+exec 9>"$ANDROID_VERIFY_CACHE/jdk.lock"
+trap 'exit 124' TERM
+trap 'code=$?; if [[ -n "${staging:-}" && -d "$staging" && "$staging" == "$ANDROID_VERIFY_CACHE/jdk-unpack-"* ]]; then find "$staging" -depth -delete; fi; exit "$code"' EXIT
+flock -w "$(remaining_seconds)" 9
+if [[ ! -f "$jdk_cache/.verified-archive" ]]; then
+  jdk_url="$3"
+  archive="$ANDROID_VERIFY_CACHE/jdk-${jdk_sha:0:12}.tar.gz"
+  if [[ ! -f "$archive" ]] || ! printf '%s  %s\n' "$jdk_sha" "$archive" | sha256sum -c --status; then
+    timeout --foreground "$(remaining_seconds)" curl --fail --location --retry 2 --connect-timeout 20 --max-time 600 "$jdk_url" -o "$archive.part" > "$ANDROID_VERIFY_EVIDENCE/jdk-download.log" 2>&1
+    printf '%s  %s\n' "$jdk_sha" "$archive.part" | sha256sum -c --status
+    mv -- "$archive.part" "$archive"
+  fi
+  staging="$(mktemp -d "$ANDROID_VERIFY_CACHE/jdk-unpack-XXXXXX")"
+  extract_status=0
+  tar -xzf "$archive" --strip-components=1 -C "$staging" > "$ANDROID_VERIFY_EVIDENCE/jdk-unpack.log" 2>&1 || extract_status=$?
+  if (( extract_status != 0 )); then
+    (( extract_status != 124 && extract_status != 137 )) || exit "$extract_status"
+    # Windows-backed workspaces may reject symlinks. Preserve their contents as regular copies.
+    top="$(tar -tzf "$archive" | sed -n '1{s,/.*,,;p;}')"
+    while IFS= read -r record; do
+      [[ "$record" == l* ]] || continue
+      entry="${record#*"$top"/}"
+      entry="${entry% -> *}"
+      target="${record##* -> }"
+      referent="$(realpath -m "$staging/$(dirname -- "$entry")/$target")"
+      [[ "$referent" == "$staging/"* && -f "$referent" ]] || exit 1
+      cp -- "$referent" "$staging/$entry"
+    done < <(tar -tzvf "$archive")
+    while IFS= read -r member; do
+      [[ -e "$staging/${member#*/}" ]] || { echo "JDK archive member missing: $member" >&2; exit 1; }
+    done < <(tar -tzf "$archive")
+  fi
+  if ! mv -T -- "$staging" "$jdk_cache" 2>> "$ANDROID_VERIFY_EVIDENCE/jdk-unpack.log"; then
+    mkdir -p "$jdk_cache"
+    cp -R -- "$staging/." "$jdk_cache"
+    [[ "$staging" == "$ANDROID_VERIFY_CACHE/jdk-unpack-"* ]] && find "$staging" -depth -delete
+  fi
+  printf '%s' "$jdk_sha" > "$jdk_cache/.verified-archive"
+fi

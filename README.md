@@ -189,6 +189,18 @@ require an updated APK; feed coverage is partial as described above.
 
 ## Verification
 
+For Android UI changes and installed-device verification, use the reproducible
+Linux setup and verification command:
+
+```sh
+scripts/android-verify
+```
+
+It prepares pinned tools, verifies an installed screen before the full device
+matrix, and prints the evidence location. See the [agent verification guide](docs/agents/android-verification.md)
+for time limits, cleanup, cache locations and selecting other saved-fixture tests.
+The existing host-only command remains available:
+
 ```sh
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
 ```

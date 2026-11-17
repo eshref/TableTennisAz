@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+limits_file="$repo_dir/scripts/android/limits.properties"
+export ANDROID_VERIFY_PREFLIGHT_SECONDS="$(sed -n 's/^preflightSeconds=//p' "$limits_file")"
+export ANDROID_VERIFY_MATRIX_SECONDS="$(sed -n 's/^matrixSeconds=//p' "$limits_file")"
+[[ "$ANDROID_VERIFY_PREFLIGHT_SECONDS" =~ ^[1-9][0-9]*$ && "$ANDROID_VERIFY_MATRIX_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo 'Invalid verification phase budgets.' >&2; exit 2; }
+if [[ " ${*} " == *" --help "* ]]; then
+  cat <<HELP
+Usage: scripts/android-verify [--preflight-only] [--software] [--retain-device]
+                              [--tests fully.qualified.Test]
+
+Linux x86_64. Provisions pinned Android tools and uses JDK 21. Default: installed
+MatchDeviceTest in light, dark/offline, narrow/150% text and landscape/150% text.
+Preflight always checks installed singles/doubles scores, focus and screenshots.
+Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one
+recovery. Full device checks have a separate $((ANDROID_VERIFY_MATRIX_SECONDS / 60))-minute budget.
+
+ANDROID_VERIFY_CACHE       Reusable download/SDK cache (default: repo-local).
+ANDROID_VERIFY_OUTPUT     Evidence parent directory (default: repo-local).
+ANDROID_VERIFY_JDK        JDK 21 directory, or 'pinned' to provision the locked JDK.
+ANDROID_VERIFY_BUILD_ROOT Optional scratch parent for isolated Gradle outputs.
+
+See docs/agents/android-verification.md. SDK/JDK licenses apply to downloads.
+HELP
+  exit 0
+fi
+[[ "$(uname -s)/$(uname -m)" == Linux/x86_64 ]] || { echo 'Requires Linux x86_64.' >&2; exit 2; }
+for tool in curl tar unzip flock sha256sum timeout mkfs.ext4; do
+  command -v "$tool" >/dev/null || { echo "Missing Linux prerequisite: $tool" >&2; exit 2; }
+done
+formatter_help="$(mkfs.ext4 2>&1 || true)"
+[[ "$formatter_help" == *'-d '* ]] || { echo 'Requires mkfs.ext4 with directory population support (-d), from e2fsprogs 1.43 or later.' >&2; exit 2; }
+export ANDROID_VERIFY_STARTED="$(date +%s)"
+export ANDROID_VERIFY_CACHE="${ANDROID_VERIFY_CACHE:-$repo_dir/.android-verification/cache}"
+output_parent="${ANDROID_VERIFY_OUTPUT:-$repo_dir/.android-verification/evidence}"
+mkdir -p "$ANDROID_VERIFY_CACHE" "$output_parent"
+export ANDROID_VERIFY_EVIDENCE
+ANDROID_VERIFY_EVIDENCE="$(mktemp -d "$output_parent/run-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
+echo "Evidence: $ANDROID_VERIFY_EVIDENCE"
+trap 'code=$?; if (( code != 0 )) && [[ ! -f "$ANDROID_VERIFY_EVIDENCE/result.properties" ]]; then printf "status=failed\nphase=bootstrap\nexitCode=%s\n" "$code" > "$ANDROID_VERIFY_EVIDENCE/result.properties"; fi' EXIT
+
+lock_file="$repo_dir/scripts/android/tools.properties"
+jdk_sha="$(sed -n 's/^jdk.sha256=//p' "$lock_file")"
+jdk_cache="$ANDROID_VERIFY_CACHE/jdk-${jdk_sha:0:12}"
+java_dir="${ANDROID_VERIFY_JDK:-}"
+if [[ -z "$java_dir" ]]; then
+  for candidate in "${JAVA_HOME:-/nonexistent}" /usr/lib/jvm/java-21-openjdk-amd64 "$jdk_cache"; do
+    [[ "$candidate" != "$jdk_cache" || -f "$jdk_cache/.verified-archive" ]] || continue
+    if [[ -x "$candidate/bin/java" ]] && "$candidate/bin/java" -version 2>&1 | grep -Eq '^(openjdk|java) version "21\.'; then
+      java_dir="$candidate"
+      break
+    fi
+  done
+fi
+[[ "$java_dir" != pinned ]] || java_dir=""
+remaining_seconds() {
+  local remaining=$((ANDROID_VERIFY_STARTED + ANDROID_VERIFY_PREFLIGHT_SECONDS - $(date +%s)))
+  (( remaining > 0 )) || { echo 'Preflight time budget exhausted during bootstrap.' >&2; return 1; }
+  echo "$remaining"
+}
+if [[ -z "$java_dir" ]]; then
+  jdk_url="$(sed -n 's/^jdk.url=//p' "$lock_file")"
+  timeout --kill-after=10 "$(remaining_seconds)" bash "$repo_dir/scripts/android/provision-jdk" "$jdk_cache" "$jdk_sha" "$jdk_url"
+  java_dir="$jdk_cache"
+fi
+"$java_dir/bin/java" -version > "$ANDROID_VERIFY_EVIDENCE/java.log" 2>&1
+grep -Eq '^(openjdk|java) version "21\.' "$ANDROID_VERIFY_EVIDENCE/java.log" || { echo 'ANDROID_VERIFY_JDK must be JDK 21.' >&2; exit 2; }
+export JAVA_HOME="$java_dir"
+export PATH="$JAVA_HOME/bin:$PATH"
+exec "$JAVA_HOME/bin/java" -Djava.awt.headless=true "$repo_dir/scripts/android/AndroidVerify.java" "$repo_dir" "$@"
