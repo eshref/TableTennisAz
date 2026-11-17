@@ -346,8 +346,11 @@ class AndroidVerify {
         shell("wake", 60, true, "input keyevent 224; wm dismiss-keyguard");
         appearance("light", "412x891", "1.0");
         note("Installing app and instrumentation APKs");
-        adb("install-app", 180, true, "install", "--no-streaming", "-r", evidence.resolve("app-debug.apk").toString());
-        adb("install-tests", 180, true, "install", "--no-streaming", "-r", "-t", evidence.resolve("app-debug-androidTest.apk").toString());
+        // Software first-boot work can keep installation busy beyond three minutes.
+        // command() also clamps each install to the remaining total phase budget.
+        int installSeconds = software ? Math.toIntExact(remaining()) : 180;
+        adb("install-app", installSeconds, true, "install", "--no-streaming", "-r", evidence.resolve("app-debug.apk").toString());
+        adb("install-tests", installSeconds, true, "install", "--no-streaming", "-r", "-t", evidence.resolve("app-debug-androidTest.apk").toString());
         instrument("preflight", "az.tabletennis.MatchDeviceTest", true, false, 412, 891);
         for (int id : List.of(501, 502)) {
             Properties proof = proof("preflight", id);

@@ -29,6 +29,8 @@ separate budget. Keep these committed limits unchanged unless the user explicitl
 authorizes a different cap. Recovery retains the original deadline and first-attempt logs.
 Stop at a failed result and report the failed phase and evidence path. Further
 troubleshooting beyond that budget requires the user's explicit authorization.
+Let software preflight run before other builds or test suites; the command
+deliberately defers host checks until installed readiness is established.
 
 For a setup-only check:
 
@@ -129,6 +131,10 @@ The runner verifies them over ADB. If the guest did not load the timeout setting
 it applies the runtime fallback and restarts zygote. These changes apply to the
 disposable guest, never to application configuration.
 
+Boot completion can precede the end of background package optimization. Software
+APK installation uses the remaining preflight budget, avoiding a separate
+three-minute cutoff while preserving the total limit.
+
 An initial **system** ANR dialog can steal focus during slow startup. The runner
 can select its Wait action. Application assertion failures remain failures.
 Blank PNGs, missing focus and wrong dimensions require a failed preflight; a host
@@ -149,11 +155,17 @@ On 2026-11-17, both APKs built, all 160 host tests and lint passed, and the
 launcher/provisioner syntax and Java compilation passed. Interruption cleanup
 completed and retained its result without truncation.
 
-The approved extended measurement window ended without a passing installed
-preflight on this host, which has no KVM and uses a Windows-backed workspace.
-ADB confirmed the first-boot timeout and drawing settings, but Android framework
-readiness remained incomplete. APK installation, screenshots and the full matrix
-remain unverified for this workflow. The original preflight cap is retained;
-there is no successful measurement supporting an increase. See the concise
+This host has no KVM and uses a Windows-backed workspace. The initial extended
+measurement ended before framework readiness. A subsequent uninterrupted run
+reached boot completion and app installation, but the runner's three-minute
+install cutoff failed preflight after about 25 minutes, while its approved
+60-minute total still had time remaining. The install log reported `Success`
+near the cutoff, but the ADB client did not exit before its deadline; no
+instrumentation ran.
+
+Software installation now uses the remaining phase budget. This correction
+compiled, but has no subsequent device verification. Installed preflight,
+screenshots and the full matrix remain outstanding. The original default cap is
+retained pending a passing measurement. See the concise
 [validation record](../verification/android-workflow/results.properties) for
-the evidence locations and measured checks.
+evidence locations and measured checks.
