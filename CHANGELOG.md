@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-18
+
+First officially signed Android APK, available from GitHub Releases.
+
+If you installed a phone-review debug APK, uninstall it once before installing
+this release. Uninstalling clears saved app data, including offline rankings,
+profiles, and results.
+
 ## 0.3.0 - 2026-11-18
 
 Android debug APK baseline for phone review.
