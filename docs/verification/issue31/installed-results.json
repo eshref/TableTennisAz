@@ -1,0 +1,47 @@
+{
+  "kind": "installed follow-up on retained initialized API 36 emulator",
+  "started": "2026-11-17T20:49:16.460747+00:00",
+  "status": "passed",
+  "preflight": "passed",
+  "matrix": "passed",
+  "configurations": {
+    "light": {
+      "tests": "passed",
+      "screenshots": 6,
+      "width": 412,
+      "height": 891,
+      "nonblank": true
+    },
+    "dark-offline": {
+      "tests": "passed",
+      "screenshots": 6,
+      "width": 412,
+      "height": 891,
+      "nonblank": true
+    },
+    "narrow-large": {
+      "tests": "passed",
+      "screenshots": 6,
+      "width": 320,
+      "height": 568,
+      "nonblank": true
+    },
+    "landscape-large": {
+      "tests": "passed",
+      "screenshots": 6,
+      "width": 891,
+      "height": 320,
+      "nonblank": true
+    }
+  },
+  "preflightCaptures": {
+    "screenshots": 2,
+    "width": 412,
+    "height": 891,
+    "nonblank": true
+  },
+  "longPressTimeoutMs": 10000,
+  "offlineDefaultNetwork": "none",
+  "finished": "2026-11-17T21:20:28.217582+00:00",
+  "cleanup": "complete"
+}

@@ -28,8 +28,10 @@ final class MatchCard extends LinearLayout {
         setFocusable(true);
         setOnClickListener(view -> open.run());
         String kind = context.getString(match.left.size() == 2 ? R.string.match_doubles : R.string.match_singles);
-        String source = context.getString(match.eventId != 0 && match.duel ? R.string.match_event_and_duel
-                : match.duel ? R.string.match_duel : R.string.match_event);
+        // Profile histories, including older snapshots, identify duels by the website's reserved event label.
+        boolean duel = match.duel || (match.eventId == 0 && "Duello".equalsIgnoreCase(match.eventName));
+        String source = context.getString(match.eventId != 0 && duel ? R.string.match_event_and_duel
+                : duel ? R.string.match_duel : R.string.match_event);
         String type = kind + " · " + source;
         setContentDescription(match.display() + " · " + type);
         // One actionable TalkBack announcement retains both full sides, score, date, event and type.

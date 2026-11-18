@@ -57,11 +57,22 @@ public class DoublesChartTest extends DoublesUiScenario {
                 .doesNotContain("Növbəti reytinq yenilənmələri tarixçəyə yeni müşahidələr əlavə edəcək.");
 
         // act
+        clickText("15.11.2026 12:00:00.000 — 800 xal");
+
+        // assert
+        assertThat(activity().<android.widget.TextView>findViewById(R.id.chart_selected_date).getText().toString())
+                .isEqualTo("15.11.2026 12:00:00.000");
+        assertThat(activity().<android.widget.TextView>findViewById(R.id.chart_selected_value).getText().toString())
+                .isEqualTo("800 xal");
+
+        // act
         clickText("Mövqe");
 
         // assert
         String ranks = "15.11.2026 12:00:00.000 — #9; 15.11.2026 12:02:00.000 — #3; 17.11.2026 12:02:00.000 — #1";
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString()).isEqualTo(ranks);
+        assertThat(activity().<android.widget.TextView>findViewById(R.id.chart_selected_value).getText().toString())
+                .isEqualTo("#9");
 
         // act
         back();
@@ -173,6 +184,15 @@ public class DoublesChartTest extends DoublesUiScenario {
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString())
                 .isEqualTo("15.11.2026 12:00:00.000 — #1");
         assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110");
+
+        // act
+        recreateProductScreen();
+
+        // assert
+        assertThat(activity().<android.widget.RadioButton>findViewById(R.id.pair_chart_rank).isChecked()).isTrue();
+        assertThat(activity().findViewById(R.id.chart).getContentDescription().toString())
+                .isEqualTo("15.11.2026 12:00:00.000 — #1");
+        assertThat(requestedPaths()).isEmpty();
 
         // act
         clickText("Xal");

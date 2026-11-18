@@ -1,5 +1,33 @@
 # Android verification
 
+## Doubles profile, medals and inline history — issue #31
+
+Implemented on `issue-31-doubles-profile`, starting at `78fe089`. The profile
+reuses split portraits and Results cards, links each partner separately, groups
+published pair standing, distinguishes unknown medals from zero, and presents
+inline Xal/Mövqe controls with complete, selectable dated observations. The
+user-requested drawer follow-up aligns its shape, branding, icons, selected row
+and footer with the approved prototype.
+
+The final host suite passed 168 tests with no failures, errors or skips. Lint
+reported zero errors and 26 warnings; both APK builds passed. Standards and Spec
+reviews found zero implementation findings.
+
+Two fresh managed API 36 software preflights failed; those results remain failed.
+After authorized diagnosis, clean preflight passed both cases on the retained,
+initialized emulator. Four complete doubles-profile journeys then passed: light,
+dark/offline, narrow at 150% text and landscape at 150% text. All 24 native captures
+passed dimensions/nonblank checks and were visually inspected. Landscape images
+show scrolled viewport portions, rather than whole panels simultaneously.
+
+This follow-up used a 10-second emulator long-press threshold after a trace showed
+Espresso holding the hamburger for 2.580 seconds. No production workaround or
+committed budget change was made. A permanent cold-start fix, fresh full managed
+run, physical phone, API 26 installation and live-source acquisition are not
+established by these results.
+
+See the [native screenshots, APK provenance and detailed evidence](verification/issue31/README.md).
+
 ## Match scoreboard and participant navigation — issue #30
 
 Implemented [issue #30](https://github.com/eshref/TableTennisAz/issues/30) on

@@ -1,0 +1,47 @@
+{
+  "verifiedAt": "2026-11-17T21:22:24.463775+00:00",
+  "implementationCommit": "ca6b61684d718114d6d6e2265c94ae3fd7261e0c",
+  "drawerCommit": "671499fab7c687e7e2e59933353d284cfbc6bd9c",
+  "captureCommit": "fbd1cac94967634fd045e31d5df4d5c3847fc55b",
+  "branch": "issue-31-doubles-profile",
+  "hostChecks": "passed",
+  "junit": {
+    "suites": 42,
+    "tests": 168,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 26
+  },
+  "artifacts": {
+    "directory": "/c/src/TableTennisAz/.android-verification/evidence/issue31-followup-e2XAzI",
+    "phoneApkSha256": "12ccc4274f2bd16e044c77402c2b354bd6c24f9b2e41d94a7fbcf9f27b1b0cd1",
+    "emulatorDebugApkSha256": "59a83be994e93264e25426cbd25b05a74ae2931b794a923fb237467e8f4e53f6",
+    "testApkSha256": "8627fd0a5487f77fbbf37488fb86b708f36a712db9a840e600cb7152cd7ca8cb"
+  },
+  "reviews": {
+    "standardsFindings": 0,
+    "specImplementationFindings": 0
+  },
+  "installed": {
+    "scope": "initialized API 36 software emulator; saved fixtures",
+    "managedColdStartRuns": "failed",
+    "preflight": "passed",
+    "preflightTests": 2,
+    "profileJourney": "passed",
+    "matrix": "passed",
+    "configurations": 4,
+    "screenshots": 24,
+    "nativeComparison": "performed",
+    "longPressTimeoutMs": 10000,
+    "matrixBudgetSeconds": 2700,
+    "physicalPhone": "not-tested",
+    "api26Installation": "not-tested",
+    "liveHttpAcquisition": "not-tested",
+    "cleanup": "complete",
+    "evidence": "/c/src/TableTennisAz/.android-verification/evidence/issue31-followup-e2XAzI"
+  }
+}

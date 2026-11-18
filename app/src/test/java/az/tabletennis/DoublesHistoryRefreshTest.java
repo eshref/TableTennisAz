@@ -33,13 +33,13 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
 
         // act
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello");
+        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
         requestedPaths();
 
@@ -54,7 +54,7 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains(updated, "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa");
+        assertThat(visibleText()).contains(updated, "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains(updated).noneMatch(text -> text.contains("3-0"));
         assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110", "/matches/results/duo/110?page=2");
@@ -66,8 +66,8 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         activity().findViewById(R.id.refresh).performClick();
 
         // assert
-        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-0 · Kupa");
-        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello")
+        awaitText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-0 · Kupa · Qoşalar · Turnir");
+        assertThat(visibleText()).contains("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel")
                 .doesNotContain("Daha çox yüklə");
         assertThat(requestedPaths()).containsExactly("/api/getDuoInfo?id=110", "/matches/results/duo/110", "/matches/results/duo/110?page=2");
         String refreshed = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
@@ -82,7 +82,7 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
         assertThat(visibleText()).contains(refreshed,
-                "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello")
+                "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel")
                 .noneMatch(text -> text.contains("Başqa tərəfdaş"));
     }
 }
