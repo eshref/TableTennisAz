@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+apk=$1
+android_tools=$2
+: "${RELEASE_VERSION_NAME:?Validate the release version before verifying.}"
+: "${RELEASE_VERSION_CODE:?Validate the Android version code before verifying.}"
+
+"$android_tools/apksigner" verify --print-certs "$apk"
+badging=$("$android_tools/aapt" dump badging "$apk")
+package_info=${badging%%$'\n'*}
+if [[ $package_info != "package: name='az.tabletennis' versionCode='$RELEASE_VERSION_CODE' versionName='$RELEASE_VERSION_NAME'"* ]]; then
+    printf 'Expected APK versionName %s and versionCode %s for az.tabletennis. Found %s\n' \
+        "$RELEASE_VERSION_NAME" "$RELEASE_VERSION_CODE" "$package_info" >&2
+    exit 1
+fi

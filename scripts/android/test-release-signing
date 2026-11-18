@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# arrange
+android_tools=$(realpath -- "$1")
+repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+scratch=$(mktemp -d)
+trap 'find "$scratch" -depth -delete' EXIT
+mkdir "$scratch/source" "$scratch/candidate" "$scratch/rejected"
+tar --exclude=app/build --exclude=app/.gradle -C "$repo" -cf - \
+    app build.gradle gradle gradle.properties gradlew settings.gradle scripts/android/build-release-candidate scripts/android/verify-release-apk \
+    | tar -xf - -C "$scratch/source"
+cd -- "$scratch/source"
+printf 'versionName=0.4.0\nversionCode=4\n' > version.properties
+
+export RUNNER_TEMP="$scratch" RELEASE_VERSION_NAME=0.4.0 RELEASE_VERSION_CODE=4
+export ANDROID_RELEASE_KEY_ALIAS=candidate-test
+ANDROID_RELEASE_KEYSTORE_PASSWORD=$(openssl rand -hex 24)
+export ANDROID_RELEASE_KEYSTORE_PASSWORD
+export ANDROID_RELEASE_KEY_PASSWORD="$ANDROID_RELEASE_KEYSTORE_PASSWORD"
+umask 077
+keytool -genkeypair -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 2 \
+    -keystore "$scratch/candidate.jks" -storepass:env ANDROID_RELEASE_KEYSTORE_PASSWORD \
+    -keypass:env ANDROID_RELEASE_KEY_PASSWORD -alias "$ANDROID_RELEASE_KEY_ALIAS" -dname 'CN=Candidate test'
+ANDROID_RELEASE_KEYSTORE_BASE64=$(base64 -w0 "$scratch/candidate.jks")
+export ANDROID_RELEASE_KEYSTORE_BASE64
+expected_signer=$(keytool -exportcert -keystore "$scratch/candidate.jks" \
+    -storepass:env ANDROID_RELEASE_KEYSTORE_PASSWORD -alias "$ANDROID_RELEASE_KEY_ALIAS" | sha256sum | cut -d ' ' -f1)
+
+# act
+scripts/android/build-release-candidate "$scratch/candidate" "$android_tools" | tee "$scratch/signing.log"
+
+# assert
+grep -Fxq "Signer #1 certificate SHA-256 digest: $expected_signer" "$scratch/signing.log"
+badging=$("$android_tools/aapt" dump badging "$scratch/candidate/TableTennisAz-0.4.0.apk")
+[[ $badging == "package: name='az.tabletennis' versionCode='4' versionName='0.4.0'"* ]]
+
+# act & assert
+if RELEASE_VERSION_CODE=5 scripts/android/build-release-candidate "$scratch/rejected" "$android_tools" > "$scratch/rejection.log" 2>&1; then
+    echo 'Expected Android version code verification to reject the APK.' >&2
+    exit 1
+fi
+grep -Fq 'Expected APK versionName 0.4.0 and versionCode 5 for az.tabletennis.' "$scratch/rejection.log"
+[[ ! -e $scratch/rejected/TableTennisAz-0.4.0.apk ]]

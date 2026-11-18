@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output_dir=$1
+android_tools=$2
+android_scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+: "${ANDROID_RELEASE_KEYSTORE_BASE64:?Set the ANDROID_RELEASE_KEYSTORE_BASE64 secret.}"
+: "${ANDROID_RELEASE_KEYSTORE_PASSWORD:?Set the ANDROID_RELEASE_KEYSTORE_PASSWORD secret.}"
+: "${ANDROID_RELEASE_KEY_ALIAS:?Set the ANDROID_RELEASE_KEY_ALIAS secret.}"
+: "${ANDROID_RELEASE_KEY_PASSWORD:?Set the ANDROID_RELEASE_KEY_PASSWORD secret.}"
+: "${RELEASE_VERSION_NAME:?Validate the release version before building.}"
+: "${RELEASE_VERSION_CODE:?Validate the Android version code before building.}"
+
+umask 077
+ANDROID_RELEASE_KEYSTORE=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/android-release-keystore.XXXXXX")
+export ANDROID_RELEASE_KEYSTORE
+trap 'unlink -- "$ANDROID_RELEASE_KEYSTORE"' EXIT
+printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_RELEASE_KEYSTORE"
+unset ANDROID_RELEASE_KEYSTORE_BASE64
+
+./gradlew :app:assembleRelease --no-configuration-cache
+
+apk=app/build/outputs/apk/release/app-release.apk
+"$android_scripts/verify-release-apk" "$apk" "$android_tools"
+
+install -m 0644 -- "$apk" "$output_dir/TableTennisAz-$RELEASE_VERSION_NAME.apk"
