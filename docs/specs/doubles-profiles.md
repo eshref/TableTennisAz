@@ -110,6 +110,6 @@ Carry forward existing Azerbaijani interface wording, individual-player links, p
 
 - The project owner explicitly approved the complete plan after Q9, then requested specification publication with the to-spec skill. The proposed existing test boundaries were separately confirmed during specification preparation.
 - The single-point startup decision is Q8. The no-indicator rule in Q6 supersedes the earlier Q5 gray-dash proposal: unchanged and missing-baseline rows both show nothing.
-- The selected layout came from the throwaway Switchable chart prototype, variant A. The full comparison and verdict are preserved locally on the `prototype/doubles-profile-charts` branch, with verdict commit `5eee1b7`. That branch has not been pushed; its sample records are illustrative and are not website evidence.
+- The selected layout came from the Switchable chart prototype, variant A. The comparison used illustrative sample records.
 - Read-only inspection on 2026-11-16 established current pair points and positions in the doubles ranking, and membership, pair medals, and a results link in the pair metadata response. No usable historical pair series was identified in the inspected public interfaces; that bounded finding is not proof that no other interface exists.
 - The history source follows the accepted decision “Build doubles histories from on-device ranking observations” and retains the existing “Fetch website data directly from Android” architecture.

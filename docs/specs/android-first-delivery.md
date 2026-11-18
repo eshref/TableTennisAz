@@ -256,9 +256,9 @@ and let the user load more, making partial coverage clear.
   implementation still awaits explicit authorization.
 - **Decision sources:** Use the approved discovery plan, domain glossary, and
   ADRs for native screens, direct website access, combined ranking, and recent
-  results. Preserve the comparison prototype on the local
-  `prototype/results-navigation` branch; Recent results won the comparison.
-  The prototype uses illustrative records and is not production Android code.
+  results. The owner selected Recent results in the
+  [navigation comparison](../prototypes/results-navigation-prototype.html),
+  which uses illustrative records.
 - **Website findings:** Essential rankings, profile information, and match
   lists are server-rendered HTML. Public JSON was verified for player points
   history and source position history. The inspected scripts did not reveal a
