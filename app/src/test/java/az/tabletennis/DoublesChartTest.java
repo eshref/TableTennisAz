@@ -2,6 +2,13 @@ package az.tabletennis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -10,6 +17,110 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 26, qualifiers = "w411dp-h891dp", application = RankingsUiScenario.FixtureApplication.class)
 public class DoublesChartTest extends DoublesUiScenario {
+    @Test public void historyModesKeepOnlyTheirDatedValueChangesAcrossRefreshesAndOfflineRestart() throws Exception {
+        // arrange
+        prepareDoubles();
+        ranking(pairRow(110, 9, 800));
+        website.put("/matches/results/duo/110", pairHistory("<div class='no-info'>Matç yoxdur</div>"));
+        openScreen();
+
+        // act
+        clickText("Qoşalar");
+
+        // assert
+        awaitText("Son uğurlu yenilənmə: 15 noy 2026 12:00");
+
+        // arrange
+        nextRanking(pairRow(110, 9, 800));
+
+        // act
+        activity().findViewById(R.id.refresh).performClick();
+
+        // assert
+        awaitText("Son uğurlu yenilənmə: 15 noy 2026 12:01");
+
+        // act
+        clickText("9. İlqar Həsənov / Əli Məmmədov — 800 xal");
+        followNavigation();
+
+        // assert
+        awaitText("Matç tarixçəsi yoxdur.");
+        assertThat(visibleText()).contains("Reytinqin son uğurlu yenilənməsi: 15 noy 2026 12:01");
+        assertHistory("15.11.2026 12:00:00.000 — 800 xal");
+
+        // act
+        clickText("Mövqe");
+
+        // assert
+        assertHistory("15.11.2026 12:00:00.000 — #9");
+
+        // arrange
+        record Refresh(String rows, String expectedRow) {}
+        List<Refresh> refreshes = List.of(
+                new Refresh(pairRow(110, 8, 800), "8. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə yüksəlib"),
+                new Refresh(pairRow(110, 8, 820), "8. İlqar Həsənov / Əli Məmmədov — 820 xal"),
+                new Refresh(pairRow(220, 1, 900), "1. İlqar Həsənov / Şəms Quliyeva — 900 xal"),
+                new Refresh(pairRow(110, 8, 820), "8. İlqar Həsənov / Əli Məmmədov — 820 xal"),
+                new Refresh(pairRow(220, 1, 900), "1. İlqar Həsənov / Şəms Quliyeva — 900 xal"),
+                new Refresh(pairRow(110, 6, 800), "6. İlqar Həsənov / Əli Məmmədov — 800 xal"),
+                new Refresh(pairRow(110, 7, 800), "7. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib"));
+
+        // act
+        back();
+        for (Refresh refresh : refreshes) {
+            // arrange
+            nextRanking(refresh.rows());
+
+            // act
+            activity().findViewById(R.id.refresh).performClick();
+
+            // assert
+            awaitText(refresh.expectedRow());
+        }
+
+        // arrange
+        FixtureApplication.online = false;
+        server.shutdown();
+
+        // act
+        restart();
+        clickText("Qoşalar");
+
+        // assert
+        awaitText("7. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib");
+
+        // act
+        clickText("7. İlqar Həsənov / Əli Məmmədov — 800 xal, 1 pillə geriləyib");
+        followNavigation();
+
+        // assert
+        assertThat(visibleText()).contains("Reytinqin son uğurlu yenilənməsi: 15 noy 2026 12:08", "Reytinqdə yer: #7");
+        assertHistory("15.11.2026 12:00:00.000 — 800 xal", "15.11.2026 12:03:00.000 — 820 xal",
+                "15.11.2026 12:07:00.000 — 800 xal");
+        assertSelection("15.11.2026 12:07:00.000", "800 xal");
+
+        // act
+        clickText("Mövqe");
+
+        // assert
+        assertHistory("15.11.2026 12:00:00.000 — #9", "15.11.2026 12:02:00.000 — #8",
+                "15.11.2026 12:07:00.000 — #6", "15.11.2026 12:08:00.000 — #7");
+        assertSelection("15.11.2026 12:08:00.000", "#7");
+
+        // act
+        clickText("15.11.2026 12:02:00.000 — #8");
+        clickText("Xal");
+
+        // assert
+        assertSelection("15.11.2026 12:00:00.000", "800 xal");
+
+        // act
+        clickText("Mövqe");
+
+        // assert
+        assertSelection("15.11.2026 12:02:00.000", "#8");
+    }
+
     @Test public void unvisitedPartnershipsKeepSeparateDatedHistoriesAcrossRefreshFailureAndOfflineRestart() throws Exception {
         // arrange
         prepareDoubles();
@@ -63,8 +174,8 @@ public class DoublesChartTest extends DoublesUiScenario {
         String points = "15.11.2026 12:00:00.000 — 800 xal; 15.11.2026 12:02:00.000 — 900 xal; 17.11.2026 12:02:00.000 — 1000 xal";
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString()).isEqualTo(points);
         assertThat(visibleText()).contains("1000 xal", "Reytinqdə yer: #1",
-                "Yalnız bu cihazda uğurla saxlanmış reytinq yenilənmələri göstərilir. Yenilənmələr arasındakı dövr üçün məlumat yoxdur.")
-                .doesNotContain("Növbəti reytinq yenilənmələri tarixçəyə yeni müşahidələr əlavə edəcək.");
+                "İlk müşahidə və seçilmiş göstəricinin dəyişdiyi yenilənmələr göstərilir. Yenilənmələr arasındakı dövr üçün məlumat yoxdur.")
+                .doesNotContain("İlk müşahidə göstərilir. Seçilmiş göstərici dəyişdikdə tarixçəyə yeni qeyd əlavə olunur.");
 
         // act
         clickText("15.11.2026 12:00:00.000 — 800 xal");
@@ -169,7 +280,7 @@ public class DoublesChartTest extends DoublesUiScenario {
         String point = "15.11.2026 12:00:00.000 — 800 xal";
         assertThat(activity().<android.view.View>findViewById(R.id.chart)).isNotNull();
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString()).isEqualTo(point);
-        assertThat(visibleText()).contains("Növbəti reytinq yenilənmələri tarixçəyə yeni müşahidələr əlavə edəcək.");
+        assertThat(visibleText()).contains("İlk müşahidə göstərilir. Seçilmiş göstərici dəyişdikdə tarixçəyə yeni qeyd əlavə olunur.");
         requestedPaths();
 
         // act
@@ -209,6 +320,34 @@ public class DoublesChartTest extends DoublesUiScenario {
 
         // assert
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString()).isEqualTo(point);
+    }
+
+    private void nextRanking(String rows) {
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofMinutes(1));
+        ranking(rows);
+    }
+
+    private void assertHistory(String... entries) {
+        assertThat(activity().findViewById(R.id.chart).getContentDescription().toString())
+                .isEqualTo(String.join("; ", entries));
+        ViewGroup rows = activity().findViewById(R.id.chart_observations);
+        List<String> descriptions = new ArrayList<>();
+        List<String> datedRows = new ArrayList<>();
+        for (int i = 0; i < rows.getChildCount(); i++) {
+            View row = rows.getChildAt(i);
+            if (!row.isClickable()) continue;
+            TextView date = row.findViewById(android.R.id.text1);
+            TextView value = row.findViewById(android.R.id.text2);
+            datedRows.add(date.getText() + " — " + value.getText());
+            descriptions.add(row.getContentDescription().toString());
+        }
+        assertThat(datedRows).containsExactly(entries);
+        assertThat(descriptions).containsExactly(entries);
+    }
+
+    private void assertSelection(String date, String value) {
+        assertThat(activity().<TextView>findViewById(R.id.chart_selected_date).getText().toString()).isEqualTo(date);
+        assertThat(activity().<TextView>findViewById(R.id.chart_selected_value).getText().toString()).isEqualTo(value);
     }
 
     private void ranking(String rows) {
