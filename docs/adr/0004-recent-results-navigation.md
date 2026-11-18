@@ -14,6 +14,9 @@ feed requires aggregation when accessing it directly from Android. A complete
 recent-match API has not been identified. Load results in batches with a Load
 more button. The first batch is partial and may not include every recent match;
 batch sizes remain to be determined. The prototype's sample data does not
-establish production completeness. The agreed refresh policy shows saved data
-first and checks for updates when a screen opens if its data is over 15 minutes
-old, with manual refresh available when online.
+establish production completeness. The app shows saved data first. Opening a
+screen online fetches missing data or refreshes it when more than 48 hours have
+passed since its last successful update. Data exactly 48 hours old is still
+fresh. Manual refresh is available at any age when online. Each Results selection
+has its own last successful update time. A previously unloaded tournament
+selection can reuse an event catalog up to 48 hours old.

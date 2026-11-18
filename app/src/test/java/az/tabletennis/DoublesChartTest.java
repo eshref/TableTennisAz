@@ -44,6 +44,16 @@ public class DoublesChartTest extends DoublesUiScenario {
         // assert
         awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
 
+        // arrange
+        FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofHours(24));
+
+        // act
+        restart();
+        clickText("Qoşalar");
+
+        // assert
+        awaitText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
+
         // act
         clickText("1. İlqar Həsənov / Əli Məmmədov — 1000 xal, 2 pillə yüksəlib");
         followNavigation();

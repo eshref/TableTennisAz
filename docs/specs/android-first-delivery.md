@@ -4,6 +4,9 @@ Status: Product scope and testing approach approved. Repository issue-tracker
 setup is complete; ready for issue publication. Implementation remains
 unauthorized.
 
+This specification's original refresh interval has been superseded by the
+[48-hour freshness policy](../../README.md#freshness-and-offline-use).
+
 ## Problem Statement
 
 People who follow table tennis on tabletennis.az want a native Android app for

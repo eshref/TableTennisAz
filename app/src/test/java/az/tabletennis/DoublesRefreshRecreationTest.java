@@ -18,12 +18,15 @@ import org.robolectric.annotation.Config;
 @RunWith(ParameterizedRobolectricTestRunner.class)
 @Config(sdk = 26, qualifiers = "w411dp-h891dp", application = RankingsUiScenario.FixtureApplication.class)
 public class DoublesRefreshRecreationTest extends DoublesUiScenario {
-    private final int ageMinutes;
+    private final Duration age;
 
-    public DoublesRefreshRecreationTest(String name, int ageMinutes) { this.ageMinutes = ageMinutes; }
+    public DoublesRefreshRecreationTest(String name, Duration age) { this.age = age; }
 
     @Parameters(name = "{0}") public static Collection<Object[]> ages() {
-        return Arrays.asList(new Object[][] {{"fresh manual refresh", 2}, {"stale refresh", 16}});
+        return Arrays.asList(new Object[][] {
+                {"fresh manual refresh", Duration.ofMinutes(2)},
+                {"stale refresh", Duration.ofHours(49)}
+        });
     }
 
     @Test public void recreationFollowsTheOutstandingRefreshWithoutLosingMovementOrSavingAnotherObservation() throws Exception {
@@ -42,7 +45,7 @@ public class DoublesRefreshRecreationTest extends DoublesUiScenario {
         requestedPaths();
 
         // arrange
-        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofMinutes(ageMinutes));
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, age);
         responses.put("/players/duos", () -> {
             requested.countDown();
             try { release.await(30, TimeUnit.SECONDS); }

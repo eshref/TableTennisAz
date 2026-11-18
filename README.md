@@ -147,10 +147,10 @@ rather than a verified empty result.
 
 ## Freshness and offline use
 
-Saved data is displayed immediately when a screen opens. Online opening fetches
-missing data, or refreshes data **more than 15 minutes old**. Exactly 15 minutes
-is still fresh. Manual refresh works at any age when online. There is no periodic
-background download schedule.
+Saved data is displayed immediately when a screen opens. Opening a screen online
+fetches missing data or refreshes data **more than 48 hours** after its last
+successful update. Data exactly 48 hours old is still fresh. Manual refresh
+works at any age when online. There is no periodic background download schedule.
 
 A successful refresh saves complete parsed data and its update time atomically.
 Errors and unusable changed markup preserve the saved data and time. A first
@@ -168,6 +168,8 @@ for that player or selection,
 retaining its loading progress. Load more adds a bounded batch and retains the
 last full refresh time so older rows do not appear newly refreshed. Returning to
 a stale selection refreshes its loaded coverage, rather than scanning the archive.
+Each Results selection has its own last successful update time. When opening an
+unloaded tournament selection, the app reuses an event catalog up to 48 hours old.
 
 ## Build and install
 

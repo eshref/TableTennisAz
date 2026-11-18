@@ -85,7 +85,7 @@ public class ProfileLayoutTest extends ProductUiScenario {
         back();
 
         // arrange
-        FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofMinutes(16));
+        FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofHours(49));
 
         // act
         recreateProductScreen();

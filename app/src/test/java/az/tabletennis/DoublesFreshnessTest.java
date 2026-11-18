@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.mockwebserver.MockResponse;
 import org.junit.Test;
@@ -17,29 +18,35 @@ import org.robolectric.annotation.Config;
 @RunWith(ParameterizedRobolectricTestRunner.class)
 @Config(sdk = 26, qualifiers = "w411dp-h891dp", application = RankingsUiScenario.FixtureApplication.class)
 public class DoublesFreshnessTest extends DoublesUiScenario {
-    private final long age;
-    private final String expectedRequest;
+    private final Duration age;
+    private final List<String> expectedRequests;
     private final String expectedRow;
-    private final boolean unchangedTime;
+    private final String expectedUpdate;
 
-    public DoublesFreshnessTest(String name, long age, String expectedRequest, String expectedRow, boolean unchangedTime) {
+    public DoublesFreshnessTest(String name, Duration age, List<String> expectedRequests, String expectedRow, String expectedUpdate) {
         this.age = age;
-        this.expectedRequest = expectedRequest;
+        this.expectedRequests = expectedRequests;
         this.expectedRow = expectedRow;
-        this.unchangedTime = unchangedTime;
+        this.expectedUpdate = expectedUpdate;
     }
 
     @Parameters(name = "{0}") public static Collection<Object[]> boundaries() {
+        Duration threshold = Duration.ofHours(48);
+        String savedRow = "1. İlqar Həsənov / Əli Məmmədov — 800 xal";
+        String savedUpdate = "Son uğurlu yenilənmə: 15 noy 2026 12:00";
         return Arrays.asList(new Object[][] {
-                {"below", 899_999L, null, "1. İlqar Həsənov / Əli Məmmədov — 800 xal", true},
-                {"exactly", 900_000L, null, "1. İlqar Həsənov / Əli Məmmədov — 800 xal", true},
-                {"above", 900_001L, "/players/duos", "1. İlqar Həsənov / Əli Məmmədov — 801 xal", false}
+                {"below 48 hours", threshold.minusMillis(1), List.of(), savedRow, savedUpdate},
+                {"exactly 48 hours", threshold, List.of(), savedRow, savedUpdate},
+                {"above 48 hours", threshold.plusMillis(1), List.of("/players/duos"),
+                        "1. İlqar Həsənov / Əli Məmmədov — 801 xal", "Son uğurlu yenilənmə: 17 noy 2026 12:00"}
         });
     }
 
-    @Test public void openingDoublesShowsSavedRowsBeforeRefreshingOnlyAboveFifteenMinutesAndReusesNames() throws Exception {
+    @Test public void openingDoublesShowsSavedRowsBeforeRefreshingOnlyAboveTheBoundaryAndReusesNames() throws Exception {
         // arrange
         prepareDoubles();
+
+        // act
         openScreen();
 
         // assert
@@ -55,7 +62,7 @@ public class DoublesFreshnessTest extends DoublesUiScenario {
 
         // arrange
         screen.pause().stop().destroy();
-        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofMillis(age));
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, age);
         website.compute("/players/duos", (path, body) -> body.replace("800 Xal", "801 Xal"));
         responses.put("/players/duos", () -> new MockResponse().setBody(website.get("/players/duos")).setBodyDelay(1, TimeUnit.SECONDS));
 
@@ -66,10 +73,10 @@ public class DoublesFreshnessTest extends DoublesUiScenario {
 
         // assert
         assertThat(visibleText()).contains("1. İlqar Həsənov / Əli Məmmədov — 800 xal", updated);
-        assertThat(requestTo("/players/duos")).isEqualTo(expectedRequest);
+        if (expectedRequests.isEmpty()) assertThat(server.takeRequest(1, TimeUnit.SECONDS)).isNull();
         awaitText(expectedRow);
-        assertThat(((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString().equals(updated))
-                .isEqualTo(unchangedTime);
-        assertThat(requestedPaths()).noneMatch(path -> path.startsWith("/api/getDuoInfo"));
+        assertThat(visibleText()).contains(expectedUpdate);
+        assertThat(requestedPaths()).filteredOn(path -> !path.equals("/players?level=amateur"))
+                .containsExactlyElementsOf(expectedRequests);
     }
 }
