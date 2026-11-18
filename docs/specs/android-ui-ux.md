@@ -1,5 +1,8 @@
 # Modernize the Android application's UI/UX
 
+This specification's original refresh interval has been superseded by the
+[48-hour freshness policy](../../README.md#freshness-and-offline-use).
+
 ## Problem Statement
 
 The Android app presents rankings, player profiles, doubles profiles, rating

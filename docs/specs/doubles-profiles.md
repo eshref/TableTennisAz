@@ -1,5 +1,8 @@
 # Doubles profiles, observed histories, and ranking movement
 
+This specification's original refresh interval has been superseded by the
+[48-hour freshness policy](../../README.md#freshness-and-offline-use).
+
 ## Problem Statement
 
 People following a doubles pair can currently open its match results from Doubles rankings, but cannot see a complete doubles profile with current points, rank, medals, and historical performance. The website itself does not provide a doubles profile equivalent to an individual player's profile, and no usable public source of historical pair points or ranking positions has been established.

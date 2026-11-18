@@ -44,7 +44,7 @@ public class DoublesHistoryRefreshTest extends DoublesUiScenario {
         requestedPaths();
 
         // arrange
-        FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofMinutes(16));
+        FixtureApplication.time = java.time.Clock.offset(FixtureApplication.time, java.time.Duration.ofHours(49));
         website.compute("/matches/results/duo/110", (path, body) -> body.replace("3-2", "3-0"));
         responses.put("/matches/results/duo/110?page=2", () -> new okhttp3.mockwebserver.MockResponse().setResponseCode(503));
 

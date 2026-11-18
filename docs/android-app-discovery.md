@@ -6,6 +6,9 @@ The original singles-ranking scope in this discovery is superseded by
 the singles ranking now uses only the website's Amateur list. The doubles-ranking
 follow-up and professional profiles and results remain in scope.
 
+The original refresh interval recorded here has been superseded by the
+[48-hour freshness policy](../README.md#freshness-and-offline-use).
+
 ## Approval status
 
 The project owner approved this plan only. Implementation and APK development
