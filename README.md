@@ -181,10 +181,12 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n az.tabletennis/.RankingsActivity
 ```
 
-The debug APK is version **0.3.0**, version code **3**, at
-`app/build/outputs/apk/debug/app-debug.apk`. Transfer it to your phone, open it,
-and allow installation from the browser/file manager if Android asks. Existing
-saved data can be retained with an update signed by the same debug key. If an
+Gradle reads the public version (`versionName`) and Android version code
+(`versionCode`) from the repository-root [version.properties](version.properties).
+
+The debug APK is at `app/build/outputs/apk/debug/app-debug.apk`. Transfer it to
+your phone, open it, and allow installation from the browser/file manager if
+Android asks. An update signed by the same debug key can retain saved data. If an
 older installation uses a different signing key, uninstalling it removes its
 saved data before installing this APK.
 
@@ -200,6 +202,24 @@ This debug APK is for testing. Google Play publication, production signing,
 reservations, and other deferred features are outside this delivery.
 The app fetches public website HTML/JSON directly. Website markup changes may
 require an updated APK; feed coverage is partial as described above.
+
+## Preparing an Android release
+
+Record user-visible changes in the same PR. Describe what users can see or do
+differently under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
+
+1. Choose the public version manually in `MAJOR.MINOR.PATCH` format. While the
+   app is at `0.x`, increment `MINOR` and reset `PATCH` to zero for new
+   capabilities or breaking changes. Increment `PATCH` for fixes only. Choose
+   `1.0.0` deliberately when the app is ready for a stable release.
+2. In the release PR, update `versionName` and increase `versionCode` by one in
+   `version.properties`. The first official release uses Android version code
+   `4`. Increase it by one for each subsequent official release, regardless of
+   which part of the public version changes.
+3. In the same PR, move the selected Unreleased entries into a heading such as
+   `## 0.4.0 - YYYY-MM-DD`, using the chosen version and release date. Keep
+   dated releases in descending version order and retain **Unreleased** at the
+   top for future changes.
 
 ## Verification
 

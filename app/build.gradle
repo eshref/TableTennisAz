@@ -1,5 +1,9 @@
 plugins { id 'com.android.application' }
 
+def versionFile = rootProject.layout.projectDirectory.file('version.properties')
+def appVersion = new Properties()
+appVersion.load(new StringReader(providers.fileContents(versionFile).asText.get()))
+
 android {
     namespace 'az.tabletennis'
     compileSdk 36
@@ -7,8 +11,8 @@ android {
         applicationId 'az.tabletennis'
         minSdk 26
         targetSdk 36
-        versionCode 3
-        versionName '0.3.0'
+        versionCode appVersion.getProperty('versionCode').toInteger()
+        versionName appVersion.getProperty('versionName')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions {
