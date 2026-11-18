@@ -80,9 +80,9 @@ the disposable emulator's long-press threshold was raised to 10 seconds; product
 behavior, Espresso tap/Back actions and committed verification caps are unchanged.
 All temporary logging was removed and the clean APKs reinstalled before that run.
 
-The approved reference is `docs/prototypes/android-final-ui-prototype.html` at
-`8cd6a1999d6a4522332249e7a56175989b08655a`. The pair fixture uses its public portraits,
-names, points, published position and medals; matches/observations are test data.
+The pair fixture uses public portraits, names, points, published position and
+medals from the [approved prototype](../../prototypes/android-final-ui-prototype.html).
+The fixture uses test data for matches and observations.
 
 The drawer follow-up corrects the differences visible in the supplied phone photo:
 rounded trailing corners, 85% width capped at 310dp, green branding, navigation

@@ -265,9 +265,6 @@ The production feed must combine event-result and duel pages and handle their
 pagination. The agreed batching policy allows partial coverage; implementation
 must preserve this limitation and the visible last-update time.
 
-Preserve the comparison on the local `prototype/results-navigation` branch as a
-primary source for the decision. Prototype code is not production Android code.
-
 Create glossary entries when domain terminology is settled. Record architectural
 decisions when a meaningful trade-off has been resolved.
 
@@ -333,14 +330,8 @@ chart in the pair profile with a Points / Rank switch and place rank #1 at
 the top of the ranking chart. The selected layout includes current pair
 points and rank, gold/silver/bronze counts, and recent matches.
 
-The throwaway comparison used illustrative observations and contrasted this
-layout with two stacked charts and a separate history screen. The comparison
-and verdict are preserved on the local `prototype/doubles-profile-charts`
-branch in `docs/prototypes/doubles-profile-prototype.html`; prototype code
-is not part of the main branch or the production Android implementation.
-To revisit it, open that branch in a worktree and serve its `docs/prototypes`
-with `~/.codex/bin/skill-python -m http.server 8765 --bind 127.0.0.1 --directory docs/prototypes`.
-The preview route is `/doubles-profile-prototype.html?variant=A` (or B/C).
+The comparison used illustrative observations to evaluate the switchable chart,
+two stacked charts, and a separate history screen.
 
 ### Scope confirmation
 

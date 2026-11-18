@@ -34,11 +34,9 @@ scenarios and visual/accessibility/adaptation checks. Existing tests can satisfy
 a guarantee; add coverage only for distinct gaps. #32 adds integrated installed
 Android screenshot comparison and APK delivery, not all feature testing.
 
-The approved visual primary source is the final standalone HTML, captured with
-its alternatives on local branch `prototype/android-ui-ux-approved`, commit
-`8cd6a1999d6a4522332249e7a56175989b08655a`. The parent spec records all approved
-choices and distinguishes real public portraits from illustrative match/history
-data. The prototype branch remains local and has not been pushed.
+The [approved visual reference](../../prototypes/android-final-ui-prototype.html)
+is available as standalone HTML. The parent spec records all approved choices
+and distinguishes real public portraits from illustrative match/history data.
 
 Publication verification confirmed all nine issue bodies match these local
 ticket files, every ticket has the intended label and parent, all native
