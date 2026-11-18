@@ -1,0 +1,51 @@
+name: Android release candidate
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    environment: android-release
+    env:
+      ANDROID_BUILD_TOOLS_VERSION: '36.0.0'
+    steps:
+      - name: Check dispatch ref
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$GITHUB_REF" != refs/heads/main ]]; then
+            echo 'Dispatch the Android release candidate workflow from main.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Validate release metadata
+        id: metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/android/validate-release-candidate "$RUNNER_TEMP/android-release" >> "$GITHUB_OUTPUT"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;${{ env.ANDROID_BUILD_TOOLS_VERSION }}'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run Android host checks
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug
+      - name: Build and verify signed APK
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          RELEASE_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+          RELEASE_VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
+        run: scripts/android/build-release-candidate "$RUNNER_TEMP/android-release" "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TableTennisAz-${{ steps.metadata.outputs.version_name }}-candidate
+          path: ${{ runner.temp }}/android-release/
+          if-no-files-found: error

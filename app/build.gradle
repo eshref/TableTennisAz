@@ -3,6 +3,7 @@ plugins { id 'com.android.application' }
 def versionFile = rootProject.layout.projectDirectory.file('version.properties')
 def appVersion = new Properties()
 appVersion.load(new StringReader(providers.fileContents(versionFile).asText.get()))
+def releaseKeystore = providers.environmentVariable('ANDROID_RELEASE_KEYSTORE').orNull
 
 android {
     namespace 'az.tabletennis'
@@ -14,6 +15,21 @@ android {
         versionCode appVersion.getProperty('versionCode').toInteger()
         versionName appVersion.getProperty('versionName')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    if (releaseKeystore != null) {
+        signingConfigs {
+            release {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.environmentVariable('ANDROID_RELEASE_KEYSTORE_PASSWORD').get()
+                keyAlias = providers.environmentVariable('ANDROID_RELEASE_KEY_ALIAS').get()
+                keyPassword = providers.environmentVariable('ANDROID_RELEASE_KEY_PASSWORD').get()
+            }
+        }
+        buildTypes {
+            release {
+                signingConfig = signingConfigs.release
+            }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

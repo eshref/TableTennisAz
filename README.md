@@ -221,6 +221,21 @@ differently under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
    dated releases in descending version order and retain **Unreleased** at the
    top for future changes.
 
+After merging the release PR, run **Android release candidate** from `main` in
+GitHub Actions. The workflow checks the version and dated notes, runs the host
+tests and lint, and uploads the verified release APK and matching notes as a
+workflow artifact.
+
+Create an `android-release` GitHub Actions environment and restrict its deployment
+branches to `main`. Set `ANDROID_RELEASE_KEYSTORE_BASE64` in that environment to
+the dedicated release keystore encoded as Base64. Supply its credentials through
+`ANDROID_RELEASE_KEYSTORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and
+`ANDROID_RELEASE_KEY_PASSWORD`.
+
+To verify the candidate checks locally, run `scripts/android/test-release-metadata`
+and `scripts/android/test-release-signing "$ANDROID_HOME/build-tools/36.0.0"`.
+The signing test generates a disposable key.
+
 ## Verification
 
 For Android UI changes and installed-device verification, use the reproducible

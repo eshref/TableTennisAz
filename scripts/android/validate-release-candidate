@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+android_scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+official_count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 \
+    --exclude-drafts --exclude-pre-releases --json tagName --jq length)
+
+if [[ $official_count == 0 ]]; then
+    exec java "$android_scripts/ReleaseMetadata.java" "$1"
+fi
+
+previous_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+previous_version=$(mktemp)
+trap 'unlink -- "$previous_version"' EXIT
+gh api --method GET "repos/$GITHUB_REPOSITORY/contents/version.properties" \
+    -f "ref=refs/tags/$previous_tag" --jq .content | base64 --decode > "$previous_version"
+java "$android_scripts/ReleaseMetadata.java" "$1" "$previous_tag" "$previous_version"
