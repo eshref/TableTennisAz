@@ -130,8 +130,11 @@ public class DoublesProfileTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        assertThat(visibleText()).contains(profileUpdated, "801 xal", "Reytinqdə yer: #4", "Qızıl medal: 4")
-                .doesNotContain("800 xal", "Reytinqdə yer: #1");
+        assertThat(visibleText()).contains(profileUpdated, "Qızıl medal: 4");
+        assertThat(activity().<android.widget.TextView>findViewById(R.id.profile_points).getText().toString()).isEqualTo("801");
+        assertThat(activity().findViewById(R.id.profile_points).getContentDescription().toString()).isEqualTo("801 xal");
+        assertThat(activity().<android.widget.TextView>findViewById(R.id.pair_position).getText().toString()).isEqualTo("#4");
+        assertThat(activity().findViewById(R.id.pair_position).getContentDescription().toString()).isEqualTo("Reytinqdə yer: #4");
         assertThat(requestedPaths()).isEmpty();
     }
 

@@ -3,7 +3,6 @@ package az.tabletennis;
 import android.os.Bundle;
 import android.graphics.Typeface;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.ArrayList;
@@ -12,7 +11,7 @@ import java.util.List;
 public class ChartActivity extends SavedScreen<RatingHistory> {
     private long playerId;
     private int selected = -1;
-    private final List<Button> observations = new ArrayList<>();
+    private final List<ChartObservationRow> observations = new ArrayList<>();
     private RatingChartView chart;
     private TextView selectedDate;
     private TextView selectedValue;
@@ -63,15 +62,13 @@ public class ChartActivity extends SavedScreen<RatingHistory> {
         panel.addView(chart, new LinearLayout.LayoutParams(-1, -2));
         selectedDate = secondary("");
         selectedDate.setId(R.id.chart_selected_date);
-        selectedValue = label("", 18);
+        selectedValue = label("", 16);
         selectedValue.setId(R.id.chart_selected_value);
         selectedValue.setTextColor(getColor(R.color.primary));
         selectedValue.setTypeface(null, Typeface.BOLD);
         LinearLayout selection = new LinearLayout(this);
-        selection.setOrientation(LinearLayout.VERTICAL);
         selection.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        selection.addView(selectedDate);
-        selection.addView(selectedValue);
+        Presentation.observationColumns(selection, selectedDate, selectedValue);
         panel.addView(selection);
         content.addView(panel);
         if (history.observations.size() == 1) content.addView(secondary(getString(R.string.single_rating_observation)));
@@ -85,11 +82,8 @@ public class ChartActivity extends SavedScreen<RatingHistory> {
         for (int i = 0; i < history.observations.size(); i++) {
             RatingHistory.Observation point = history.observations.get(i);
             int index = i;
-            Button row = button(getString(R.string.history_point, point.date, point.points), () -> inspect(history, index));
-            row.setStateListAnimator(null);
-            row.setTextSize(16);
-            row.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(12), dp(12), dp(12), dp(12));
+            ChartObservationRow row = new ChartObservationRow(this, point.date,
+                    getString(R.string.observation_points, point.points), () -> inspect(history, index));
             rows.addView(row, new LinearLayout.LayoutParams(-1, -2));
             observations.add(row);
             View divider = new View(this);
@@ -106,10 +100,7 @@ public class ChartActivity extends SavedScreen<RatingHistory> {
         selectedValue.setText(getString(R.string.observation_points, point.points));
         chart.select(index);
         for (int i = 0; i < observations.size(); i++) {
-            Button row = observations.get(i);
-            row.setSelected(i == index);
-            row.setTypeface(null, i == index ? Typeface.BOLD : Typeface.NORMAL);
-            row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(i == index ? R.color.soft : R.color.surface)));
+            observations.get(i).showSelected(i == index);
         }
     }
 

@@ -1,5 +1,21 @@
 # Android verification
 
+## Native visual acceptance and phone-review APK — issue #32
+
+Singles and doubles histories use flat observation rows with wrapping date and
+value columns. Results groups cards by calendar day, retains their source date
+labels and wraps long event names.
+The full host integration suite passed 176 cases across 42 suites. Android lint
+reported zero errors and 26 warnings, and both APKs assembled successfully.
+
+The final phone-review APK's API 36 preflight stopped at an Android boot timeout
+before installation. An earlier flat-row build passed two installed preflight
+cases and reached three light screens before a Rankings window-focus ANR. The
+successful API 36 matrix with 40 captures used the rounded-row APK. Both live
+attempts passed preflight and stopped before executing a live case. The verification
+report links each result, the native comparison and the local phone-review APK.
+[Issue #32 verification report](verification/issue32/README.md)
+
 ## Doubles profile, medals and inline history — issue #31
 
 Implemented on `issue-31-doubles-profile`, starting at `78fe089`. The profile

@@ -1,10 +1,14 @@
 package az.tabletennis;
 
 import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 final class MatchSummary implements Serializable {
     private static final long serialVersionUID = 1L;
+    private static final DateTimeFormatter SOURCE_DAY = DateTimeFormatter.ofPattern("d MMM uuuu", Locale.ENGLISH);
     final long id;
     final List<String> left;
     final List<String> right;
@@ -32,6 +36,8 @@ final class MatchSummary implements Serializable {
         this.duel = duel;
         this.teamChild = teamChild;
     }
+
+    static LocalDate sourceDay(String date) { return LocalDate.parse(date.replace(".", ""), SOURCE_DAY); }
 
     String display() {
         return date + " · " + String.join(" / ", left) + " — " + String.join(" / ", right)

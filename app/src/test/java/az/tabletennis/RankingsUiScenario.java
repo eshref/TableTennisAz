@@ -90,7 +90,7 @@ public abstract class RankingsUiScenario {
             text.add(view.getContentDescription().toString());
             return;
         }
-        if (view.getId() == R.id.match_card && view.getContentDescription() != null)
+        if ((view.getId() == R.id.match_card || view.getId() == R.id.chart_observation) && view.getContentDescription() != null)
             text.add(view.getContentDescription().toString());
         if (view instanceof TextView label) {
             text.add(label.getText().toString());

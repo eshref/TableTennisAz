@@ -10,6 +10,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import android.content.Context;
@@ -41,11 +42,11 @@ public class MainNavigationDeviceTest {
             onView(withId(R.id.search)).perform(replaceText("ilqar"), closeSoftKeyboard());
 
             // assert
-            onView(withText("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).check(matches(isDisplayed()));
+            onView(withContentDescription("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).check(matches(isDisplayed()));
             capture("doubles");
 
             // act
-            onView(withText("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).perform(click());
+            onView(withContentDescription("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).perform(click());
             onView(withId(R.id.pair_chart_points)).perform(scrollTo());
 
             // assert
@@ -112,7 +113,7 @@ public class MainNavigationDeviceTest {
             givenRankingWithoutObservations();
 
             // act
-            onView(withText("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).perform(click());
+            onView(withContentDescription("1. İlqar Həsənov / Əli Məmmədov — 800 xal")).perform(click());
             onView(withText(R.string.pair_chart_empty)).perform(scrollTo());
 
             // assert

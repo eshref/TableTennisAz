@@ -129,8 +129,7 @@ final class WebsiteSource {
     private void sortResults(List<MatchSummary> matches) throws IOException {
         java.util.Map<String, java.time.LocalDate> dates = new java.util.HashMap<>();
         try {
-            java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu", java.util.Locale.ENGLISH);
-            for (MatchSummary match : matches) dates.put(match.date, java.time.LocalDate.parse(match.date.replace(".", ""), format));
+            for (MatchSummary match : matches) dates.computeIfAbsent(match.date, MatchSummary::sourceDay);
         } catch (java.time.format.DateTimeParseException failure) {
             throw new IOException("Unusable source match date", failure);
         }

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Native Android comparison for issue #32</title>
+<style>
+body { font: 16px/1.5 system-ui, sans-serif; margin: 24px; background: #edf3ef; color: #183125 }
+main { max-width: 900px; margin: auto }
+h1 { font-size: 26px }
+h2 { font-size: 20px }
+section { margin: 36px 0; break-inside: avoid }
+.pair { display: grid; grid-template-columns: 414px 414px; gap: 20px; overflow: auto }
+figure { margin: 0 }
+figcaption { font-size: 14px; margin-bottom: 8px }
+img { display: block; border: 1px solid #536b5d }
+a { color: #006b50 }
+</style>
+</head>
+<body>
+<main>
+<h1>Native Android comparison for issue #32</h1>
+<p>The prototype and installed captures use a 412-pixel viewport and 100% text. The Android guest uses 160 dpi. The prototype's sample chrome and Android's system bars use different amounts of vertical space.</p>
+<p><a href="README.md">Verification report and stress captures</a></p>
+<p>These installed captures use the earlier rounded-row APK. The report records the separate corrected APK results.</p>
+<section id="light-players">
+  <h2>Players rankings · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/light-players.png"><img src="reference-offline/light-players.png" alt="Players rankings prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-players.png"><img src="before-flat/light/light-players.png" alt="Players rankings on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-doubles">
+  <h2>Doubles rankings · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/light-doubles.png"><img src="reference-offline/light-doubles.png" alt="Doubles rankings prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-doubles.png"><img src="before-flat/light/light-doubles.png" alt="Doubles rankings on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-profile">
+  <h2>Player profile · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/light-profile.png"><img src="reference-offline/light-profile.png" alt="Player profile prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-player-profile.png"><img src="before-flat/light/light-player-profile.png" alt="Player profile on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-pair">
+  <h2>Doubles profile · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/light-pair.png"><img src="reference-offline/light-pair.png" alt="Doubles profile prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-doubles-profile.png"><img src="before-flat/light/light-doubles-profile.png" alt="Doubles profile on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-results">
+  <h2>Results · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Ready state</figcaption>
+      <a href="reference/light-results.png"><img src="reference/light-results.png" alt="Results prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-results.png"><img src="before-flat/light/light-results.png" alt="Results on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-match">
+  <h2>Match details · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Ready state</figcaption>
+      <a href="reference/light-match.png"><img src="reference/light-match.png" alt="Match details prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-match.png"><img src="before-flat/light/light-match.png" alt="Match details on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="light-chart">
+  <h2>Singles rating history · Light</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/light-chart.png"><img src="reference-offline/light-chart.png" alt="Singles rating history prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/light/light-singles-history.png"><img src="before-flat/light/light-singles-history.png" alt="Singles rating history on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-players">
+  <h2>Players rankings · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-players.png"><img src="reference-offline/dark-players.png" alt="Players rankings prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-players.png"><img src="before-flat/dark-offline/dark-offline-players.png" alt="Players rankings on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-doubles">
+  <h2>Doubles rankings · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-doubles.png"><img src="reference-offline/dark-doubles.png" alt="Doubles rankings prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-doubles.png"><img src="before-flat/dark-offline/dark-offline-doubles.png" alt="Doubles rankings on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-profile">
+  <h2>Player profile · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-profile.png"><img src="reference-offline/dark-profile.png" alt="Player profile prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-player-profile.png"><img src="before-flat/dark-offline/dark-offline-player-profile.png" alt="Player profile on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-pair">
+  <h2>Doubles profile · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-pair.png"><img src="reference-offline/dark-pair.png" alt="Doubles profile prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-doubles-profile.png"><img src="before-flat/dark-offline/dark-offline-doubles-profile.png" alt="Doubles profile on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-results">
+  <h2>Results · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-results.png"><img src="reference-offline/dark-results.png" alt="Results prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-results.png"><img src="before-flat/dark-offline/dark-offline-results.png" alt="Results on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-match">
+  <h2>Match details · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-match.png"><img src="reference-offline/dark-match.png" alt="Match details prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-match.png"><img src="before-flat/dark-offline/dark-offline-match.png" alt="Match details on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+
+<section id="dark-offline-chart">
+  <h2>Singles rating history · Dark, offline restart</h2>
+  <div class="pair">
+    <figure>
+      <figcaption>Approved prototype · Offline state</figcaption>
+      <a href="reference-offline/dark-chart.png"><img src="reference-offline/dark-chart.png" alt="Singles rating history prototype" width="412" height="892" loading="lazy"></a>
+    </figure>
+    <figure>
+      <figcaption>Installed Android API 36 · Earlier rounded-row APK</figcaption>
+      <a href="before-flat/dark-offline/dark-offline-singles-history.png"><img src="before-flat/dark-offline/dark-offline-singles-history.png" alt="Singles rating history on Android" width="412" height="891" loading="lazy"></a>
+    </figure>
+  </div>
+</section>
+</main>
+</body>
+</html>

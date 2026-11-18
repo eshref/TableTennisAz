@@ -134,7 +134,15 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         choices.clear();
         choices.add(new EventCatalog.Event(0, getString(R.string.all_events)));
         choices.addAll(catalog.events);
-        ArrayAdapter<EventCatalog.Event> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, choices);
+        ArrayAdapter<EventCatalog.Event> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, choices) {
+            @Override public View getView(int position, View recycled, android.view.ViewGroup parent) {
+                return wrappingEventName(super.getView(position, recycled, parent));
+            }
+
+            @Override public View getDropDownView(int position, View recycled, android.view.ViewGroup parent) {
+                return wrappingEventName(super.getDropDownView(position, recycled, parent));
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         events.setAdapter(adapter);
         int selected = 0;
@@ -143,6 +151,15 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         events.setVisibility(selection.type.events ? View.VISIBLE : View.GONE);
         eventLabel.setVisibility(events.getVisibility());
         binding = false;
+    }
+
+    private View wrappingEventName(View view) {
+        android.widget.TextView label = (android.widget.TextView) view;
+        label.setSingleLine(false);
+        label.setMaxLines(Integer.MAX_VALUE);
+        label.setEllipsize(null);
+        label.setMinHeight(dp(48));
+        return label;
     }
 
     @Override protected void render(ResultsFeed feed) {
@@ -164,7 +181,17 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         android.widget.LinearLayout rows = new android.widget.LinearLayout(this);
         rows.setId(R.id.result_rows);
         rows.setOrientation(android.widget.LinearLayout.VERTICAL);
+        String previousDay = null;
         for (MatchSummary match : feed.matches) {
+            String day = dateGroupKey(match.date);
+            if (!day.isEmpty() && !day.equals(previousDay)) {
+                android.widget.TextView date = label(match.date, 12);
+                date.setTextColor(getColor(R.color.secondary));
+                date.setPadding(dp(2), dp(12), dp(2), dp(8));
+                if (android.os.Build.VERSION.SDK_INT >= 28) date.setAccessibilityHeading(true);
+                rows.addView(date);
+            }
+            previousDay = day;
             rows.addView(new MatchCard(this, match, () -> startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id))));
         }
         content.addView(rows);
@@ -173,6 +200,12 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
             more.setEnabled(application.isOnline());
             content.addView(more);
         }
+    }
+
+    private String dateGroupKey(String date) {
+        if (date.isEmpty()) return date;
+        try { return MatchSummary.sourceDay(date).toString(); }
+        catch (java.time.format.DateTimeParseException legacyDate) { return date; }
     }
 
 }

@@ -1,0 +1,3 @@
+INSTRUMENTATION_RESULT: longMsg=Process ProcessRecord{ac6df66 3250:az.tabletennis/u0a100} failed to attach
+INSTRUMENTATION_RESULT: shortMsg=failed to attach
+INSTRUMENTATION_CODE: 0
