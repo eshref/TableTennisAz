@@ -21,7 +21,7 @@ class ReleaseMetadata {
         try {
             Version candidate = readVersion(Path.of("version.properties"));
             Version previous = args.length == 1 ? PHONE_REVIEW : readPreviousVersion(args[1], Path.of(args[2]));
-            validateNextVersion(candidate, previous);
+            if (args.length == 1 || !candidate.equals(previous)) validateNextVersion(candidate, previous);
             List<String> notes = readNotes(Path.of("CHANGELOG.md"), candidate.name());
 
             Path output = Path.of(args[0]);

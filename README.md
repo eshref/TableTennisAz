@@ -198,8 +198,8 @@ and its participants. In Results, try the three result types, choose an event,
 and use Load more. After loading these screens, disconnect and restart the app
 to check previously visited screens and their update times.
 
-This debug APK is for testing. Google Play publication, production signing,
-reservations, and other deferred features are outside this delivery.
+This debug APK is for testing. For an official signed APK, see
+[GitHub Releases](https://github.com/eshref/TableTennisAz/releases).
 The app fetches public website HTML/JSON directly. Website markup changes may
 require an updated APK; feed coverage is partial as described above.
 
@@ -221,20 +221,99 @@ differently under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
    dated releases in descending version order and retain **Unreleased** at the
    top for future changes.
 
-After merging the release PR, run **Android release candidate** from `main` in
-GitHub Actions. The workflow checks the version and dated notes, runs the host
-tests and lint, and uploads the verified release APK and matching notes as a
-workflow artifact.
+### Set up the signing key
 
-Create an `android-release` GitHub Actions environment and restrict its deployment
-branches to `main`. Set `ANDROID_RELEASE_KEYSTORE_BASE64` in that environment to
-the dedicated release keystore encoded as Base64. Supply its credentials through
-`ANDROID_RELEASE_KEYSTORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and
-`ANDROID_RELEASE_KEY_PASSWORD`.
+Generate a dedicated release key once on a trusted machine. Keep the keystore
+outside the checkout. Use a strong passphrase when prompted.
 
-To verify the candidate checks locally, run `scripts/android/test-release-metadata`
-and `scripts/android/test-release-signing "$ANDROID_HOME/build-tools/36.0.0"`.
-The signing test generates a disposable key.
+```sh
+umask 077
+keytool -genkeypair -storetype PKCS12 -keyalg RSA -keysize 4096 -validity 10000 \
+  -keystore /secure/path/tabletennisaz-release.p12 -alias tabletennisaz-release \
+  -dname 'CN=TableTennisAz Android Release'
+keytool -list -v -keystore /secure/path/tabletennisaz-release.p12 -alias tabletennisaz-release
+```
+
+Record the certificate's SHA-256 fingerprint. Back up the encrypted keystore
+in a separate secure location, with the alias, passphrase, and recovery
+instructions in the maintainer's password manager. Verify recovery by opening
+a restored copy with `keytool -list -v` and matching its fingerprint to the
+recorded value. Use this same signing key for all official APKs.
+
+Create a GitHub Actions environment named `android-release` and restrict its
+deployment branches to `main`. Set the four environment secrets below.
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_RELEASE_KEYSTORE_BASE64` | The release keystore encoded as one Base64 line |
+| `ANDROID_RELEASE_KEYSTORE_PASSWORD` | The keystore passphrase |
+| `ANDROID_RELEASE_KEY_ALIAS` | The key alias, such as `tabletennisaz-release` |
+| `ANDROID_RELEASE_KEY_PASSWORD` | The key passphrase, identical to the keystore passphrase for the PKCS12 setup above |
+
+You can pipe the Base64 directly into GitHub CLI from the repository checkout.
+Run `gh secret set --env android-release SECRET_NAME` for each of the other
+secrets and enter the value at the prompt.
+
+```sh
+base64 -w0 /secure/path/tabletennisaz-release.p12 |
+  gh secret set --env android-release ANDROID_RELEASE_KEYSTORE_BASE64
+```
+
+Publishing normally uses the workflow's built-in GitHub token. If GitHub
+requires workflow-file write permission for the target commit, such as when
+workflow files have changed on `main` since the original dispatch, set
+`ANDROID_RELEASE_GITHUB_TOKEN` in the same environment. Use a fine-grained
+token scoped to this repository with **Contents** and **Workflows** write
+permissions. See [GitHub's release API permissions](https://docs.github.com/en/rest/releases/releases#update-a-release).
+
+### Publish and verify
+
+After merging the release PR, open **Actions → Publish Android release → Run
+workflow**, select `main`, and start the run. The workflow checks the version
+and changelog, runs the Android host tests and lint, verifies the signed APK,
+and publishes `TableTennisAz-<version>.apk` and the selected notes to GitHub
+Releases. Its `v<version>` tag points to the commit shown on the workflow run.
+
+If publication is interrupted, use **Re-run failed jobs** on the original
+workflow run. Use **Re-run all jobs** on that run if its candidate artifact has
+expired. Retrying preserves a matching tag and any APK already uploaded by
+the workflow. Finish an interrupted release before starting another version.
+If GitHub reports a conflicting tag, check the tag and dispatch commit before
+taking any action.
+
+Open the published release and compare its notes with the dated changelog
+section at the tag. Compare the tag's commit with the workflow run's commit.
+Download the APK and compare its SHA-256 with the asset digest shown by GitHub.
+Check its version name and version code against the release PR and its signing
+certificate against the recorded fingerprint.
+
+```sh
+tag=v0.4.0
+apk="TableTennisAz-${tag#v}.apk"
+git fetch origin tag "$tag"
+git rev-parse "$tag^{commit}"
+gh release download "$tag" --pattern "$apk"
+sha256sum "$apk"
+"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
+"$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | head -n 1
+```
+
+### Install the official APK
+
+If you installed a debug APK for phone review, uninstall it once before
+installing your first official APK. **Uninstalling the debug build clears its
+saved app data**, including offline rankings, profiles, and results. Install
+later official APKs over the existing official app to keep saved data. Official
+updates use the same signing key and higher Android version codes.
+
+### Verify the release setup locally
+
+Run `scripts/android/test-release-metadata` and
+`scripts/android/test-release-signing "$ANDROID_HOME/build-tools/36.0.0"`.
+With JDK 21, `ANDROID_HOME`, and PyYAML available, run
+`python3 scripts/android/test-release-publication.py WorkflowTest` for publication
+and retry checks. The local tests generate disposable keys and use a local
+GitHub API stand-in.
 
 ## Verification
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 output_dir=$1
 android_tools=$2
+android_scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 : "${ANDROID_RELEASE_KEYSTORE_BASE64:?Set the ANDROID_RELEASE_KEYSTORE_BASE64 secret.}"
 : "${ANDROID_RELEASE_KEYSTORE_PASSWORD:?Set the ANDROID_RELEASE_KEYSTORE_PASSWORD secret.}"
 : "${ANDROID_RELEASE_KEY_ALIAS:?Set the ANDROID_RELEASE_KEY_ALIAS secret.}"
@@ -20,13 +21,6 @@ unset ANDROID_RELEASE_KEYSTORE_BASE64
 ./gradlew :app:assembleRelease --no-configuration-cache
 
 apk=app/build/outputs/apk/release/app-release.apk
-"$android_tools/apksigner" verify --print-certs "$apk"
-badging=$("$android_tools/aapt" dump badging "$apk")
-package_info=${badging%%$'\n'*}
-if [[ $package_info != "package: "*" versionCode='$RELEASE_VERSION_CODE' versionName='$RELEASE_VERSION_NAME'"* ]]; then
-    printf 'Expected APK versionName %s and versionCode %s. Found %s\n' \
-        "$RELEASE_VERSION_NAME" "$RELEASE_VERSION_CODE" "$package_info" >&2
-    exit 1
-fi
+"$android_scripts/verify-release-apk" "$apk" "$android_tools"
 
 install -m 0644 -- "$apk" "$output_dir/TableTennisAz-$RELEASE_VERSION_NAME.apk"

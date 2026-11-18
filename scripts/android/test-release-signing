@@ -8,7 +8,7 @@ scratch=$(mktemp -d)
 trap 'find "$scratch" -depth -delete' EXIT
 mkdir "$scratch/source" "$scratch/candidate" "$scratch/rejected"
 tar --exclude=app/build --exclude=app/.gradle -C "$repo" -cf - \
-    app build.gradle gradle gradle.properties gradlew settings.gradle scripts/android/build-release-candidate \
+    app build.gradle gradle gradle.properties gradlew settings.gradle scripts/android/build-release-candidate scripts/android/verify-release-apk \
     | tar -xf - -C "$scratch/source"
 cd -- "$scratch/source"
 printf 'versionName=0.4.0\nversionCode=4\n' > version.properties
@@ -40,5 +40,5 @@ if RELEASE_VERSION_CODE=5 scripts/android/build-release-candidate "$scratch/reje
     echo 'Expected Android version code verification to reject the APK.' >&2
     exit 1
 fi
-grep -Fq 'Expected APK versionName 0.4.0 and versionCode 5.' "$scratch/rejection.log"
+grep -Fq 'Expected APK versionName 0.4.0 and versionCode 5 for az.tabletennis.' "$scratch/rejection.log"
 [[ ! -e $scratch/rejected/TableTennisAz-0.4.0.apk ]]
