@@ -79,7 +79,7 @@ public class LiveExperienceTest {
             awaitSuccessfulData();
 
             // act
-            onView(withId(R.id.result_rows)).perform(clickFirstChild());
+            onView(withId(R.id.result_rows)).perform(clickFirstAction());
 
             // assert
             awaitSuccessfulData();
@@ -87,7 +87,7 @@ public class LiveExperienceTest {
             onView(withId(R.id.match_score_right)).check(matches(withText(not(isEmptyOrNullString()))));
 
             // act
-            onView(withId(R.id.participants_left)).perform(clickFirstChild());
+            onView(withId(R.id.participants_left)).perform(clickFirstAction());
 
             // assert
             awaitSuccessfulData();
@@ -109,15 +109,21 @@ public class LiveExperienceTest {
         onView(withId(R.id.updated)).check(matches(withText(startsWith("Son uğurlu yenilənmə: "))));
     }
 
-    private ViewAction clickFirstChild() {
+    private ViewAction clickFirstAction() {
         return new ViewAction() {
             @Override public Matcher<View> getConstraints() { return isAssignableFrom(ViewGroup.class); }
             @Override public String getDescription() { return "Open the first displayed result or participant"; }
             @Override public void perform(UiController controller, View view) {
                 ViewGroup group = (ViewGroup) view;
-                if (group.getChildCount() == 0) throw new IllegalStateException("No result or participant to open");
-                group.getChildAt(0).performClick();
-                controller.loopMainThreadUntilIdle();
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    View action = group.getChildAt(i);
+                    if (action.isClickable()) {
+                        action.performClick();
+                        controller.loopMainThreadUntilIdle();
+                        return;
+                    }
+                }
+                throw new IllegalStateException("No result or participant to open");
             }
         };
     }

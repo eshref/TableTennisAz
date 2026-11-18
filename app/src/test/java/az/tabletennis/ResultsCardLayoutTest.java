@@ -32,6 +32,45 @@ public class ResultsCardLayoutTest extends ProductUiScenario {
         });
     }
 
+    @Test public void eventNameWrapsInTheFilterAndItsDropdown() throws Exception {
+        // arrange
+        RuntimeEnvironment.setQualifiers(qualifiers);
+        RuntimeEnvironment.setFontScale(1.5f);
+        android.content.Context context = RuntimeEnvironment.getApplication();
+        String name = "Bakı həvəskarlar kuboku 2026 — final mərhələsi";
+        EventCatalog catalog = new EventCatalog(Arrays.asList(new EventCatalog.Event(901, name)));
+        ResultsFeed feed = new ResultsFeed(Arrays.asList(), catalog, Arrays.asList(), Arrays.asList(), null);
+        long now = FixtureApplication.time.millis();
+        new SavedDataStore<>(context, "events", EventCatalog.class).write(new SavedData<>(catalog, now));
+        new SavedDataStore<>(context, "results-all-0", ResultsFeed.class).write(new SavedData<>(feed, now));
+        new SavedDataStore<>(context, "results-events-901", ResultsFeed.class).write(new SavedData<>(feed, now));
+        context.getSharedPreferences("results-selection", android.content.Context.MODE_PRIVATE).edit().clear().commit();
+
+        // act
+        openDirect(ResultsActivity.class, "", 0);
+        android.widget.Spinner filter = activity().findViewById(R.id.event_filter);
+        android.widget.ListView popup = new android.widget.ListView(activity());
+        TextView option = (TextView) filter.getAdapter().getDropDownView(1, null, popup);
+        int optionWidth = filter.getWidth() - filter.getPaddingLeft() - filter.getPaddingRight();
+        option.measure(View.MeasureSpec.makeMeasureSpec(optionWidth, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+        option.layout(0, 0, option.getMeasuredWidth(), option.getMeasuredHeight());
+        filter.setSelection(1);
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(100));
+
+        // assert
+        for (TextView label : Arrays.asList(option, (TextView) filter.getSelectedView())) {
+            assertThat(label.getText().toString()).isEqualTo(name);
+            assertThat(label.getLayout()).isNotNull();
+            for (int line = 0; line < label.getLineCount(); line++) {
+                assertThat(label.getLayout().getEllipsisCount(line)).isZero();
+                assertThat(label.getLayout().getLineMax(line)).isLessThanOrEqualTo((float) (label.getWidth()
+                        - label.getCompoundPaddingLeft() - label.getCompoundPaddingRight()));
+            }
+            assertThat(label.getLayout().getHeight()).isLessThanOrEqualTo(label.getHeight()
+                    - label.getCompoundPaddingTop() - label.getCompoundPaddingBottom());
+        }
+    }
+
     @Test public void largeTextKeepsFullDoublesNamesSeparateFromScoresAndFiltersReachable() throws Exception {
         // arrange
         RuntimeEnvironment.setQualifiers(qualifiers);
@@ -46,7 +85,8 @@ public class ResultsCardLayoutTest extends ProductUiScenario {
         // assert
         awaitText("İlqar Həsənov\n" + FIRST);
         ViewGroup rows = activity().findViewById(R.id.result_rows);
-        ViewGroup card = (ViewGroup) rows.getChildAt(1);
+        ViewGroup card = (ViewGroup) findText(rows, "15 Nov. 2026 · İlqar Həsənov / " + FIRST
+                + " — Şəms Quliyeva / " + SECOND + " · 1-3 · Duello · Qoşalar · Duel");
         TextView left = (TextView) findText(card, "İlqar Həsənov\n" + FIRST);
         TextView right = (TextView) findText(card, "Şəms Quliyeva\n" + SECOND);
         TextView leftScore = (TextView) findText(card, "1");

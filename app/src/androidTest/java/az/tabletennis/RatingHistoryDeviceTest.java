@@ -7,6 +7,7 @@ import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isSelected;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static java.util.Arrays.asList;
 
@@ -41,10 +42,10 @@ public class RatingHistoryDeviceTest {
             capture("chart");
 
             // act
-            onView(withText("31.12 — 435.55 xal")).perform(scrollTo(), click());
+            onView(withContentDescription("31.12 — 435.55 xal")).perform(scrollTo(), click());
 
             // assert
-            onView(withText("31.12 — 435.55 xal")).check(matches(isSelected()));
+            onView(withContentDescription("31.12 — 435.55 xal")).check(matches(isSelected()));
             onView(withId(R.id.chart_selected_date)).check(matches(withText("31.12")));
             onView(withId(R.id.chart_selected_value)).check(matches(withText("435.55 xal")));
             capture("observations");

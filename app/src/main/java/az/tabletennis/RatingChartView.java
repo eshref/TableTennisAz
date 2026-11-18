@@ -47,11 +47,12 @@ final class RatingChartView extends LinearLayout {
         TextView measure = axisLabel(high.points);
         int scaleWidth = (int) Math.ceil(Math.max(measure.getPaint().measureText(high.points),
                 measure.getPaint().measureText(low.points))) + dp(12);
-        addView(scale, new LayoutParams(scaleWidth, dp(168)));
+        addView(scale, new LayoutParams(scaleWidth, dp(140)));
         LinearLayout graph = new LinearLayout(context);
         graph.setOrientation(VERTICAL);
         plot = new Plot(context);
-        graph.addView(plot, new LayoutParams(-1, dp(168)));
+        // The plot and native endpoint labels share the reference's 168dp chart area.
+        graph.addView(plot, new LayoutParams(-1, dp(140)));
         LinearLayout dates = new LinearLayout(context);
         TextView first = axisLabel(history.observations.get(0).date);
         if (history.observations.size() == 1) first.setGravity(android.view.Gravity.CENTER);

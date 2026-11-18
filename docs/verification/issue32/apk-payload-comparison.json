@@ -1,0 +1,33 @@
+{
+  "payloadEntries": 27,
+  "signatureExclusion": "^META-INF/(?:MANIFEST\\.MF|[^/]+\\.(?:SF|RSA|DSA|EC))$",
+  "phoneSha256": "b806d59df6c3d7b6ac0f21f3e45740218ce695ef9e16a33ba553178f6478a146",
+  "previousPhoneSha256": "c1c6111c581504a06410273e3b71a364a3a12ca72db353860cde5c3ad96f5cc5",
+  "managedApks": {
+    "fixture": {
+      "apk": ".android-verification/evidence/run-20261118T123110Z-TOuYBT/app-debug.apk",
+      "sha256": "2da232d85d7fea5280dfc6b6348a0bb96812c0851de96d47e9e98a5bd85be1f1",
+      "status": "failed",
+      "phase": "preflight",
+      "preflight": "incomplete",
+      "matrix": "incomplete",
+      "matchesPhoneApkPayload": true,
+      "matchesPreviousPhoneApkPayload": false,
+      "differentPayloadEntries": []
+    },
+    "live": {
+      "apk": ".android-verification/evidence/run-20261118T111715Z-p7C5TY/app-debug.apk",
+      "sha256": "029bdd676cf009c239a7e3d91fac34aa83ba40d8419618db8f873e6cb4606b44",
+      "status": "failed",
+      "phase": "live-source",
+      "preflight": "passed",
+      "liveSource": "failed",
+      "matchesPhoneApkPayload": false,
+      "matchesPreviousPhoneApkPayload": true,
+      "differentPayloadEntries": [
+        "classes3.dex"
+      ]
+    }
+  },
+  "productionContainsAcceptanceFixtures": false
+}

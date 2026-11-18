@@ -14,8 +14,10 @@ scripts/android-verify
 
 The command discovers JDK 21 or provisions it, downloads checksum-pinned Android
 tools and the API 36 AOSP ATD image, builds both APKs, and verifies preflight.
-Full runs then execute the existing host integration suite, lint and device
-matrix in isolated build output. Basic Linux prerequisites
+Full runs then execute the device matrix, stop the owned emulator, and run the
+existing host integration suite and lint in isolated build output. These checks
+share one full-phase deadline. Separating the emulator and Robolectric avoids
+memory pressure on 8 GiB hosts. Basic Linux prerequisites
 are Bash, curl, tar, unzip, flock, timeout, sha256sum and `mkfs.ext4` from
 e2fsprogs (with directory population support). The host must provide the shared
 libraries required by the Linux emulator. No privileged installation is used.
@@ -68,27 +70,54 @@ scripts/android-verify --tests az.tabletennis.ProfileDeviceTest
 ```
 
 Select the journey that covers the changed screens: `MatchDeviceTest`,
-`ProfileDeviceTest`, `RatingHistoryDeviceTest` or `ResultsDeviceTest`. Run classes
+`ProfileDeviceTest`, `RatingHistoryDeviceTest`, `ResultsDeviceTest` or
+`DoublesProfileDeviceTest`. `NativeAcceptanceDeviceTest` connects all seven
+approved entry views in one journey. Run classes
 separately because they prepare different saved fixtures. The default match
 journey does not establish visual acceptance for an unrelated screen.
 
 Selected tests must capture screenshots using the supplied `capturePrefix`.
-Match, profile and rating-history journeys support `reuseSaved`; the results
+Match, profile, doubles-profile, rating-history and combined acceptance journeys
+support `reuseSaved`; the results
 journey prepares its saved fixtures for each configuration, so it establishes
 offline rendering rather than reuse across processes. Match-specific offline
 comparisons apply to the default match matrix. Live website tests have separate
 setup needs and are not suitable for this saved-fixture matrix.
 
-The command prints an evidence directory. Read `result.properties`: completion
-requires `status=passed`, `preflight=passed`, `cleanup=complete`, and, for full
-runs, `matrix=passed`. Inspect the PNGs against the approved reference before
-claiming visual acceptance. Automated nonblank/dimension checks establish that
+Run the existing opt-in live website journeys separately:
+
+```sh
+scripts/android-verify --live
+```
+
+This uses the same installed preflight, then runs `LiveRankingsTest`,
+`LiveExperienceTest` and `LiveDoublesTest` sequentially online in the disposable
+guest. The runner enables Wi-Fi, requests a join to the emulator's `AndroidWifi`
+access point if needed, and waits for an active Android default network.
+Network setup and instrumentation share the full-phase deadline. The runner
+stops on the first failed journey and records which classes passed. Use those
+results to verify Android's production HTTPS requests.
+
+Open `result.properties` in the printed evidence directory. A completed run has
+`status=passed`, `preflight=passed` and `cleanup=complete`. Full fixture runs also
+have `matrix=passed`. Live runs have `liveSource=passed`. Inspect the
+PNGs against the approved reference before claiming visual acceptance.
+Automated nonblank/dimension checks establish that
 a capture exists; visual review establishes its composition and readability.
+`checksFinished` records when checking ended; `finished` also includes process
+and file cleanup. The phase watchdog stops when cleanup begins, so slow file
+deletion cannot overwrite a completed check result. All verification operations
+remain bounded by their phase deadline.
 
 Evidence includes APKs, their checksum, screenshots, captured UI properties,
 runner logs, host-test XML and the result summary. Keep relevant evidence with
 the task; commit screenshots when required by its acceptance criteria. Historical
 feature results remain in `docs/android-verification.md`.
+
+On a guest failure with time left in its phase, inspect `failure-anr.log` for
+the start of the newest Android ANR thread dump. Check its timestamp and process
+against the failure. Window and logcat diagnostics may also be available. An
+incomplete fixture run can save partial images under `failure-captures/`.
 
 API 26 remains covered by existing host tests. Report installed coverage as API
 36 emulator coverage. Physical-phone behavior, API 26 installation and live HTTP
@@ -137,6 +166,14 @@ three-minute cutoff while preserving the total limit.
 
 An initial **system** ANR dialog can steal focus during slow startup. The runner
 can select its Wait action. Application assertion failures remain failures.
+
+Software verification sets the disposable guest's long-press threshold to
+10 seconds and records the verified value. On this image, slow input injection
+has held an ordinary Espresso tap for 2.580 seconds, activating a button tooltip
+instead of its click. This setting changes only the disposable guest; app and
+phone settings and phase budgets remain unchanged. Accelerated runs keep their
+normal threshold. Long-press behavior needs its own verification.
+
 Blank PNGs, missing focus and wrong dimensions require a failed preflight; a host
 render or successful install command alone cannot establish installed acceptance.
 

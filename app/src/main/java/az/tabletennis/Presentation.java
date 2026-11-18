@@ -44,6 +44,14 @@ final class Presentation {
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(context.getColor(R.color.soft)), null, shape(context, R.color.surface)));
     }
 
+    static void observationColumns(android.widget.LinearLayout row, TextView date, TextView value) {
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.addView(date, new android.widget.LinearLayout.LayoutParams(0, -2, 1));
+        value.setGravity(android.view.Gravity.END);
+        row.addView(value, new android.widget.LinearLayout.LayoutParams(0, -2, 1));
+    }
+
     static void segment(RadioButton button) {
         Context context = button.getContext();
         button.setButtonDrawable(null);

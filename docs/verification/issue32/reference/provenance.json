@@ -1,0 +1,7 @@
+{
+  "source": "docs/prototypes/android-final-ui-prototype.html",
+  "sourceCommit": "809029976d182934bdc4ba2a9dcfd60acb8adf40",
+  "sha256": "447a5948c0e5506a0276f0516197d042da0fd9dbc06f99ea09785be00bb56149",
+  "render": "Chromium 141, deviceScaleFactor=1, width=412 CSS px, height=891 CSS px, standard text, reduced motion; original embedded sample data and photos; only outer preview width/height adjusted",
+  "caveat": "Browser reference images are comparison inputs, never installed Android evidence."
+}

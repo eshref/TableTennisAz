@@ -1,0 +1,11 @@
+INSTRUMENTATION_STATUS: class=az.tabletennis.NativeAcceptanceDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+az.tabletennis.NativeAcceptanceDeviceTest:
+INSTRUMENTATION_STATUS: test=sevenViewsKeepTheirIdentitiesAndBackContextAcrossBothMainDestinations
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_RESULT: longMsg=Input dispatching timed out (543f2f3 az.tabletennis/az.tabletennis.RankingsActivity is not responding. Waited 50042ms for FocusEvent(hasFocus=false)).
+INSTRUMENTATION_RESULT: shortMsg=keyDispatchingTimedOut
+INSTRUMENTATION_CODE: 0

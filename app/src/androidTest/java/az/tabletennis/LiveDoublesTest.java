@@ -7,6 +7,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.anything;
@@ -43,7 +44,7 @@ public class LiveDoublesTest {
 
             // assert
             awaitSuccessfulData(900_000);
-            onView(withId(android.R.id.list)).check(matches(hasDescendant(withText(containsString(" / ")))));
+            onView(withId(android.R.id.list)).check(matches(hasDescendant(withContentDescription(containsString(" / ")))));
 
             java.util.concurrent.atomic.AtomicReference<String> selected = new java.util.concurrent.atomic.AtomicReference<>();
             scenario.onActivity(activity -> selected.set(((android.widget.ListView) activity.findViewById(android.R.id.list))

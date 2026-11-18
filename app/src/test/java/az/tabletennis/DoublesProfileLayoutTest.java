@@ -104,9 +104,14 @@ public class DoublesProfileLayoutTest extends DoublesUiScenario {
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString())
                 .isEqualTo("15.11.2026 12:00:00.000 — #1");
         assertThat(activity().<TextView>findViewById(R.id.chart_selected_value).getText().toString()).isEqualTo("#1");
-        TextView observation = (TextView) ((android.view.ViewGroup) activity().findViewById(R.id.chart_observations)).getChildAt(0);
-        assertReadable(observation);
-        assertThat(observation.getText().toString()).isEqualTo("15.11.2026 12:00:00.000 — #1");
+        android.view.ViewGroup observation = (android.view.ViewGroup) ((android.view.ViewGroup) activity().findViewById(R.id.chart_observations)).getChildAt(0);
+        TextView observationDate = observation.findViewById(android.R.id.text1);
+        TextView observationValue = observation.findViewById(android.R.id.text2);
+        assertReadable(observationDate);
+        assertReadable(observationValue);
+        assertThat(observation.getContentDescription().toString()).isEqualTo("15.11.2026 12:00:00.000 — #1");
+        assertThat(observationDate.getRight()).isLessThanOrEqualTo(observationValue.getLeft());
+        assertThat(date.getRight()).isLessThanOrEqualTo(activity().findViewById(R.id.chart_selected_value).getLeft());
         assertThat(observation.getHeight()).isGreaterThanOrEqualTo(Presentation.dp(activity(), 48));
     }
 

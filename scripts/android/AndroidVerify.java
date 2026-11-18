@@ -14,6 +14,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 /** Repository tooling. Product assertions run in the installed Android tests. */
 class AndroidVerify {
+    private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
+            "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private final Path repo, cache, evidence, work, sdk;
     private final Map<String, String> env = new HashMap<>(System.getenv());
     private final Properties tools = new Properties(), result = new Properties();
@@ -21,13 +23,14 @@ class AndroidVerify {
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
     private Path build;
     private Process emulator;
-    private boolean retain, preflightOnly, software, cleaned;
+    private boolean retain, preflightOnly, software, live;
+    private volatile boolean cleaned;
     private String tests = "az.tabletennis.MatchDeviceTest", serial;
     private int adbPort;
     private FileChannel portChannel;
     private FileLock portLock;
     private volatile long deadline;
-    private String phase = "setup";
+    private volatile String phase = "setup";
 
     public static void main(String[] args) throws Exception {
         AndroidVerify runner;
@@ -45,29 +48,38 @@ class AndroidVerify {
         Runtime.getRuntime().addShutdownHook(new Thread(runner::cleanup));
         Thread.ofPlatform().daemon().start(() -> {
             while (true) {
-                try { Thread.sleep(1000); runner.remaining(); }
+                try { Thread.sleep(1000); }
                 catch (InterruptedException stopped) { return; }
-                catch (IOException expired) {
-                    runner.result.setProperty("status", "failed");
-                    runner.result.setProperty("failure", "Phase time budget exhausted");
-                    runner.result.setProperty("phase", runner.phase);
-                    System.err.println("Time budget exhausted; stopping owned processes and saving evidence");
-                    System.exit(124);
+                synchronized (runner) {
+                    if (runner.cleaned) return;
+                    try { runner.remaining(); }
+                    catch (IOException expired) {
+                        runner.result.setProperty("status", "failed");
+                        runner.result.setProperty("failure", "Phase time budget exhausted");
+                        runner.result.setProperty("phase", runner.phase);
+                        break;
+                    }
                 }
             }
+            System.err.println("Time budget exhausted; stopping owned processes and saving evidence");
+            System.exit(124);
         });
         int exit = 0;
-        try { runner.execute(); runner.result.setProperty("status", "passed"); }
+        try {
+            runner.execute();
+            synchronized (runner) {
+                runner.remaining();
+                runner.result.putIfAbsent("status", "passed");
+                runner.cleanup();
+            }
+        }
         catch (Exception failure) {
             exit = 1;
             runner.result.setProperty("status", "failed");
             runner.result.putIfAbsent("failure", failure.toString());
             System.err.println("FAILED during " + runner.phase + ": " + runner.result.getProperty("failure"));
             runner.diagnose();
-        } finally {
-            runner.result.setProperty("phase", runner.phase);
-            runner.cleanup();
-        }
+        } finally { runner.cleanup(); }
         System.out.println("Result: " + runner.result.getProperty("status") + "; evidence: " + runner.evidence);
         System.exit(runner.result.getProperty("status").equals("passed") ? exit : 1);
     }
@@ -76,15 +88,19 @@ class AndroidVerify {
         repo = Path.of(args[0]).toRealPath();
         cache = Path.of(System.getenv("ANDROID_VERIFY_CACHE")).toAbsolutePath();
         evidence = Path.of(System.getenv("ANDROID_VERIFY_EVIDENCE")).toRealPath();
+        boolean selectedTests = false;
         for (int i = 1; i < args.length; i++) switch (args[i]) {
             case "--retain-device" -> retain = true;
             case "--preflight-only" -> preflightOnly = true;
             case "--software" -> software = true;
-            case "--tests" -> tests = args[++i];
+            case "--live" -> live = true;
+            case "--tests" -> { tests = args[++i]; selectedTests = true; }
             default -> throw new IllegalArgumentException("Unknown argument: " + args[i]);
         }
         if (!tests.matches("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)+"))
             throw new IllegalArgumentException("--tests requires one fully qualified test class; run separate fixtures separately");
+        if (live && (preflightOnly || selectedTests))
+            throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
         deadline = Long.parseLong(System.getenv("ANDROID_VERIFY_STARTED")) * 1000 + Long.parseLong(System.getenv("ANDROID_VERIFY_PREFLIGHT_SECONDS")) * 1000;
         sdk = sdkDirectory();
@@ -101,7 +117,7 @@ class AndroidVerify {
         env.remove("ANDROID_SERIAL");
         result.setProperty("mode", software ? "software" : "accelerated");
         result.setProperty("api", "36");
-        result.setProperty("tests", tests);
+        result.setProperty("tests", live ? String.join(",", LIVE_TESTS) : tests);
         result.setProperty("started", Instant.now().toString());
         result.setProperty("sdkCache", sdk.toString());
     }
@@ -121,7 +137,10 @@ class AndroidVerify {
         if (Files.getFileStore(buildParent).getUsableSpace() < 1024L * 1024 * 1024) buildParent = work;
         build = Files.createTempDirectory(buildParent, "tabletennisaz-build-");
         Path init = work.resolve("build-paths.gradle");
-        Files.writeString(init, "allprojects { layout.buildDirectory.set(new File('" + groovy(build.toString()) + "', project.name)) }\n");
+        Path hostScratch = Files.createDirectories(work.resolve("host-tmp"));
+        Files.writeString(init, "allprojects { layout.buildDirectory.set(new File('" + groovy(build.toString()) + "', project.name)); "
+                + "tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { systemProperty 'java.io.tmpdir', '"
+                + groovy(hostScratch.toString()) + "' } }\n");
         note("Building both APKs in isolated output");
         run("build", 600, repo.toString() + "/gradlew", "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
                 "-I", init.toString(), ":app:assembleDebug", ":app:assembleDebugAndroidTest");
@@ -151,12 +170,18 @@ class AndroidVerify {
         result.setProperty("preflight", "passed");
         note("Preflight passed: installed scores, window focus, nonblank screenshots and dimensions");
         if (preflightOnly) return;
-        phase = "device-matrix";
-        deadline = System.currentTimeMillis() + Long.parseLong(env.get("ANDROID_VERIFY_MATRIX_SECONDS")) * 1000;
-        note("Running host integration tests and lint");
-        run("host-checks", Math.toIntExact(remaining()), repo.toString() + "/gradlew", "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
-                "-I", init.toString(), ":app:testDebugUnitTest", ":app:lintDebug");
-        result.setProperty("hostChecks", "passed");
+        beginFullPhase(live ? "live-source" : "device-matrix");
+        if (live) {
+            result.setProperty("liveSource", "failed");
+            connect();
+            for (String test : LIVE_TESTS) {
+                String prefix = "live-" + test.substring(test.lastIndexOf('.') + 1);
+                note("Live website journey: " + test);
+                runTests(prefix, test, false, false, Math.toIntExact(remaining()));
+            }
+            result.setProperty("liveSource", "passed");
+            return;
+        }
         instrument("light", tests, false, false, 412, 891);
         disconnect();
         appearance("dark", "412x891", "1.0");
@@ -180,6 +205,19 @@ class AndroidVerify {
         }
         result.setProperty("matrix", "passed");
         note("Installed matrix passed");
+        // Software emulation and Robolectric together can exhaust an 8 GiB host.
+        kill(emulator);
+        phase = "host-checks";
+        note("Owned emulator stopped; running host integration tests and lint within the same full-phase deadline");
+        run("host-checks", Math.toIntExact(remaining()), repo.toString() + "/gradlew", "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
+                "-I", init.toString(), ":app:testDebugUnitTest", ":app:lintDebug");
+        result.setProperty("hostChecks", "passed");
+    }
+
+    private synchronized void beginFullPhase(String name) throws IOException {
+        remaining();
+        phase = name;
+        deadline = System.currentTimeMillis() + Long.parseLong(env.get("ANDROID_VERIFY_MATRIX_SECONDS")) * 1000;
     }
 
     private void install(String id) throws Exception {
@@ -236,6 +274,8 @@ class AndroidVerify {
     }
 
     private void startDevice() throws Exception {
+        String cores = "2";
+        result.setProperty("emulatorCores", cores);
         Path avds = Files.createDirectories(work.resolve("avds"));
         Path avd = Files.createDirectories(avds.resolve("verification.avd"));
         Path image = imageDirectory();
@@ -245,7 +285,7 @@ class AndroidVerify {
                 avd.ini.encoding=UTF-8
                 abi.type=x86_64
                 hw.cpu.arch=x86_64
-                hw.cpu.ncore=2
+                hw.cpu.ncore=%s
                 hw.ramSize=2560
                 hw.lcd.width=412
                 hw.lcd.height=891
@@ -257,7 +297,7 @@ class AndroidVerify {
                 showDeviceFrame=no
                 tag.id=aosp_atd
                 tag.display=AOSP ATD
-                """ + "image.sysdir.1=" + image + "/\n");
+                """.formatted(cores) + "image.sysdir.1=" + image + "/\n");
         int port = reservePort();
         adbPort = freePort();
         env.put("ANDROID_ADB_SERVER_PORT", Integer.toString(adbPort));
@@ -267,7 +307,7 @@ class AndroidVerify {
         note("Starting isolated API 36 emulator");
         emulator = launch(evidence.resolve("emulator.log"), sdk.resolve("emulator/emulator").toString(), "-avd", "verification",
                 "-port", Integer.toString(port), "-no-window", "-no-audio", "-no-snapshot", "-no-boot-anim", "-no-metrics", "-show-kernel",
-                "-gpu", "swiftshader", "-accel", software ? "off" : "on", "-memory", "2560", "-cores", "2");
+                "-gpu", "swiftshader", "-accel", software ? "off" : "on", "-memory", "2560", "-cores", cores);
         waitAdb(software ? 1800 : 180);
         configureRuntime();
         waitBoot();
@@ -342,7 +382,16 @@ class AndroidVerify {
     private void preflight() throws Exception {
         waitBoot();
         dismissSystemAnr();
-        shell("animations", 60, true, "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0; settings put system screen_off_timeout 1800000");
+        // Android can report boot completion while the settings service still contends with startup work.
+        shell("animations", software ? 180 : 60, true, "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0; settings put system screen_off_timeout 1800000");
+        if (software) {
+            // Software input injection can hold Espresso's ordinary tap for seconds. Keep it
+            // below the disposable guest's long-press threshold, including tooltip buttons.
+            shell("software-touch", 60, true, "settings put secure long_press_timeout 10000");
+            require(shell("software-touch-verified", 60, true, "settings get secure long_press_timeout").strip().equals("10000"),
+                    "Software long-press threshold was not applied");
+            result.setProperty("softwareLongPressMillis", "10000");
+        }
         shell("wake", 60, true, "input keyevent 224; wm dismiss-keyguard");
         appearance("light", "412x891", "1.0");
         note("Installing app and instrumentation APKs");
@@ -374,12 +423,7 @@ class AndroidVerify {
 
     private void instrument(String prefix, String classes, boolean smoke, boolean reuse, int width, int height) throws Exception {
         note("Installed checks: " + prefix + " (" + width + "x" + height + ")");
-        shell(prefix + "-stop", 60, true, "am force-stop az.tabletennis");
-        String command = "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
-                + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "")
-                + " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
-        String output = shell("tests-" + prefix, software ? 720 : 240, true, command);
-        require(Pattern.compile("(?m)^OK \\([1-9][0-9]* tests?\\)").matcher(output).find(), "Installed tests did not pass with nonzero cases; see tests-" + prefix + ".log");
+        runTests(prefix, classes, smoke, reuse, software ? 720 : 240);
         Path captures = evidence.resolve("captures").resolve(prefix);
         Files.createDirectories(captures);
         adb("pull-" + prefix, 90, true, "pull", "/sdcard/Android/data/az.tabletennis/files", captures.toString());
@@ -396,6 +440,15 @@ class AndroidVerify {
         }
         require(count > 0, "No installed screenshots captured for " + prefix);
         result.setProperty(prefix + ".screenshots", Integer.toString(count));
+    }
+
+    private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds) throws Exception {
+        shell(prefix + "-stop", 60, true, "am force-stop az.tabletennis");
+        String command = "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
+                + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "")
+                + " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
+        String output = shell("tests-" + prefix, seconds, true, command);
+        require(Pattern.compile("(?m)^OK \\([1-9][0-9]* tests?\\)").matcher(output).find(), "Installed tests did not pass with nonzero cases; see tests-" + prefix + ".log");
         result.setProperty(prefix + ".tests", output.substring(output.lastIndexOf("OK (")).strip().split("\n")[0]);
     }
 
@@ -417,6 +470,26 @@ class AndroidVerify {
             pause(3000);
         }
         throw new IOException("Android still has an active default network");
+    }
+
+    private void connect() throws Exception {
+        // The ATD guest can reach the website over Wi-Fi without a working phone service.
+        shell("connect", 90, true, "cmd connectivity airplane-mode disable && svc wifi enable");
+        boolean requestedWifi = false;
+        while (System.currentTimeMillis() < deadline) {
+            String report = shell("online-connectivity", 45, true, "dumpsys connectivity");
+            var active = Pattern.compile("(?m)^Active default network: ([0-9]+)\\s*$").matcher(report);
+            if (active.find()) {
+                result.setProperty("liveDefaultNetwork", active.group(1));
+                return;
+            }
+            if (!requestedWifi) {
+                shell("join-android-wifi", 30, false, "cmd wifi connect-network AndroidWifi open");
+                requestedWifi = true;
+            }
+            pause(3000);
+        }
+        throw new IOException("Android has no active default network for the live website journeys");
     }
 
     private boolean environmentFailure(Exception failure) {
@@ -553,12 +626,21 @@ class AndroidVerify {
 
     private void diagnose() {
         if (serial == null) return;
-        long original = deadline;
-        if (original <= System.currentTimeMillis()) return;
-        deadline = Math.min(original, System.currentTimeMillis() + 60_000);
-        try { shell("failure-window", 20, false, "dumpsys window displays"); } catch (Exception ignored) { }
-        try { shell("failure-logcat", 20, false, "logcat -d -t 400 -s AndroidRuntime ActivityManager TestRunner Watchdog"); } catch (Exception ignored) { }
-        deadline = original;
+        if (deadline <= System.currentTimeMillis()) return;
+        // Read the guest's existing thread dump before depending on a responsive system server.
+        try {
+            shell("failure-anr", 15, false,
+                    "su 0 sh -c 'ls -lt /data/anr; trace=$(ls -1t /data/anr/anr_* 2>/dev/null | head -n 1); "
+                    + "if [ -n \"$trace\" ]; then head -n 160 \"$trace\"; fi'");
+        } catch (Exception ignored) { }
+        try { shell("failure-window", 15, false, "dumpsys window displays"); } catch (Exception ignored) { }
+        try {
+            shell("failure-logcat", 15, false, "logcat -b main -b system -b events -d -t 4000 -s AndroidRuntime ActivityManager TestRunner Watchdog am_anr");
+        } catch (Exception ignored) { }
+        if (phase.equals("device-matrix")) try {
+            adb("failure-pull", 15, false, "pull", "/sdcard/Android/data/az.tabletennis/files",
+                    evidence.resolve("failure-captures").toString());
+        } catch (Exception ignored) { }
     }
 
     private static void kill(Process process) {
@@ -570,10 +652,11 @@ class AndroidVerify {
     private synchronized void cleanup() {
         if (cleaned) return;
         cleaned = true;
+        result.setProperty("checksFinished", Instant.now().toString());
+        result.putIfAbsent("phase", phase);
         if (result.getProperty("status") == null) {
             result.setProperty("status", "failed");
             result.setProperty("failure", "Interrupted before completion");
-            result.setProperty("phase", phase);
         }
         for (Process child : List.copyOf(children)) if (child.isAlive()) kill(child);
         if (adbPort != 0) try {
@@ -587,6 +670,10 @@ class AndroidVerify {
                 if (Files.isDirectory(reports)) try (var files = Files.list(reports)) {
                     Path destination = Files.createDirectories(evidence.resolve("host-results"));
                     for (Path file : files.filter(p -> p.toString().endsWith(".xml")).toList()) Files.copy(file, destination.resolve(file.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                }
+                for (String name : List.of("lint-results-debug.xml", "lint-results-debug.html")) {
+                    Path report = build.resolve("app/reports").resolve(name);
+                    if (Files.isRegularFile(report)) Files.copy(report, evidence.resolve(name), StandardCopyOption.REPLACE_EXISTING);
                 }
                 remove(build);
             }

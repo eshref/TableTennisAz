@@ -7,7 +7,6 @@ import android.graphics.Path;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -28,7 +27,7 @@ final class DoublesHistoryView extends LinearLayout {
             Locale.forLanguageTag("az-AZ")).withZone(ZoneId.systemDefault());
     private boolean rankMode;
     private int selected;
-    private final List<Button> rows = new ArrayList<>();
+    private final List<ChartObservationRow> rows = new ArrayList<>();
     private TextView selectedDate;
     private TextView selectedValue;
 
@@ -73,7 +72,7 @@ final class DoublesHistoryView extends LinearLayout {
         LayoutParams spacing = new LayoutParams(-1, -2);
         spacing.topMargin = dp(14);
         addView(panel, spacing);
-        panel.addView(chart, new LayoutParams(-1, dp(168)));
+        panel.addView(chart, new LayoutParams(-1, dp(140)));
         LinearLayout endpoints = new LinearLayout(context);
         boolean stack = getResources().getConfiguration().screenWidthDp < 360 * getResources().getConfiguration().fontScale;
         endpoints.setOrientation(stack ? VERTICAL : HORIZONTAL);
@@ -89,16 +88,14 @@ final class DoublesHistoryView extends LinearLayout {
         endpoints.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         panel.addView(endpoints);
         LinearLayout inspected = new LinearLayout(context);
-        inspected.setOrientation(VERTICAL);
         inspected.setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_POLITE);
         selectedDate = label("");
         selectedDate.setId(R.id.chart_selected_date);
-        selectedValue = Presentation.label(context, "", 18);
+        selectedValue = Presentation.label(context, "", 16);
         selectedValue.setId(R.id.chart_selected_value);
         selectedValue.setTextColor(context.getColor(R.color.primary));
         selectedValue.setTypeface(null, Typeface.BOLD);
-        inspected.addView(selectedDate);
-        inspected.addView(selectedValue);
+        Presentation.observationColumns(inspected, selectedDate, selectedValue);
         panel.addView(inspected);
         addView(label(context.getString(observations.size() == 1 ? R.string.pair_chart_first : R.string.pair_chart_coverage)));
         LinearLayout values = new LinearLayout(context);
@@ -139,16 +136,11 @@ final class DoublesHistoryView extends LinearLayout {
         rows.clear();
         for (int i = 0; i < descriptions.size(); i++) {
             int index = i;
-            Button row = new Button(getContext());
-            Presentation.action(row);
-            row.setText(descriptions.get(i));
-            row.setTextSize(16);
-            row.setMaxLines(Integer.MAX_VALUE);
-            row.setEllipsize(null);
-            row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(12), dp(12), dp(12), dp(12));
-            row.setStateListAnimator(null);
-            row.setOnClickListener(view -> inspect(chart, index));
+            Point point = observations.get(i);
+            String date = dates.format(Instant.ofEpochMilli(point.time));
+            String value = rankMode ? getContext().getString(R.string.rank_number, point.entry.position)
+                    : getContext().getString(R.string.points, point.entry.points);
+            ChartObservationRow row = new ChartObservationRow(getContext(), date, value, () -> inspect(chart, index));
             values.addView(row, new LayoutParams(-1, -2));
             rows.add(row);
             View divider = new View(getContext());
@@ -165,11 +157,7 @@ final class DoublesHistoryView extends LinearLayout {
         selectedValue.setText(rankMode ? getContext().getString(R.string.rank_number, point.entry.position)
                 : getContext().getString(R.string.points, point.entry.points));
         for (int i = 0; i < rows.size(); i++) {
-            Button row = rows.get(i);
-            row.setSelected(i == index);
-            row.setTypeface(null, i == index ? Typeface.BOLD : Typeface.NORMAL);
-            row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getContext().getColor(
-                    i == index ? R.color.soft : R.color.surface)));
+            rows.get(i).showSelected(i == index);
         }
         chart.invalidate();
     }

@@ -1,0 +1,32 @@
+{
+  "scope": "Phone-review APK source after the same-calendar-day grouping fix; host native-view and real HTTP fixture tests under Robolectric on API 26/36 as configured",
+  "totals": {
+    "tests": 176,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 42
+  },
+  "command": "./gradlew --no-daemon --project-cache-dir <task>/gradle-cache -I <task>/build-paths.gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug",
+  "reviewRecheck": {
+    "scope": "ResultsCardLayoutTest and ResultsWorkflowTest after strengthening dropdown and same-date card assertions",
+    "totals": {
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suites": 2
+    }
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 26
+  },
+  "debugApkAssembly": "passed",
+  "instrumentationApkAssembly": "passed",
+  "dateGroupingRegression": {
+    "test": "az.tabletennis.ResultsWorkflowTest",
+    "beforeFix": "Failed on an extra heading for the undotted source date",
+    "afterFix": "Passed in the full host suite"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "people": [
+    {
+      "id": "13",
+      "name": "İlqar Həsənov",
+      "points": 891,
+      "rank": 1,
+      "portraitAsset": "portraits/ilqar.png"
+    },
+    {
+      "id": "457",
+      "name": "Xaliq Becanov",
+      "points": 889,
+      "rank": 2,
+      "portraitAsset": null
+    },
+    {
+      "id": "14",
+      "name": "Erhan Əliyev",
+      "points": 881,
+      "rank": 3,
+      "portraitAsset": null
+    },
+    {
+      "id": "74",
+      "name": "Məryəm İmanova",
+      "points": 873,
+      "rank": 4,
+      "portraitAsset": "portraits/maryam.png"
+    },
+    {
+      "id": "98",
+      "name": "Elşad Vahidov",
+      "points": 856,
+      "rank": 5,
+      "portraitAsset": "acceptance/portraits/98.png"
+    },
+    {
+      "id": "59",
+      "name": "Serqey Vedmid",
+      "points": 844,
+      "rank": 6,
+      "portraitAsset": "acceptance/portraits/59.png"
+    },
+    {
+      "id": "934",
+      "name": "Toğrul Məhəmmədov",
+      "points": 837,
+      "rank": 7,
+      "portraitAsset": "acceptance/portraits/934.png"
+    },
+    {
+      "id": "951",
+      "name": "Uğur Nəzərli",
+      "points": 831,
+      "rank": 8,
+      "portraitAsset": "acceptance/portraits/951.png"
+    },
+    {
+      "id": "22",
+      "name": "Elçin Mustafayev",
+      "points": null,
+      "rank": null,
+      "portraitAsset": "acceptance/portraits/22.png"
+    },
+    {
+      "id": "7",
+      "name": "Əlixan Əlizadə",
+      "points": null,
+      "rank": null,
+      "portraitAsset": "portraits/elixan.png"
+    },
+    {
+      "id": "70",
+      "name": "Xəyal Həşimli",
+      "points": null,
+      "rank": null,
+      "portraitAsset": "portraits/xeyal.png"
+    },
+    {
+      "id": "144",
+      "name": "Oskar Məhərrəmov",
+      "points": null,
+      "rank": null,
+      "portraitAsset": "acceptance/portraits/144.png"
+    }
+  ],
+  "ranking": [
+    "13",
+    "457",
+    "14",
+    "74",
+    "98",
+    "59",
+    "934",
+    "951"
+  ],
+  "pairs": [
+    {
+      "id": "584",
+      "members": [
+        "14",
+        "22"
+      ],
+      "points": 864,
+      "rank": 1,
+      "medals": [
+        15,
+        7,
+        7
+      ]
+    },
+    {
+      "id": "151",
+      "members": [
+        "7",
+        "70"
+      ],
+      "points": 858,
+      "rank": 2,
+      "medals": [
+        41,
+        10,
+        12
+      ]
+    },
+    {
+      "id": "883",
+      "members": [
+        "457",
+        "144"
+      ],
+      "points": 856,
+      "rank": 3,
+      "medals": [
+        1,
+        2,
+        2
+      ]
+    }
+  ],
+  "photoSource": "https://tabletennis.az",
+  "captured": "2026-11-16"
+}

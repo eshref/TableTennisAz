@@ -89,7 +89,7 @@ public class DoublesProfileDeviceTest {
             // act
             onView(withId(R.id.chart_selected_value)).perform(scrollTo());
             capture("rank");
-            onView(withText(endsWith("— #9"))).perform(scrollTo(), click());
+            onView(withContentDescription(endsWith("— #9"))).perform(scrollTo(), click());
 
             // assert
             onView(withId(R.id.chart_selected_value)).check(matches(withText("#9")));

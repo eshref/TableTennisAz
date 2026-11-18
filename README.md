@@ -31,7 +31,8 @@ correct individual profile. A grouped summary separates current pair points and
 published position from the ranking update time. Medal tiles show the pair's own
 counts; an em dash means unknown, while zero remains a known count. The inline
 Xal/Mövqe chart retains actual timestamp spacing and exposes dated, selectable
-observations. Its mode survives refresh and Activity recreation. Pair matches
+observations, with dates and values in separate wrapping columns. Its mode
+survives refresh and Activity recreation. Pair matches
 use the shared Results cards, including saved duels and paginated older results.
 
 The website supplies pair membership through individual metadata requests. The
@@ -92,7 +93,8 @@ observation labels. Supplied dates and source order are retained; missing years
 are never invented. Historical points are shown to two decimal places to remove
 observed binary floating-point noise. A missing series has a no-history state. The dedicated screen uses compact
 Back/Refresh controls, a labeled chart, and individually accessible observation
-rows. Select a row to highlight its source point and inspect its date and value;
+rows with separate date and points columns. Select a row to highlight its source
+point and inspect its date and value;
 this makes no request and keeps the successful-update time. Selection and the
 reading position survive recreation. A single observation is explicitly
 identified without claiming a change.
@@ -122,6 +124,7 @@ Results combines event matches and duels, with All results / Tournament matches 
 Duels selections and an event chooser. Cup and league events are both included.
 An event can be selected even if it was absent from the initial general batch.
 
+Date headings group consecutive cards on the same calendar day.
 Match cards separate each side's full names and final score from the source date,
 match type, and event. Doubles names wrap, and the higher-scoring side's names
 receive bold emphasis. Tap a card to open the existing match detail; Back retains
@@ -178,12 +181,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n az.tabletennis/.RankingsActivity
 ```
 
-The doubles-ranking test APK is version **0.3.0**, version code **3**, at
+The debug APK is version **0.3.0**, version code **3**, at
 `app/build/outputs/apk/debug/app-debug.apk`. Transfer it to your phone, open it,
 and allow installation from the browser/file manager if Android asks. Existing
 saved data can be retained with an update signed by the same debug key. If an
 older installation uses a different signing key, uninstalling it removes its
 saved data before installing this APK.
+
+The [issue #32 delivery record](docs/verification/issue32/README.md) contains the
+local phone-review APK path, native comparison evidence and verification limits.
 
 Try searching a player, opening their profile and chart, then following a match
 and its participants. In Results, try the three result types, choose an event,
@@ -218,12 +224,23 @@ a real local HTTP fixture server, production parsing, and private-file storage.
 Assertions inspect UI outputs and external HTTP requests. Coverage includes
 identity/navigation, source dates and chart labels, mixed-source paging,
 selection isolation, delayed responses, freshness boundaries, and offline reuse.
-The rankings workflow runs on API 26 and API 36; the additional workflows run on
-API 26. Host-side simulation does not replace APK installation on a device.
+Host coverage includes API 26 and API 36. The rankings and drawer workflows and
+several screen layout suites run on both. The verification report records
+separate installed API 36 results.
 
-The opt-in installed-app journey exercises production HTTPS requests to the
-amateur ranking, a profile/chart, mixed Results, a match, and a participant's
-profile. It asserts visible data without fixed live names, counts, or scores:
+The opt-in installed journeys exercise production HTTPS requests for the amateur
+and doubles rankings, profiles, singles history, Results and match details.
+They assert visible data using the current source records.
+
+```sh
+scripts/android-verify --live
+```
+
+This managed Linux command uses a disposable API 36 emulator and installed
+preflight, then runs the existing live rankings, complete experience and doubles
+journeys within the documented full-phase budget. It requires website access
+from Android. The tests prepare fresh app data. For an already connected
+disposable emulator, the existing Gradle route remains available:
 
 ```sh
 ./gradlew :app:connectedDebugAndroidTest \

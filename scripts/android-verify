@@ -9,12 +9,14 @@ export ANDROID_VERIFY_MATRIX_SECONDS="$(sed -n 's/^matrixSeconds=//p' "$limits_f
 [[ "$ANDROID_VERIFY_PREFLIGHT_SECONDS" =~ ^[1-9][0-9]*$ && "$ANDROID_VERIFY_MATRIX_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo 'Invalid verification phase budgets.' >&2; exit 2; }
 if [[ " ${*} " == *" --help "* ]]; then
   cat <<HELP
-Usage: scripts/android-verify [--preflight-only] [--software] [--retain-device]
+Usage: scripts/android-verify [--preflight-only | --live] [--software] [--retain-device]
                               [--tests fully.qualified.Test]
 
 Linux x86_64. Provisions pinned Android tools and uses JDK 21. Default: installed
 MatchDeviceTest in light, dark/offline, narrow/150% text and landscape/150% text.
 Preflight always checks installed singles/doubles scores, focus and screenshots.
+--live runs the existing live rankings, complete experience and doubles journeys
+after preflight, instead of the saved-fixture matrix. Website access is required.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one
 recovery. Full device checks have a separate $((ANDROID_VERIFY_MATRIX_SECONDS / 60))-minute budget.
 

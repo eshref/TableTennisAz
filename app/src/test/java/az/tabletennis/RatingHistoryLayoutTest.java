@@ -52,6 +52,9 @@ public class RatingHistoryLayoutTest extends ProductUiScenario {
         assertThat(visibleText()).contains("Əbdürrəhman Məmmədəmin Azərbaycanlı Həsənov", "435.55", "433.65", "31.12", "01.01", "Müşahidələr");
         assertThat(activity().findViewById(R.id.chart).getContentDescription().toString())
                 .isEqualTo("31.12 — 435.55 xal; 01.01 — 433.65 xal");
+        TextView selectedDate = activity().findViewById(R.id.chart_selected_date);
+        TextView selectedValue = activity().findViewById(R.id.chart_selected_value);
+        assertThat(selectedDate.getRight()).isLessThanOrEqualTo(selectedValue.getLeft());
         assertReadable((ViewGroup) activity().getWindow().getDecorView());
         View refresh = activity().findViewById(R.id.refresh);
         assertThat(refresh.getContentDescription().toString()).isEqualTo("Yenilə");
@@ -70,6 +73,11 @@ public class RatingHistoryLayoutTest extends ProductUiScenario {
         assertThat(visible.height()).isEqualTo(observation.getHeight());
         assertThat(observation.getHeight()).isGreaterThanOrEqualTo(Presentation.dp(activity(), 48));
         assertThat(observation.isSelected()).isTrue();
+        TextView date = (TextView) findText(observation, "31.12");
+        TextView value = (TextView) findText(observation, "435.55 xal");
+        assertThat(date).as("observation date column").isNotNull();
+        assertThat(value).as("observation points column").isNotNull();
+        assertThat(date.getRight()).isLessThanOrEqualTo(value.getLeft());
         int scroll = ((ScrollView) activity().findViewById(R.id.main_scroll)).getScrollY();
 
         // act
