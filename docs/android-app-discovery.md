@@ -239,8 +239,6 @@ an empty list. These observations do not establish archive-wide completeness.
 Decisions through Q13 are recorded above and were confirmed together at Q14.
 The subsequent implement request authorizes application coding and a local
 commit on the requested task branch. Tracker publication has not been requested.
-Implementation and verification are recorded in
-[the doubles verification notes](android-verification.md#doubles-ranking--version-030).
 
 ## Remaining engineering work and external uncertainties
 

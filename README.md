@@ -329,16 +329,6 @@ also offers the full four-configuration matrix through **Run workflow**.
 [Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
 [Journey selection and evidence](docs/agents/android-verification.md)
 
-For local troubleshooting, run installed preflight on Linux:
-
-```sh
-scripts/android-verify --preflight-only
-```
-
-It prepares pinned tools, verifies the installed match screens, and prints the
-evidence location. The guide covers phase limits and running a journey locally.
-[Local troubleshooting](docs/agents/android-verification.md#local-troubleshooting)
-
 Run the host checks independently:
 
 ```sh
@@ -354,92 +344,7 @@ Host coverage includes API 26 and API 36. The rankings and drawer workflows and
 several screen layout suites run on both. The verification report records
 separate installed API 36 results.
 
-The opt-in installed journeys exercise production HTTPS requests for the amateur
-and doubles rankings, profiles, singles history, Results and match details.
-They assert visible data using the current source records.
-
-```sh
-scripts/android-verify --live
-```
-
-This managed Linux command uses a disposable API 36 emulator and installed
-preflight, then runs the existing live rankings, complete experience and doubles
-journeys within the documented full-phase budget. It requires website access
-from Android. The tests prepare fresh app data. For an already connected
-disposable emulator, the existing Gradle route remains available:
-
-```sh
-./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveExperienceTest
-```
-
-This needs a connected emulator/device and website connectivity. The GitHub
-workflow keeps it opt-in using the `live_site` input. Automatic CI runs the
-fixture suite, lint and APK build, and publishes the APK and reports.
-The separate `az.tabletennis.LiveDoublesTest` connected-test class checks the live
-doubles ranking and opens a pair profile, comparing its names, points and
-position with the selected row and checking medal metadata and pair results. Its first load can take
-several minutes; run it with the same instrumentation argument shown above.
-See [verification notes](docs/android-verification.md) for actual checks and
-compatibility limits.
-
-`az.tabletennis.ProfileDeviceTest` is the separate installed, saved-fixture
-profile journey. After installing the app and test APKs, run:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.ProfileDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-It follows a searched player through the dedicated chart, a match, a participant
-profile, and Android Back, then checks retained search after recreation. Captures
-are written to the app's external-files `issue28` directory. Optional arguments
-`-e playerName '<long name>'` and `-e fallback true` prepare layout/fallback
-scenarios. For names containing spaces, quote the whole remote `am instrument`
-command as well as the name so ADB preserves it as one argument.
-`-e reuseSaved true` keeps previously prepared files for a separate
-process restart with network disabled. Set system appearance, display size, and
-font scale externally before each run; these are verification controls.
-
-The saved-fixture doubles profile journey uses the approved reference pair's
-portraits, linked partners, inline chart modes, match navigation and Back context:
-
-```sh
-scripts/android-verify --tests az.tabletennis.DoublesProfileDeviceTest
-```
-
-It captures the profile, both history modes, match cards and long-name fallbacks
-in the app's external-files `issue31` directory. The verifier supplies the theme,
-viewport, text-scale and offline-restart matrix. Installed readiness must pass
-first; see [the issue #31 verification record](docs/verification/issue31/README.md)
-for the actual result and remaining device checks.
-
-`az.tabletennis.RatingHistoryDeviceTest` is the installed saved-fixture chart
-journey. It opens the selected player's dedicated history, inspects an
-observation, and returns with Android Back to the correct profile:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.RatingHistoryDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-Native screenshots are saved in the app's external-files `issue29` directory.
-Use `-e reuseSaved true` after a separate offline process restart; the optional
-`playerName` argument prepares a long-name scenario. Set theme, font scale,
-display size and rotation externally, as for `ProfileDeviceTest`.
-
-
-`az.tabletennis.MatchDeviceTest` checks the installed saved-fixture singles and
-doubles scoreboards, every participant link, Android Back, and recreation:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.MatchDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-It saves native screenshots under the app's external-files `issue30` directory.
-Run in both system appearances, with larger text, narrow display and landscape;
-use `-e reuseSaved true` for a separate offline restart. The fixture contains
-one cached participant portrait and independent silhouette fallbacks. Production
-HTTP, ambiguous image attribution and photo-failure coverage remain in the host
-match journeys. See the verification notes for completed checks and limitations.
+To verify the live website, choose **Run workflow** in Android Actions and
+enable `live_site`. The opt-in installed journeys exercise production HTTPS
+requests for rankings, profiles, singles history, Results, and match details.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
