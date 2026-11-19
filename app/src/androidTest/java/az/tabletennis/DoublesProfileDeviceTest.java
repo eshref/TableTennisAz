@@ -26,10 +26,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
-import android.view.PixelCopy;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -43,8 +40,6 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.hamcrest.Matcher;
 import org.junit.Test;
@@ -319,38 +314,10 @@ public class DoublesProfileDeviceTest {
     }
 
     private void capture(String name) throws Exception {
-        CompletableFuture<Bitmap> copied = new CompletableFuture<>();
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            for (Activity activity : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)) {
-                View root = activity.getWindow().getDecorView();
-                Bitmap frame = Bitmap.createBitmap(root.getWidth(), root.getHeight(), Bitmap.Config.ARGB_8888);
-                Runnable copy = () -> PixelCopy.request(activity.getWindow(), frame, status -> {
-                    if (status == PixelCopy.SUCCESS) copied.complete(frame);
-                    else {
-                        frame.recycle();
-                        copied.completeExceptionally(new IllegalStateException("Android screenshot copy failed: " + status));
-                    }
-                }, new Handler(Looper.getMainLooper()));
-                // A committed frame is ready for PixelCopy before it necessarily reaches the display.
-                if (android.os.Build.VERSION.SDK_INT >= 29 && root.isHardwareAccelerated())
-                    root.getViewTreeObserver().registerFrameCommitCallback(copy);
-                else root.postOnAnimation(copy);
-                root.invalidate();
-                return;
-            }
-            throw new IllegalStateException("No resumed activity to capture");
-        });
-        Bitmap screenshot = copied.get(30, TimeUnit.SECONDS);
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         File directory = new File(context.getExternalFilesDir(null), "issue31");
-        try {
-            if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
-            String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-            File png = new File(directory, prefix + "-" + name + ".png");
-            try (var output = new FileOutputStream(png)) {
-                if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
-            }
-            ScreenshotCheckpoint.exportIfRequired(png);
-        } finally { screenshot.recycle(); }
+        if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
+        String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
+        ScreenshotCheckpoint.captureWindow(new File(directory, prefix + "-" + name + ".png"));
     }
 }

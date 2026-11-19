@@ -20,6 +20,11 @@ class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
+    private static final String UPGRADE_TEST = "az.tabletennis.SavedHistoryUpgradeDeviceTest";
+    private static final String APPLICATION_ID = "az.tabletennis";
+    private static final String UPGRADE_BEFORE = "upgrade-before", UPGRADE_AFTER = "upgrade-after";
+    private static final Pattern APK_PACKAGE = Pattern.compile("(?m)^package: name='([^']+)' versionCode='([0-9]+)' versionName='([^']+)'");
+    private static final Pattern APK_SIGNER = Pattern.compile("(?m)^Signer #\\d+ certificate SHA-256 digest: ([0-9a-f]{64})$");
     private static final List<String> DOUBLES_HISTORY_CAPTURES = List.of("rank", "points");
     private static final Map<String, List<String>> FIXTURE_CAPTURES = Map.of(
             "az.tabletennis.MatchDeviceTest", List.of("501", "502"),
@@ -40,6 +45,8 @@ class AndroidVerify {
     private final String variant;
     private Path releaseCandidate;
     private String expectedReleaseSha256;
+    private Path previousRelease;
+    private String previousReleaseTag;
     private Path build;
     private Process emulator;
     private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly, focused, failAfterHistoryCheckpoint;
@@ -123,6 +130,12 @@ class AndroidVerify {
                 releaseCandidate = Path.of(args[++i]);
                 expectedReleaseSha256 = args[++i];
             }
+            case "--upgrade-from" -> {
+                if (args.length - i < 3)
+                    throw new IllegalArgumentException("--upgrade-from requires the previous official APK path and release tag");
+                previousRelease = Path.of(args[++i]);
+                previousReleaseTag = args[++i];
+            }
             default -> throw new IllegalArgumentException("Unknown argument: " + args[i]);
         }
         if (!tests.matches("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)+"))
@@ -131,9 +144,15 @@ class AndroidVerify {
             throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
         if (requireKvm && software)
             throw new IllegalArgumentException("Use --require-kvm or --software");
+        if (previousRelease != null) {
+            if (releaseCandidate == null || !requireKvm || focused || live || preflightOnly || selectedTests
+                    || failAfterHistoryCheckpoint || !previousReleaseTag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+"))
+                throw new IllegalArgumentException("--upgrade-from requires --require-kvm, a signed --release-candidate and an official release tag; it selects its own journey");
+            tests = UPGRADE_TEST;
+        }
         if (focused && (preflightOnly || live || !FIXTURE_CAPTURES.containsKey(tests)))
             throw new IllegalArgumentException("--focused requires a supported saved-fixture journey after preflight");
-        if (releaseCandidate != null && (preflightOnly || live || !FIXTURE_CAPTURES.containsKey(tests)
+        if (releaseCandidate != null && (preflightOnly || live || (previousRelease == null && !FIXTURE_CAPTURES.containsKey(tests))
                 || !expectedReleaseSha256.matches("[0-9a-f]{64}")))
             throw new IllegalArgumentException("--release-candidate requires a supported saved-fixture journey and a lowercase SHA-256");
         if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
@@ -161,7 +180,16 @@ class AndroidVerify {
         result.setProperty("tests", live ? String.join(",", LIVE_TESTS) : tests);
         result.setProperty("preflight", "not-run");
         initializeConfiguration("preflight");
-        if (focused) {
+        if (previousRelease != null) {
+            result.setProperty("upgrade", "not-run");
+            result.setProperty("previous.tag", previousReleaseTag);
+            for (String prefix : List.of(UPGRADE_BEFORE, UPGRADE_AFTER)) {
+                initializeConfiguration(prefix);
+                result.setProperty(prefix + ".install", "not-run");
+                result.setProperty(prefix + ".expectedScreenshots", String.join(",", requiredScreenshots(prefix, tests)));
+            }
+            result.setProperty(UPGRADE_AFTER + ".offline", "not-run");
+        } else if (focused) {
             result.setProperty("focused", "not-run");
             initializeConfiguration("light");
             result.setProperty("light.checkpoints", "not-run");
@@ -191,6 +219,12 @@ class AndroidVerify {
             require(actual.equals(expectedReleaseSha256), "Signed release candidate SHA-256 mismatch");
             note("Verified signed release candidate SHA-256: " + actual);
         }
+        Path previousApk = null;
+        if (previousRelease != null) {
+            phase = "previous-apk-checksum";
+            previousApk = Files.copy(previousRelease, evidence.resolve("previous-official.apk"));
+            result.setProperty("previous.sha256", digest(previousApk));
+        }
         if (requireKvm && software) {
             phase = "acceleration";
             throw new IOException("KVM is required; /dev/kvm must be readable and writable");
@@ -212,6 +246,10 @@ class AndroidVerify {
         }
         phase = "build";
         prepareApks();
+        if (previousApk != null) {
+            verifyUpgrade(previousApk);
+            return;
+        }
         phase = "preflight";
         result.setProperty("preflight", "running");
         note("Preflight started");
@@ -504,20 +542,7 @@ class AndroidVerify {
     }
 
     private void preflight() throws Exception {
-        waitBoot();
-        dismissSystemAnr();
-        // Android can report boot completion while the settings service still contends with startup work.
-        shell("animations", software ? 180 : 60, true, "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0; settings put system screen_off_timeout 1800000");
-        if (software) {
-            // Software input injection can hold Espresso's ordinary tap for seconds. Keep it
-            // below the disposable guest's long-press threshold, including tooltip buttons.
-            shell("software-touch", 60, true, "settings put secure long_press_timeout 10000");
-            require(shell("software-touch-verified", 60, true, "settings get secure long_press_timeout").strip().equals("10000"),
-                    "Software long-press threshold was not applied");
-            result.setProperty("softwareLongPressMillis", "10000");
-        }
-        shell("wake", 60, true, "input keyevent 224; wm dismiss-keyguard");
-        appearance("light", "412x891", "1.0");
+        prepareDeviceDisplay();
         note("Installing app and instrumentation APKs");
         // Software first-boot work can keep installation busy beyond three minutes.
         // command() also clamps each install to the remaining total phase budget.
@@ -538,6 +563,85 @@ class AndroidVerify {
             require((id == 501 ? "2" : "3").equals(proof.getProperty("rightScore")), "Installed right score mismatch");
             require(!proof.getProperty("updated", "").isBlank(), "Installed update label missing");
         }
+    }
+
+    private void prepareDeviceDisplay() throws Exception {
+        waitBoot();
+        dismissSystemAnr();
+        // Android can report boot completion while the settings service still contends with startup work.
+        shell("animations", software ? 180 : 60, true, "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0; settings put system screen_off_timeout 1800000");
+        if (software) {
+            // Software input injection can hold Espresso's ordinary tap for seconds. Keep it
+            // below the disposable guest's long-press threshold, including tooltip buttons.
+            shell("software-touch", 60, true, "settings put secure long_press_timeout 10000");
+            require(shell("software-touch-verified", 60, true, "settings get secure long_press_timeout").strip().equals("10000"),
+                    "Software long-press threshold was not applied");
+            result.setProperty("softwareLongPressMillis", "10000");
+        }
+        shell("wake", 60, true, "input keyevent 224; wm dismiss-keyguard");
+        appearance("light", "412x891", "1.0");
+    }
+
+    private void verifyUpgrade(Path previousApk) throws Exception {
+        phase = "upgrade-apk-identities";
+        result.setProperty("upgrade", "running");
+        ApkIdentity previous = readApkIdentity("previous", previousApk);
+        ApkIdentity candidate = readApkIdentity("apk", appApk);
+        require(previousReleaseTag.equals("v" + previous.versionName()), "Previous APK version does not match its official release tag");
+        require(candidate.versionCode() >= previous.versionCode(), "Candidate APK version code is below the previous official APK");
+        require(candidate.signers().equals(previous.signers()), "Candidate signing identity differs from the official APK");
+
+        phase = "upgrade-device";
+        startDevice();
+        prepareDeviceDisplay();
+        beginFullPhase(UPGRADE_BEFORE);
+        note("Installing the official APK from " + previousReleaseTag);
+        installUpgradeApk(UPGRADE_BEFORE, previousApk, result.getProperty("previous.sha256"), false);
+        adb("install-tests", 180, true, "install", "--no-streaming", "-t", testApk.toString());
+        disconnect();
+        instrument(UPGRADE_BEFORE, UPGRADE_TEST, false, false, 412, 891);
+
+        phase = UPGRADE_AFTER;
+        note("Updating the installed app in place to the verified signed candidate");
+        installUpgradeApk(UPGRADE_AFTER, appApk, expectedReleaseSha256, true);
+        disconnect();
+        result.setProperty(UPGRADE_AFTER + ".offline", "confirmed");
+        instrument(UPGRADE_AFTER, UPGRADE_TEST, false, true, 412, 891);
+        result.setProperty("upgrade", "passed");
+        note("The official and updated APKs showed the same saved rating and ranking observations");
+    }
+
+    private record ApkIdentity(String versionName, long versionCode, Set<String> signers) {}
+
+    private ApkIdentity readApkIdentity(String prefix, Path apk) throws Exception {
+        Path buildTools = sdk.resolve(tools.getProperty("build-tools.destination"));
+        String badging = command(prefix + "-badging", 30, true, buildTools.resolve("aapt").toString(), "dump", "badging", apk.toString());
+        var pkg = APK_PACKAGE.matcher(badging);
+        require(pkg.find(), "Missing package identity for " + apk.getFileName());
+        result.setProperty(prefix + ".applicationId", pkg.group(1));
+        result.setProperty(prefix + ".versionCode", pkg.group(2));
+        result.setProperty(prefix + ".versionName", pkg.group(3));
+        require(pkg.group(1).equals(APPLICATION_ID), "Unexpected application ID in " + apk.getFileName());
+        String signatures = command(prefix + "-signature", 60, true, buildTools.resolve("apksigner").toString(), "verify", "--print-certs", apk.toString());
+        Set<String> signers = new TreeSet<>();
+        APK_SIGNER.matcher(signatures).results().forEach(signer -> signers.add(signer.group(1)));
+        require(!signers.isEmpty(), "No verified signer for " + apk.getFileName());
+        result.setProperty(prefix + ".signerSha256", String.join(",", signers));
+        return new ApkIdentity(pkg.group(3), Long.parseLong(pkg.group(2)), signers);
+    }
+
+    private void installUpgradeApk(String prefix, Path apk, String expectedChecksum, boolean replace) throws Exception {
+        result.setProperty(prefix + ".install", "running");
+        List<String> args = new ArrayList<>(List.of("install", "--no-streaming"));
+        if (replace) args.add("-r");
+        args.add(apk.toString());
+        adb(prefix + "-install", 180, true, args.toArray(String[]::new));
+        String path = shell(prefix + "-package-path", 30, true, "pm path --user 0 " + APPLICATION_ID).strip();
+        require(path.matches("package:/data/app/[A-Za-z0-9_./~+=-]+/base\\.apk"), "Unexpected installed APK path: " + path);
+        String installed = shell(prefix + "-installed-checksum", 30, true, "su 0 sha256sum " + path.substring("package:".length())).split("\\s+", 2)[0];
+        result.setProperty(prefix + ".installedSha256", installed);
+        require(installed.equals(expectedChecksum), "Installed APK SHA-256 mismatch after " + prefix);
+        result.setProperty(prefix + ".install", "passed");
     }
 
     private void appearance(String theme, String size, String font) throws Exception {
@@ -562,7 +666,7 @@ class AndroidVerify {
             for (Path png : paths.filter(p -> p.getFileName().toString().startsWith(prefix + "-") && p.toString().endsWith(".png")).toList()) {
                 validateScreenshot(png, width, height);
                 validated.put(png.getFileName().toString(), png);
-                if (releaseCandidate != null && MATRIX_CONFIGURATIONS.contains(prefix))
+                if (releaseCandidate != null && !prefix.equals("preflight"))
                     result.setProperty(prefix + ".screenshotSha256." + png.getFileName(), digest(png));
                 result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
             }
@@ -586,7 +690,9 @@ class AndroidVerify {
 
     private List<String> requiredScreenshots(String prefix, String classes) {
         List<String> captures;
-        if (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null))
+        if (classes.equals(UPGRADE_TEST))
+            captures = List.of("rating", "ranking");
+        else if (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null))
             captures = FIXTURE_CAPTURES.get(classes);
         else
             captures = classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();

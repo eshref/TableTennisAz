@@ -24,7 +24,9 @@ NOTES = ('- Released change.\n\n### Results\n\nRead the latest results.\n\n'
 def resolve(template, variables):
     def value(match):
         choices = match[1].split(' || ')
-        return next((variables[name] for name in choices[:-1] if variables.get(name)), variables[choices[-1]])
+        last = choices[-1]
+        default = variables.get(last, '') if last.startswith('steps.') and '.outputs.' in last else variables[last]
+        return next((variables[name] for name in choices[:-1] if variables.get(name)), default)
 
     return re.sub(r'\$\{\{\s*([^}]+?)\s*\}\}', value, template)
 
@@ -353,6 +355,7 @@ esac
         with slot, tempfile.TemporaryDirectory(dir=self.scratch.name) as runner:
             artifacts = Path(runner) / 'artifacts'
             completed = {}
+            verification_failure = None
             conditions = {'inputs.verify_only': verify_only, 'inputs.verify_only == false': not verify_only,
                           'always() && inputs.verify_only': verify_only}
             for job_id, job in self.workflow['jobs'].items():
@@ -369,17 +372,18 @@ esac
                 for index, row in enumerate(rows):
                     job_vars = variables | {f'matrix.{name}': value for name, value in row.items()}
                     result = self.run_job(job, job_vars, Path(runner) / f'{job_id}-{index}', source, env, artifacts)
-                    if result.returncode and job_id not in ('verify-signed', 'fixture-summary'):
-                        return result
                     completed.setdefault(job_id, 'success')
                     if result.returncode:
+                        if job_id not in ('verify-signed', 'fixture-summary', 'verify-upgrade'):
+                            return result
+                        verification_failure = verification_failure or result
                         completed[job_id] = 'failure'
                     for name, value in job.get('outputs', {}).items():
                         variables[f'needs.{job_id}.outputs.{name}'] = resolve(value, job_vars)
                 variables[f'needs.{job_id}.result'] = completed[job_id]
             if evidence is not None:
                 shutil.copytree(artifacts, evidence)
-        return result
+        return verification_failure or result
 
     def run_job(self, job, variables, job_dir, source, env, artifacts):
         job_dir.mkdir()
@@ -450,12 +454,26 @@ esac
         verifier = self.source / 'scripts/android-verify'
         verifier.write_text('''#!/usr/bin/env bash
 set -euo pipefail
-[[ "$*" == '--require-kvm --device-only --tests az.tabletennis.'*' --release-candidate '* ]]
 [[ -z "${ANDROID_RELEASE_KEYSTORE_BASE64:-}" ]]
-actual=$(sha256sum "$6")
-[[ "${actual%% *}" == "$7" ]]
 run="$ANDROID_VERIFY_OUTPUT/run-fixture"
 mkdir -p "$run"
+if [[ "$1 $2" == '--require-kvm --release-candidate' ]]; then
+  [[ "$5 $7" == '--upgrade-from v0.4.0' ]]
+  actual=$(sha256sum "$3")
+  [[ "${actual%% *}" == "$4" ]]
+  cp "$3" "$run/app-release.apk"
+  cp "$6" "$run/previous-official.apk"
+  previous=$(sha256sum "$6")
+  printf 'apk.sha256=%s\\nsource.commit=%s\\nprevious.tag=%s\\nprevious.sha256=%s\\n' \\
+    "$4" "$GITHUB_SHA" "$7" "${previous%% *}" > "$run/result.properties"
+  printf 'upgrade-before.instrumentation=passed\\n' >> "$run/result.properties"
+  if [[ "$FIXTURE_FAILURE" == upgrade-incomplete ]]; then exit 0; fi
+  printf 'upgrade-after.instrumentation=passed\\nstatus=passed\\nupgrade=passed\\n' >> "$run/result.properties"
+  exit 0
+fi
+[[ "$*" == '--require-kvm --device-only --tests az.tabletennis.'*' --release-candidate '* ]]
+actual=$(sha256sum "$6")
+[[ "${actual%% *}" == "$7" ]]
 cp "$6" "$run/app-release.apk"
 printf 'apk.sha256=%s\\nsource.commit=%s\\napi=36\\ntests=%s\\napk.variant=release\\n' "$7" "$GITHUB_SHA" "$4" > "$run/result.properties"
 printf 'testApk.sha256=%064d\\npreflight=passed\\n' 1 >> "$run/result.properties"
@@ -485,12 +503,21 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
 ''')
         verifier.chmod(0o755)
 
-    def test_verify_only_covers_the_full_matrix_without_changing_the_existing_release(self):
+    def given_official_apk(self, released_commit):
+        official_apk = self.apk(variant='official')
+        contents = official_apk.read_bytes()
+        asset = {'id': 1, 'name': 'TableTennisAz-0.4.0.apk', 'state': 'uploaded', 'size': len(contents),
+                 'digest': 'sha256:' + hashlib.sha256(contents).hexdigest()}
+        release = {'id': 1, 'tag_name': 'v0.4.0', 'draft': False, 'prerelease': False, 'assets': [asset]}
+        self.github.tags['tags/v0.4.0'] = released_commit
+        self.github.releases[1] = dict(release)
+        self.github.downloads[1] = contents
+        return release, official_apk
+
+    def test_verify_only_covers_the_full_matrix_and_upgrade_without_changing_the_existing_release(self):
         # arrange
         released_commit = self.commit()
-        self.github.tags['tags/v0.4.0'] = released_commit
-        released_version = {'id': 1, 'tag_name': 'v0.4.0', 'draft': False, 'prerelease': False, 'assets': []}
-        self.github.releases[1] = dict(released_version)
+        released_version, official_apk = self.given_official_apk(released_commit)
         sha = self.commit()
         apk = self.apk()
         self.install_fixture_verifier()
@@ -515,12 +542,20 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
             self.assertIn(f'tests=az.tabletennis.{class_prefix}DeviceTest', (run / 'result.properties').read_text())
             for configuration in ('light', 'dark-offline', 'narrow-large', 'landscape-large'):
                 self.assertTrue((bundle / 'screenshots' / journey / configuration / f'{configuration}-screen.png').is_file())
+        upgrade = evidence / 'android-signed-upgrade'
+        upgrade_run = upgrade / 'run-fixture'
+        self.assertEqual((upgrade_run / 'app-release.apk').read_bytes(), apk.read_bytes())
+        self.assertEqual((upgrade_run / 'previous-official.apk').read_bytes(), official_apk.read_bytes())
+        upgrade_summary = (upgrade / 'verification.md').read_text()
+        self.assertIn('upgrade=passed', upgrade_summary)
+        self.assertIn('upgrade-before.instrumentation=passed', upgrade_summary)
+        self.assertIn('upgrade-after.instrumentation=passed', upgrade_summary)
         self.assertEqual(self.api('/releases'), [released_version])
         self.assertEqual(self.api('/git/ref/tags/v0.4.0')['object']['sha'], released_commit)
 
     def test_incomplete_matrix_preserves_available_evidence(self):
         # arrange
-        self.commit()
+        released_version, _ = self.given_official_apk(self.commit())
         apk = self.apk()
         self.install_fixture_verifier()
         for failure, outcome in (('instrumentation', 'failed'), ('missing-png', 'missing'), ('corrupt-png', 'mismatch')):
@@ -539,7 +574,44 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
                 self.assertTrue((bundle / 'screenshots/results/light/light-screen.png').is_file())
                 self.assertFalse((bundle / 'screenshots/results/landscape-large/landscape-large-screen.png').exists())
                 self.assertTrue((bundle / 'screenshots/native-acceptance/landscape-large/landscape-large-screen.png').is_file())
-                self.assertEqual(self.api('/releases'), [])
+                self.assertEqual(self.api('/releases'), [released_version])
+
+    def test_incomplete_upgrade_fails_and_preserves_before_upgrade_evidence(self):
+        # arrange
+        released_version, _ = self.given_official_apk(self.commit())
+        apk = self.apk()
+        self.install_fixture_verifier()
+        evidence = Path(self.scratch.name) / 'evidence'
+
+        # act
+        result = self.run_workflow(apk, fixture_failure='upgrade-incomplete', evidence=evidence)
+
+        # assert
+        self.assertNotEqual(result.returncode, 0)
+        upgrade = evidence / 'android-signed-upgrade'
+        self.assertIn('installed=failure', (upgrade / 'job.properties').read_text())
+        self.assertIn('upgrade-before.instrumentation=passed', (upgrade / 'verification.md').read_text())
+        self.assertIn('24/24', (evidence / 'android-signed-fixture-matrix' / 'verification.md').read_text())
+        self.assertEqual(self.api('/releases'), [released_version])
+
+    def test_missing_official_apk_blocks_upgrade_and_preserves_summary(self):
+        # arrange
+        released_version, _ = self.given_official_apk(self.commit())
+        released_version['assets'].clear()
+        apk = self.apk()
+        self.install_fixture_verifier()
+        evidence = Path(self.scratch.name) / 'evidence'
+
+        # act
+        result = self.run_workflow(apk, evidence=evidence)
+
+        # assert
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Expected one uploaded TableTennisAz-0.4.0.apk', result.stderr)
+        upgrade = evidence / 'android-signed-upgrade'
+        self.assertIn('installed=skipped', (upgrade / 'job.properties').read_text())
+        self.assertIn('Official release `unavailable`', (upgrade / 'verification.md').read_text())
+        self.assertEqual(self.api('/releases'), [released_version])
 
     def test_publishes_and_preserves_a_completed_release(self):
         # arrange

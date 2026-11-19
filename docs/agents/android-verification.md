@@ -111,3 +111,24 @@ checkpoints, progress and test logs, and available failure diagnostics. These
 artifacts are retained for seven days, including available evidence from
 failed runs. Record the run URL, result, and screenshots when reviewing the
 candidate. Live website checks remain available on demand through **Android**.
+
+## Signed in-place upgrade
+
+The same **verify_only** dispatch runs **Verify in-place Android upgrade** in
+parallel with the fixture matrix. The job downloads the latest official APK
+from GitHub Releases and checks that it and the candidate have the same
+application ID and signing certificates. It installs the official APK first,
+prepares two dated doubles observations under that version, and opens the pair
+profile from the rankings. The test checks both names and the changes from
+800 to 858 points and from rank #9 to #2.
+
+On the same emulator, the job replaces the official APK in place with the
+checksum-verified candidate. It confirms there is no active network, restarts
+the app process, and checks the same UI observations again. Fixture preparation
+runs only for the official APK.
+
+Download `android-signed-upgrade` for `verification.md`, the two installed APKs,
+their versions and checksums, the phase outcomes in `result.properties`, and
+the before and after screenshots under `captures/`. A failed job retains the
+available evidence and diagnostics. Record the run URL, result, and screenshots
+when reviewing the upgrade. [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)

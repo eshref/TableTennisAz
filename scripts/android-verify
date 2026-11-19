@@ -11,10 +11,11 @@ if [[ " ${*} " == *" --help "* ]]; then
   cat <<HELP
 Usage: scripts/android-verify [--preflight-only | --live] [--software] [--retain-device]
                               [--tests fully.qualified.Test] [--require-kvm] [--device-only | --focused]
+                              [--release-candidate APK SHA256 [--upgrade-from OFFICIAL_APK TAG]]
 
 Linux x86_64. Provisions pinned Android tools and uses JDK 21. Default: installed
 MatchDeviceTest in light, dark/offline, narrow/150% text and landscape/150% text.
-Preflight always checks installed singles/doubles scores, focus and screenshots.
+Preflight checks installed singles/doubles scores, focus and screenshots.
 --live runs the existing live rankings, complete experience and doubles journeys
 after preflight, instead of the saved-fixture matrix. Website access is required.
 --require-kvm fails if hardware acceleration is unavailable.
@@ -23,6 +24,8 @@ after preflight, instead of the saved-fixture matrix. Website access is required
 preflight and requires its checkpoint screenshots. Host checks run separately.
 --release-candidate APK SHA256 verifies and installs an existing signed APK
 with release-compatible instrumentation for a saved-fixture matrix or --focused journey.
+--upgrade-from OFFICIAL_APK TAG starts with the previous official APK and checks
+saved history before and after an offline in-place update. Requires --require-kvm.
 --fail-after-history-checkpoint fails the doubles profile journey after the host
 validates both light history PNGs. Use it for the evidence-retention pilot.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one

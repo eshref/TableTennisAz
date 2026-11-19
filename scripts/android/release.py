@@ -212,9 +212,25 @@ def publish(github, candidate, tools, commit):
 
 def check_asset(asset, name, contents):
     digest = 'sha256:' + hashlib.sha256(contents).hexdigest()
-    if (asset['name'] != name or asset['state'] != 'uploaded' or asset['size'] != len(contents)
+    if (asset['name'] != name or asset['state'] != 'uploaded' or not contents or asset['size'] != len(contents)
             or (asset.get('digest') and asset['digest'] != digest)):
         raise ReleaseError(f'GitHub did not confirm the complete APK {name}.')
+
+
+def download_previous(github, output):
+    release = github.call('GET', '/releases/latest', missing_ok=True)
+    if release is None or release['draft'] or release['prerelease'] or not OFFICIAL_TAG.fullmatch(release['tag_name']):
+        raise ReleaseError('No previous official Android release is available for upgrade verification.')
+    tag = release['tag_name']
+    name = f'TableTennisAz-{tag[1:]}.apk'
+    assets = [asset for asset in release['assets'] if asset['name'] == name and asset['state'] == 'uploaded']
+    if len(assets) != 1:
+        raise ReleaseError(f'Expected one uploaded {name} in the official release {tag}.')
+    asset = assets[0]
+    contents = github.call('GET', f"/releases/assets/{asset['id']}", binary=True)
+    check_asset(asset, name, contents)
+    output.write_bytes(contents)
+    print(f'tag={tag}')
 
 
 def main():
@@ -223,6 +239,8 @@ def main():
     validate_command = actions.add_parser('validate')
     validate_command.add_argument('output', type=Path)
     validate_command.add_argument('--verify-only', action='store_true')
+    previous_command = actions.add_parser('download-previous')
+    previous_command.add_argument('output', type=Path)
     publish_command = actions.add_parser('publish')
     publish_command.add_argument('candidate', type=Path)
     publish_command.add_argument('tools', type=Path)
@@ -233,6 +251,8 @@ def main():
         if args.action == 'validate':
             metadata, _ = validate(github, args.output, commit, verify_only=args.verify_only)
             print(metadata, end='')
+        elif args.action == 'download-previous':
+            download_previous(github, args.output)
         else:
             publish(github, args.candidate, args.tools, commit)
     except (ReleaseError, OSError, KeyError, subprocess.CalledProcessError) as failure:

@@ -274,9 +274,10 @@ permissions. See [GitHub's release API permissions](https://docs.github.com/en/r
 
 After merging the release PR, open **Actions → Publish Android release → Run
 workflow** and select `main`. Leave **verify_only** enabled to run all six
-saved-fixture journeys in four configurations against the signed candidate.
-The summary and screenshot bundle identify the candidate by commit and SHA-256.
-[Signed release candidate matrix](docs/agents/android-verification.md#signed-release-candidate-matrix)
+saved-fixture journeys in four configurations and verify an offline in-place
+upgrade from the latest official APK. The verification reports identify the
+signed candidate by commit and SHA-256. [Signed fixture matrix](docs/agents/android-verification.md#signed-release-candidate-matrix) ·
+[In-place upgrade](docs/agents/android-verification.md#signed-in-place-upgrade)
 
 Disable **verify_only** when you intend to publish. The workflow checks the
 version and changelog, runs the Android host tests and lint, verifies the APK
