@@ -1,5 +1,8 @@
 <resources>
     <string name="drawer_footer">Oyunçular, qoşalar və matç nəticələri.</string>
+    <string name="privacy_policy">Məxfilik siyasəti</string>
+    <string name="privacy_policy_url" translatable="false">https://eshref.github.io/TableTennisAz/privacy-policy.html</string>
+    <string name="privacy_policy_browser_unavailable">Məxfilik siyasətini açmaq üçün brauzer lazımdır.</string>
     <string name="pair_points">Qoşa xalı</string>
     <string name="pair_published_position">Dərc olunmuş mövqe</string>
     <string name="medal_gold">Qızıl</string>

@@ -1,7 +1,9 @@
 package az.tabletennis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
 
+import android.content.Intent;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -10,6 +12,21 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = {26, 36}, qualifiers = "w411dp-h891dp", application = RankingsUiScenario.FixtureApplication.class)
 public class MainNavigationTest extends DoublesUiScenario {
+    @Test public void privacyPolicyOpensInBrowser() throws Exception {
+        // arrange
+        openScreen();
+        clickText("☰");
+
+        // act
+        clickText("Məxfilik siyasəti");
+
+        // assert
+        Intent browser = shadowOf(activity()).getNextStartedActivity();
+        assertThat(browser).isNotNull();
+        assertThat(browser.getAction()).isEqualTo(Intent.ACTION_VIEW);
+        assertThat(browser.getDataString()).isEqualTo("https://eshref.github.io/TableTennisAz/privacy-policy.html");
+    }
+
     @Test public void drawerRoundTripRetainsBothRankingModesAndTheResultsSelectionAcrossRecreation() throws Exception {
         // arrange
         prepareResults();
