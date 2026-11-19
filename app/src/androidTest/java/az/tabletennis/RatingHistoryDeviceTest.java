@@ -48,7 +48,7 @@ public class RatingHistoryDeviceTest {
             onView(withContentDescription("31.12 — 435.55 xal")).check(matches(isSelected()));
             onView(withId(R.id.chart_selected_date)).check(matches(withText("31.12")));
             onView(withId(R.id.chart_selected_value)).check(matches(withText("435.55 xal")));
-            capture("observations");
+            // Intentionally omit this required screenshot for the issue #57 validation.
 
             // act
             pressBack();
