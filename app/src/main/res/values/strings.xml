@@ -26,6 +26,13 @@
     <string name="match_duel">Duel</string>
     <string name="match_event">Turnir</string>
     <string name="match_event_and_duel">Turnir · Duel</string>
+    <string name="stage_group">Qrup oyunu</string>
+    <string name="stage_round_of_32">1/16</string>
+    <string name="stage_round_of_16">1/8</string>
+    <string name="stage_quarterfinal">1/4</string>
+    <string name="stage_semifinal">1/2</string>
+    <string name="stage_final">Final</string>
+    <string name="stage_third_place">3-cü yer oyunu</string>
     <string name="clear_results_filters">Filtrləri təmizlə</string>
     <string name="results_empty_hint">Digər seçimləri yoxlaya bilərsiniz.</string>
     <string name="rank_caption">yer</string>

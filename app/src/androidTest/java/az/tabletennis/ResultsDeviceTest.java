@@ -16,6 +16,9 @@ import static java.util.Arrays.asList;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Rect;
+import android.view.ViewGroup;
+import android.widget.TextView;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -29,7 +32,10 @@ import org.junit.runner.RunWith;
 public class ResultsDeviceTest {
     private static final String FIRST = "Əbdürrəhman Məmmədəmin Azərbaycanlı Həsənov";
     private static final String SECOND = "Məryəm Əbdülrəhim Azərbaycanlı İmanova";
-    private static final String CARD = "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · Bakı həvəskarlar kuboku · Tək · Turnir";
+    private static final String EVENT = "Bakı həvəskarlar kuboku 2026";
+    private static final String STAGE = "3-cü yer oyunu";
+    private static final String CARD = "16 Nov. 2026 · İlqar Həsənov — Şəms Quliyeva · 3-1 · "
+            + EVENT + " · Tək · Turnir · " + STAGE;
 
     @Test public void resultsCardsFiltersAndBackRetainTheSelectedFeed() throws Exception {
         // arrange
@@ -37,9 +43,32 @@ public class ResultsDeviceTest {
 
         // act
         try (ActivityScenario<ResultsActivity> scenario = ActivityScenario.launch(ResultsActivity.class)) {
+            onView(withId(R.id.match_stage_badge)).perform(scrollTo());
+
             // assert
             onView(withContentDescription(CARD)).check(matches(hasDescendant(withText("3"))));
             onView(withContentDescription(CARD)).check(matches(hasDescendant(withText("İlqar Həsənov"))));
+            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText("Tək · Turnir"))));
+            onView(withId(R.id.match_stage_badge)).check(matches(withText(STAGE)));
+            onView(withContentDescription(CARD)).check((view, missing) -> {
+                if (missing != null) throw missing;
+                ViewGroup card = (ViewGroup) view;
+                TextView event = card.findViewById(R.id.match_event_name);
+                TextView stage = card.findViewById(R.id.match_stage_badge);
+                Rect eventBounds = new Rect();
+                Rect stageBounds = new Rect();
+                event.getDrawingRect(eventBounds);
+                stage.getDrawingRect(stageBounds);
+                card.offsetDescendantRectToMyCoords(event, eventBounds);
+                card.offsetDescendantRectToMyCoords(stage, stageBounds);
+                boolean narrow = "narrow-large".equals(InstrumentationRegistry.getArguments().getString("capturePrefix"));
+                if (narrow && stageBounds.top < eventBounds.bottom) {
+                    throw new AssertionError("The stage should wrap below the tournament at 320×568 with 150% text");
+                }
+                if (!narrow && (stageBounds.left < eventBounds.right || stageBounds.top >= eventBounds.bottom)) {
+                    throw new AssertionError("The stage should sit beside the tournament when it fits");
+                }
+            });
             capture("results");
 
             // act
@@ -56,8 +85,8 @@ public class ResultsDeviceTest {
 
             // assert
             onView(withText("Turnirlər")).check(matches(isChecked()));
-            onView(withId(R.id.event_filter)).check(matches(withSpinnerText("Bakı həvəskarlar kuboku")));
-            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText("Bakı həvəskarlar kuboku"))));
+            onView(withId(R.id.event_filter)).check(matches(withSpinnerText(EVENT)));
+            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText(EVENT))));
 
             // act
             onView(withText("Hamısı")).perform(scrollTo(), click());
@@ -98,9 +127,9 @@ public class ResultsDeviceTest {
     private void givenSavedResults() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         long now = System.currentTimeMillis();
-        EventCatalog catalog = new EventCatalog(asList(new EventCatalog.Event(901, "Bakı həvəskarlar kuboku")));
+        EventCatalog catalog = new EventCatalog(asList(new EventCatalog.Event(901, EVENT)));
         MatchSummary singles = new MatchSummary(502, asList("İlqar Həsənov"), asList("Şəms Quliyeva"),
-                "16 Nov. 2026", "3-1", 901, "Bakı həvəskarlar kuboku", false);
+                "16 Nov. 2026", "3-1", 901, EVENT, false, false, TournamentStage.THIRD_PLACE);
         MatchSummary doubles = new MatchSummary(501, asList("İlqar Həsənov", FIRST), asList("Şəms Quliyeva", SECOND),
                 "15 Nov. 2026", "1-3", 0, "Duello", true);
         ResultsFeed all = new ResultsFeed(asList(singles, doubles), catalog, asList(), asList(), null);
@@ -112,7 +141,7 @@ public class ResultsDeviceTest {
         new SavedDataStore<>(context, "results-events-901", ResultsFeed.class).write(new SavedData<>(events, now));
         new SavedDataStore<>(context, "results-duels-0", ResultsFeed.class).write(new SavedData<>(empty, now));
         MatchDetails details = new MatchDetails(502, asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov")),
-                asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva")), "16 Nov. 2026", "", "3-1", "Bakı həvəskarlar kuboku");
+                asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva")), "16 Nov. 2026", "", "3-1", EVENT);
         new SavedDataStore<>(context, "match-502", MatchDetails.class).write(new SavedData<>(details, now));
         context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
     }

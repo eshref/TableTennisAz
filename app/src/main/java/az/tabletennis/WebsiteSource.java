@@ -114,8 +114,10 @@ final class WebsiteSource {
                 if (!old.date.equals(match.date) || !old.score.equals(match.score)
                         || !old.left.equals(match.left) || !old.right.equals(match.right)) throw new IOException("Conflicting match identity");
                 MatchSummary event = old.eventId != 0 ? old : match;
+                TournamentStage stage = event.stage;
+                if (stage == null && old.eventId == match.eventId) stage = match.stage;
                 matches.put(match.id, new MatchSummary(match.id, match.left, match.right, match.date, match.score,
-                        event.eventId, event.eventName, old.duel || match.duel));
+                        event.eventId, event.eventName, old.duel || match.duel, false, stage));
             }
         }
     }
@@ -347,9 +349,15 @@ final class WebsiteSource {
                     List<String> left = names(sides.get(0));
                     List<String> right = names(sides.get(1));
                     if (left.size() != right.size()) throw new IOException("Unbalanced result sides");
+                    Element stage = null;
+                    if (eventId != 0 && !duel) {
+                        stage = match.selectFirst(".match-box-stage");
+                        if (stage == null && team != null) stage = team.selectFirst(".team-match-main > .match-box-stage");
+                    }
                     results.add(new MatchSummary(sourceId(identity.group(1)), left, right,
                             date.text(), score.text().replaceAll("\\s", ""), eventId,
-                            eventName.isEmpty() && event != null ? event.text() : eventName, duel, teamChild));
+                            eventName.isEmpty() && event != null ? event.text() : eventName, duel, teamChild,
+                            stage == null ? null : TournamentStage.fromSource(stage.text())));
                 }
             }
             int count = box.select(".match-box, .team-matches-match").size();
