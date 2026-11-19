@@ -4,6 +4,7 @@
 
 - Results cards show the tournament stage beside the tournament name when
   the website publishes a recognized stage. Saved results keep their stages offline.
+- Open the TableTennisAz privacy policy from the app menu.
 
 ## 0.4.0 - 2026-11-18
 

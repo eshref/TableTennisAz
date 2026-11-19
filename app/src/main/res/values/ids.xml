@@ -36,6 +36,7 @@
     <item name="drawer" type="id" />
     <item name="destination_rankings" type="id" />
     <item name="destination_results" type="id" />
+    <item name="privacy_policy" type="id" />
     <item name="main_body" type="id" />
     <item name="main_scroll" type="id" />
     <item name="retry" type="id" />

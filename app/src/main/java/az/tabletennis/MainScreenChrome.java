@@ -1,12 +1,14 @@
 package az.tabletennis;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.graphics.drawable.StateListDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
@@ -16,6 +18,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /** Main destinations share a compact bar and a modal, accessible navigation drawer. */
 final class MainScreenChrome {
@@ -134,6 +137,7 @@ final class MainScreenChrome {
         destinationSize.bottomMargin = dp(6);
         panel.addView(destination(R.string.rankings_title, R.id.destination_rankings, true), destinationSize);
         panel.addView(destination(R.string.results_title, R.id.destination_results, false));
+        panel.addView(privacyPolicyLink());
         panel.addView(new View(activity), new LinearLayout.LayoutParams(1, 0, 1));
         TextView footer = Presentation.label(activity, activity.getString(R.string.drawer_footer), 12);
         footer.setTextColor(activity.getColor(R.color.secondary));
@@ -151,6 +155,26 @@ final class MainScreenChrome {
             activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
         }
+    }
+
+    private Button privacyPolicyLink() {
+        Button link = new Button(activity);
+        link.setId(R.id.privacy_policy);
+        link.setText(R.string.privacy_policy);
+        link.setTextSize(14);
+        link.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        link.setPadding(dp(16), dp(8), dp(16), dp(8));
+        Presentation.action(link);
+        link.setOnClickListener(view -> {
+            closeDrawer();
+            Uri policy = Uri.parse(activity.getString(R.string.privacy_policy_url));
+            try {
+                activity.startActivity(new Intent(Intent.ACTION_VIEW, policy));
+            } catch (ActivityNotFoundException unavailable) {
+                Toast.makeText(activity, R.string.privacy_policy_browser_unavailable, Toast.LENGTH_SHORT).show();
+            }
+        });
+        return link;
     }
 
     private RadioButton destination(int title, int id, boolean targetRankings) {
