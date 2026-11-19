@@ -16,6 +16,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.endsWith;
 
@@ -137,9 +138,15 @@ public class DoublesProfileDeviceTest {
 
             // act
             pressBack();
-            onView(withText(R.string.match_history)).perform(scrollTo());
-            onView(withText("Bakı həvəskarlar kuboku")).perform(scrollTo());
+            onView(withId(R.id.match_stage_badge)).perform(scrollTo());
+
+            // assert
+            onView(withId(R.id.match_stage_badge)).check(matches(allOf(withText(R.string.stage_third_place), isDisplayingAtLeast(100))));
+            onView(withContentDescription(endsWith("· Bakı həvəskarlar kuboku · Qoşalar · Turnir · 3-cü yer oyunu")))
+                    .check(matches(withId(R.id.match_card)));
             capture("matches");
+
+            // act
             onView(withText("Bakı həvəskarlar kuboku")).perform(scrollTo(), click());
 
             // assert
@@ -221,7 +228,7 @@ public class DoublesProfileDeviceTest {
                 new DoublesRanking.Row(pair, 2, 858), new DoublesRanking.Row(longNames, 4, 600))).observedAfter(middle, now);
         new SavedDataStore<>(context, "doubles-ranking", DoublesRanking.class).write(new SavedData<>(current, now));
         MatchSummary tournament = new MatchSummary(501, asList(FIRST, SECOND), asList("İlqar Həsənov", "Məryəm İmanova"),
-                "16 Nov. 2026", "3-2", 901, "Bakı həvəskarlar kuboku", false);
+                "16 Nov. 2026", "3-2", 901, "Bakı həvəskarlar kuboku", false, false, TournamentStage.THIRD_PLACE);
         MatchSummary duel = new MatchSummary(502, asList("İlqar Həsənov", "Məryəm İmanova"), asList(SECOND, FIRST),
                 "15 Nov. 2026", "2-3", 0, "Duello", true);
         new SavedDataStore<>(context, "duo-results-151", PairHistory.class).write(new SavedData<>(

@@ -29,7 +29,7 @@ final class MatchCard extends LinearLayout {
         setOnClickListener(view -> open.run());
         String kind = context.getString(match.left.size() == 2 ? R.string.match_doubles : R.string.match_singles);
         // Profile histories, including older snapshots, identify duels by the website's reserved event label.
-        boolean duel = match.duel || (match.eventId == 0 && "Duello".equalsIgnoreCase(match.eventName));
+        boolean duel = match.duel || (match.eventId == 0 && MatchSummary.isDuelEventName(match.eventName));
         String source = context.getString(match.eventId != 0 && duel ? R.string.match_event_and_duel
                 : duel ? R.string.match_duel : R.string.match_event);
         String type = kind + " · " + source;

@@ -3,7 +3,9 @@ package az.tabletennis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -159,10 +161,19 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         website.put("/matches/results/duo/110", pairHistory(pairResult(501, "15 Nov. 2026", "Kupa")
                 + pairResult(505, "16 Nov. 2026", "Duello"))
                 + "<ul class='pagination'><li><a href='/matches/results/duo/110?page=2'>2</a></li></ul>");
-        website.put("/matches/results/duo/110?page=2", pairHistory(pairResult(501, "15 Nov. 2026", "Kupa")
-                + pairResult(506, "14 Nov. 2026", "Liqa"))
+        website.put("/matches/results/duo/110?page=2", pairHistory(pairResult(501, "15 Nov. 2026", "")
+                + pairResult(506, "14 Nov. 2026", "Liqa") + pairResult(507, "13 Nov. 2026", "Arxiv"))
                 + "<ul class='pagination'><li class='disabled'><a href='/matches/results/duo/110?page=3'>Next</a></li></ul>");
+        publishStage("/matches/results/duo/110", 501, "Final");
+        publishStage("/matches/results/duo/110", 505, "Play-in");
+        publishStage("/matches/results/duo/110?page=2", 506, "1/4");
+        publishStage("/matches/results/duo/110?page=2", 507, "Unknown stage");
         website.put("/matches/501", html("doubles-detail.html").getBody().readUtf8());
+        String sidesAndScore = " · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · ";
+        String duel = "16 Nov. 2026" + sidesAndScore + "Duello · Qoşalar · Duel";
+        String cup = "15 Nov. 2026" + sidesAndScore + "Kupa · Qoşalar · Turnir";
+        String league = "14 Nov. 2026" + sidesAndScore + "Liqa · Qoşalar · Turnir · 1/4";
+        String archived = "13 Nov. 2026" + sidesAndScore + "Arxiv · Qoşalar · Turnir";
         openScreen();
 
         // assert
@@ -181,10 +192,10 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         followNavigation();
 
         // assert
-        awaitText("16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel");
-        assertThat(visibleText()).containsSubsequence(
-                "16 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel",
-                "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
+        awaitText(cup + " · Final");
+        assertThat(visibleText()).containsSubsequence(duel, cup + " · Final");
+        View duelCard = findText(activity().getWindow().getDecorView(), duel);
+        assertThat(duelCard.<View>findViewById(R.id.match_stage_badge)).isNull();
         String updated = ((android.widget.TextView) activity().findViewById(R.id.updated)).getText().toString();
 
         // arrange
@@ -194,13 +205,18 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
         clickText("Daha çox yüklə");
 
         // assert
-        awaitText("14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa · Qoşalar · Turnir");
+        awaitText(league);
+        View leagueCard = findText(activity().getWindow().getDecorView(), league);
+        TextView leagueBadge = leagueCard.findViewById(R.id.match_stage_badge);
+        assertThat(leagueBadge.getText().toString()).isEqualTo("1/4");
+        View archivedCard = findText(activity().getWindow().getDecorView(), archived);
+        assertThat(archivedCard.<View>findViewById(R.id.match_stage_badge)).isNull();
         assertThat(visibleText()).contains(updated, "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0")
                 .doesNotContain("Daha çox yüklə");
-        assertThat(visibleText().stream().filter(text -> text.endsWith("· Kupa · Qoşalar · Turnir"))).hasSize(1);
+        assertThat(visibleText().stream().filter(text -> text.startsWith(cup))).containsExactly(cup + " · Final");
 
         // act
-        clickText("15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir");
+        clickText(cup + " · Final");
         followNavigation();
 
         // assert
@@ -261,8 +277,7 @@ public class DoublesWorkflowTest extends DoublesUiScenario {
 
         // assert
         assertThat(visibleText()).contains(updated, "800 xal", "Reytinqdə yer: #1",
-                "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0",
-                "14 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Liqa · Qoşalar · Turnir");
+                "Qızıl medal: 2", "Gümüş medal: 1", "Bürünc medal: 0", league, cup + " · Final", "1/4", "Final");
         assertThat(activity().findViewById(R.id.refresh).isEnabled()).isFalse();
     }
 }

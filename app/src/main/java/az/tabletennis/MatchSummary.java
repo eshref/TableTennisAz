@@ -41,6 +41,8 @@ final class MatchSummary implements Serializable {
 
     static LocalDate sourceDay(String date) { return LocalDate.parse(date.replace(".", ""), SOURCE_DAY); }
 
+    static boolean isDuelEventName(String eventName) { return "Duello".equalsIgnoreCase(eventName); }
+
     String display() {
         return date + " · " + String.join(" / ", left) + " — " + String.join(" / ", right)
                 + " · " + score + " · " + eventName;
