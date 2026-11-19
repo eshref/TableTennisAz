@@ -1,5 +1,11 @@
 name: Publish Android release
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: Verify the signed APK without publishing a release
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,8 +21,13 @@ jobs:
   candidate:
     runs-on: ubuntu-latest
     environment: android-release
+    permissions:
+      # Draft release assets are visible only with push access.
+      contents: write
     outputs:
       version_name: ${{ steps.metadata.outputs.version_name }}
+      apk_sha256: ${{ steps.signed.outputs.apk_sha256 }}
+      fixture_matrix: ${{ steps.fixtures.outputs.matrix }}
     steps:
       - name: Check dispatch ref
         run: |
@@ -28,6 +39,9 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Plan saved-fixture journeys
+        id: fixtures
+        run: python3 scripts/android/release_matrix.py plan >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,14 +50,27 @@ jobs:
         id: metadata
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/android/validate-release-candidate "$RUNNER_TEMP/android-release" >> "$GITHUB_OUTPUT"
+          VERIFY_ONLY: ${{ inputs.verify_only }}
+        run: |
+          args=("$RUNNER_TEMP/android-release")
+          if [[ "$VERIFY_ONLY" == true ]]; then
+            args+=(--verify-only)
+          fi
+          scripts/android/validate-release-candidate "${args[@]}" >> "$GITHUB_OUTPUT"
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-36 build-tools;${{ env.ANDROID_BUILD_TOOLS_VERSION }}'
       - uses: gradle/actions/setup-gradle@v4
       - name: Run Android host checks
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug
+      - name: Recover the staged APK on a publication retry
+        if: inputs.verify_only == false
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+        run: python3 scripts/android/release.py reuse-candidate "$RUNNER_TEMP/android-release" "$RELEASE_VERSION_NAME"
       - name: Build and verify signed APK
+        id: signed
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
           ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
@@ -51,7 +78,13 @@ jobs:
           ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
           RELEASE_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
           RELEASE_VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
-        run: scripts/android/build-release-candidate "$RUNNER_TEMP/android-release" "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+        run: |
+          candidate="$RUNNER_TEMP/android-release"
+          apk="$candidate/TableTennisAz-$RELEASE_VERSION_NAME.apk"
+          tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          scripts/android/build-release-candidate "$candidate" "$tools"
+          digest=$(sha256sum "$apk")
+          printf 'apk_sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: TableTennisAz-${{ steps.metadata.outputs.version_name }}-candidate
@@ -59,8 +92,202 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  publish:
+  verify-signed:
+    name: Verify signed APK (${{ matrix.journey }})
     needs: candidate
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.candidate.outputs.fixture_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      JOURNEY: ${{ matrix.journey }}
+      CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
+      CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: TableTennisAz-${{ needs.candidate.outputs.version_name }}-candidate
+          path: ${{ runner.temp }}/android-release/
+      - name: Grant the runner access to KVM
+        id: kvm
+        run: |
+          if [[ -c /dev/kvm && ! -w /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm
+          fi
+      - name: Run installed preflight and saved-fixture matrix
+        id: installed
+        timeout-minutes: 110
+        env:
+          TEST_CLASS: az.tabletennis.${{ matrix.test }}
+        run: |
+          set -o pipefail
+          export ANDROID_VERIFY_OUTPUT="$RUNNER_TEMP/android-release-evidence"
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          scripts/android-verify --require-kvm --device-only --tests "$TEST_CLASS" \
+            --release-candidate "$RUNNER_TEMP/android-release/TableTennisAz-$CANDIDATE_VERSION.apk" "$CANDIDATE_SHA256" \
+            2>&1 | tee "$ANDROID_VERIFY_OUTPUT/progress.log"
+      - name: Summarize signed verification
+        if: always()
+        env:
+          VERIFICATION_OUTCOME: ${{ steps.installed.outcome }}
+        run: |
+          ANDROID_VERIFY_OUTPUT="$RUNNER_TEMP/android-release-evidence"
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          printf 'installed=%s\n' "$VERIFICATION_OUTCOME" > "$ANDROID_VERIFY_OUTPUT/job.properties"
+          {
+            printf '## Signed Android verification\n\n'
+            printf 'Commit `%s` · Candidate `TableTennisAz-%s.apk` · SHA-256 `%s`\n\n' "$GITHUB_SHA" "$CANDIDATE_VERSION" "$CANDIDATE_SHA256"
+            printf 'Android API 36 · Journey `%s` · Installed matrix **%s**\n\n' "$JOURNEY" "$VERIFICATION_OUTCOME"
+            printf 'Download `android-signed-api36-%s` from this run’s artifacts.\n' "$JOURNEY"
+            for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
+              [[ -f "$result" ]] || continue
+              printf '\n```properties\n'
+              cat "$result"
+              printf '```\n'
+            done
+          } | tee "$ANDROID_VERIFY_OUTPUT/verification.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload signed verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-signed-api36-${{ matrix.journey }}
+          path: ${{ runner.temp }}/android-release-evidence
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  fixture-summary:
+    name: Summarize signed fixture matrix
+    needs: [candidate, verify-signed]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: android-signed-api36-*
+          path: ${{ runner.temp }}/android-signed-journeys
+      - name: Report fixture coverage and collect validated screenshots
+        if: always()
+        env:
+          CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
+          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+          FIXTURE_RESULT: ${{ needs.verify-signed.result }}
+        run: |
+          python3 scripts/android/release_matrix.py "$RUNNER_TEMP/android-signed-journeys" \
+            "$RUNNER_TEMP/android-signed-fixture-matrix" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-signed-fixture-matrix
+          path: ${{ runner.temp }}/android-signed-fixture-matrix
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  verify-upgrade:
+    name: Verify in-place Android upgrade
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
+      CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: TableTennisAz-${{ needs.candidate.outputs.version_name }}-candidate
+          path: ${{ runner.temp }}/android-release/
+      - name: Download the previous official APK
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
+        run: |
+          args=("$RUNNER_TEMP/previous-official.apk")
+          if [[ "$VERIFY_ONLY" == false ]]; then
+            args+=(--exclude-tag "v$CANDIDATE_VERSION")
+          fi
+          python3 scripts/android/release.py download-previous "${args[@]}" >> "$GITHUB_OUTPUT"
+      - name: Grant the runner access to KVM
+        id: kvm
+        run: |
+          if [[ -c /dev/kvm && ! -w /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm
+          fi
+      - name: Observe saved history before and after the update
+        id: installed
+        timeout-minutes: 110
+        env:
+          PREVIOUS_TAG: ${{ steps.previous.outputs.tag }}
+          ANDROID_VERIFY_OUTPUT: ${{ runner.temp }}/android-upgrade-evidence
+        run: |
+          set -o pipefail
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          scripts/android-verify --require-kvm \
+            --release-candidate "$RUNNER_TEMP/android-release/TableTennisAz-$CANDIDATE_VERSION.apk" "$CANDIDATE_SHA256" \
+            --upgrade-from "$RUNNER_TEMP/previous-official.apk" "$PREVIOUS_TAG" \
+            2>&1 | tee "$ANDROID_VERIFY_OUTPUT/progress.log"
+          results=("$ANDROID_VERIFY_OUTPUT"/run-*/result.properties)
+          [[ ${#results[@]} == 1 ]]
+          grep -Fxq 'status=passed' "${results[0]}"
+          grep -Fxq 'upgrade=passed' "${results[0]}"
+      - name: Summarize upgrade verification
+        if: always()
+        env:
+          PREVIOUS_TAG: ${{ steps.previous.outputs.tag }}
+          VERIFICATION_OUTCOME: ${{ steps.installed.outcome }}
+          ANDROID_VERIFY_OUTPUT: ${{ runner.temp }}/android-upgrade-evidence
+        run: |
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          printf 'installed=%s\n' "$VERIFICATION_OUTCOME" > "$ANDROID_VERIFY_OUTPUT/job.properties"
+          {
+            printf '## In-place Android upgrade\n\n'
+            printf 'Official release `%s` · Candidate `TableTennisAz-%s.apk` · SHA-256 `%s`\n\n' "${PREVIOUS_TAG:-unavailable}" "$CANDIDATE_VERSION" "$CANDIDATE_SHA256"
+            printf 'Commit `%s` · Android API 36 · Installed upgrade **%s**\n\n' "$GITHUB_SHA" "$VERIFICATION_OUTCOME"
+            printf 'Download `android-signed-upgrade` for APK identities, screenshots, and logs.\n'
+            for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
+              [[ -f "$result" ]] || continue
+              printf '\n```properties\n'
+              cat "$result"
+              printf '```\n'
+            done
+          } | tee "$ANDROID_VERIFY_OUTPUT/verification.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload upgrade evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-signed-upgrade
+          path: ${{ runner.temp }}/android-upgrade-evidence
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  publish:
+    needs: [candidate, fixture-summary, verify-upgrade]
+    if: inputs.verify_only == false
     runs-on: ubuntu-latest
     environment: android-release
     permissions:
@@ -81,7 +308,19 @@ jobs:
         with:
           name: TableTennisAz-${{ needs.candidate.outputs.version_name }}-candidate
           path: ${{ runner.temp }}/android-release/
-      - name: Publish verified APK
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-signed-fixture-matrix
+          path: ${{ runner.temp }}/android-signed-fixture-matrix
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-signed-upgrade
+          path: ${{ runner.temp }}/android-signed-upgrade
+      - name: Publish verified APK and evidence
         env:
           GH_TOKEN: ${{ secrets.ANDROID_RELEASE_GITHUB_TOKEN || github.token }}
-        run: python3 scripts/android/release.py publish "$RUNNER_TEMP/android-release" "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+        run: |
+          python3 scripts/android/release.py publish "$RUNNER_TEMP/android-release" \
+            "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION" \
+            "$RUNNER_TEMP/android-signed-fixture-matrix" "$RUNNER_TEMP/android-signed-upgrade" "$CANDIDATE_SHA256"

@@ -8,10 +8,30 @@ on:
         description: Run the opt-in live website check on Android 8
         type: boolean
         default: false
+      fixture_journey:
+        description: Saved-fixture matrix to run on Android 16
+        type: choice
+        default: none
+        options:
+          - none
+          - match
+          - profile
+          - rating-history
+          - results
+          - doubles-profile
+          - native-acceptance
+      app_revision:
+        description: Optional full app commit SHA for the pinned doubles profile pilot
+        type: string
+      fail_after_history_checkpoint:
+        description: Deliberately fail the fixture journey after collecting the light history PNGs
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   verify:
+    if: github.event_name != 'workflow_dispatch' || inputs.fixture_journey == 'none'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +53,190 @@ jobs:
         with:
           name: Android-reports
           path: app/build/reports/
+  select-installed:
+    name: Select Android installed journeys
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.fixture_journey != 'none')
+    runs-on: ubuntu-latest
+    outputs:
+      journeys: ${{ steps.select.outputs.journeys }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Select installed journeys
+        id: select
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FIXTURE_JOURNEY: ${{ inputs.fixture_journey }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            journeys=$(git diff --name-only --no-renames -z "$BASE_SHA" HEAD -- | bash scripts/android/pr-journey)
+          else
+            journeys=$FIXTURE_JOURNEY
+          fi
+          json=$(printf '%s\n' "$journeys" | jq -Rsc 'split("\n") | map(select(length > 0))')
+          printf 'journeys=%s\n' "$json" >> "$GITHUB_OUTPUT"
+
+  installed-journeys:
+    name: Android API 36 (${{ matrix.journey }})
+    needs: select-installed
+    if: needs.select-installed.outputs.journeys != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        journey: ${{ fromJSON(needs.select-installed.outputs.journeys) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      APP_REVISION: ${{ inputs.app_revision }}
+      FAIL_AFTER_HISTORY_CHECKPOINT: ${{ inputs.fail_after_history_checkpoint }}
+      JOURNEY: ${{ matrix.journey }}
+      ANDROID_VERIFY_OUTPUT: ${{ github.workspace }}/android-fixture-evidence
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Describe installed journey
+        id: journey
+        shell: bash
+        run: |
+          case "$JOURNEY" in
+            match) test=MatchDeviceTest ;;
+            profile) test=ProfileDeviceTest ;;
+            rating-history) test=RatingHistoryDeviceTest ;;
+            results) test=ResultsDeviceTest ;;
+            doubles-profile) test=DoublesProfileDeviceTest ;;
+            native-acceptance) test=NativeAcceptanceDeviceTest ;;
+            *) echo '::error::Unknown installed journey.'; exit 1 ;;
+          esac
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            mode=focused
+          else
+            mode=matrix
+          fi
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          {
+            printf '## Android installed verification\n\n'
+            printf 'Android API 36 · Journey `%s` · Mode `%s`\n\n' "$JOURNEY" "$mode"
+            printf '[Run, live logs and artifacts](%s) · Evidence archive `android-api36-%s`\n' "$RUN_URL" "$JOURNEY"
+          } | tee "$ANDROID_VERIFY_OUTPUT/verification.md" >> "$GITHUB_STEP_SUMMARY"
+          printf 'test=az.tabletennis.%s\nmode=%s\n' "$test" "$mode" >> "$GITHUB_OUTPUT"
+      - name: Validate app revision
+        if: env.APP_REVISION != ''
+        run: |
+          if [[ "$JOURNEY" != doubles-profile || ! "$APP_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::For the doubles profile pilot, enter the full lowercase commit SHA in app_revision.'
+            exit 1
+          fi
+      - name: Check out pinned app source
+        if: env.APP_REVISION != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.app_revision }}
+          path: fixture-source
+          persist-credentials: false
+      - name: Record checked out revisions
+        run: |
+          source=$GITHUB_WORKSPACE
+          if [[ -n "$APP_REVISION" ]]; then
+            source="$GITHUB_WORKSPACE/fixture-source"
+          fi
+          source_sha=$(git -C "$source" rev-parse HEAD)
+          if [[ "$source_sha" != "${APP_REVISION:-$GITHUB_SHA}" ]]; then
+            echo '::error::The checked out app source does not match the expected commit.'
+            exit 1
+          fi
+          printf 'ANDROID_VERIFY_SOURCE=%s\n' "$source" >> "$GITHUB_ENV"
+          {
+            printf '\nApp source and fixture assets `%s`\n\nVerifier and installed test `%s`\n' "$source_sha" "$GITHUB_SHA"
+          } | tee -a "$ANDROID_VERIFY_OUTPUT/verification.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Use the verifier's doubles profile test
+        if: env.APP_REVISION != ''
+        run: |
+          tests=app/src/androidTest/java/az/tabletennis
+          cp "$tests/DoublesProfileDeviceTest.java" "$tests/ScreenshotCheckpoint.java" "$ANDROID_VERIFY_SOURCE/$tests/"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Grant the runner access to KVM
+        run: |
+          if [[ -c /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm
+          fi
+      - name: Run installed preflight and saved-fixture journey
+        id: installed
+        timeout-minutes: 110
+        env:
+          TEST_CLASS: ${{ steps.journey.outputs.test }}
+          VERIFY_MODE: ${{ steps.journey.outputs.mode }}
+        run: |
+          set -o pipefail
+          args=(--require-kvm --tests "$TEST_CLASS")
+          if [[ "$VERIFY_MODE" == focused ]]; then
+            args+=(--focused)
+          else
+            args+=(--device-only)
+          fi
+          if [[ "$FAIL_AFTER_HISTORY_CHECKPOINT" == true ]]; then
+            args+=(--fail-after-history-checkpoint)
+          fi
+          scripts/android-verify "${args[@]}" 2>&1 | tee "$ANDROID_VERIFY_OUTPUT/progress.log"
+      - name: Summarize verification
+        if: always()
+        env:
+          VERIFICATION_OUTCOME: ${{ steps.installed.outcome }}
+        run: |
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          {
+            printf '\nInstalled verification result **%s**\n' "$VERIFICATION_OUTCOME"
+            for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
+              [[ -f "$result" ]] || continue
+              printf '\n```properties\n'
+              cat "$result"
+              printf '```\n'
+            done
+          } | tee -a "$ANDROID_VERIFY_OUTPUT/verification.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload installed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-api36-${{ matrix.journey }}
+          path: ${{ env.ANDROID_VERIFY_OUTPUT }}
+          retention-days: 7
+          if-no-files-found: error
+  installed:
+    # Keep the required context exclusive to pull request runs.
+    name: ${{ github.event_name == 'pull_request' && 'Android installed check' || 'Android PR result' }}
+    needs: [select-installed, installed-journeys]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      SELECTION: ${{ needs.select-installed.result }}
+      JOURNEYS: ${{ needs.select-installed.outputs.journeys }}
+      VERIFICATION: ${{ needs.installed-journeys.result }}
+    steps:
+      - name: Report installed check
+        run: |
+          if [[ "$SELECTION" != success || -z "$JOURNEYS" ]]; then
+            echo '::error::Unable to select the installed journeys from the PR changes.'
+            exit 1
+          fi
+          if [[ "$JOURNEYS" == '[]' && "$VERIFICATION" == skipped ]]; then
+            echo 'Installed verification is not applicable. No Android runtime, fixture or verifier changes were detected.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf 'Installed journeys: `%s` · Result: **%s**\n\nFind evidence in this run’s Artifacts section.\n' "$JOURNEYS" "$VERIFICATION" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$VERIFICATION" != success ]]; then
+            echo '::error::One or more required installed journeys failed to complete successfully.'
+            exit 1
+          fi
+
   live-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.live_site
     runs-on: ubuntu-latest

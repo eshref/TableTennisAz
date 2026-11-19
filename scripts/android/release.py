@@ -10,10 +10,13 @@ import sys
 import tempfile
 from urllib import error, parse, request
 
+from release_evidence import EvidenceError, check_archived_evidence, verification_archive
+
 
 SCRIPTS = Path(__file__).resolve().parent
 OFFICIAL_TAG = re.compile(r'v[0-9]+\.[0-9]+\.[0-9]+')
-DRAFT_APK = re.compile(r'\n<!-- APK for ([0-9a-f]{40}): sha256:[0-9a-f]{64} -->\n\Z')
+RELEASE_ASSETS = re.compile(
+    r'\n<!-- APK for ([0-9a-f]{40}): sha256:([0-9a-f]{64})(?:; evidence sha256:([0-9a-f]{64}))? -->\n\Z')
 
 
 class ReleaseError(Exception):
@@ -82,7 +85,7 @@ def check_tag(tag, tagged_commit, commit):
         raise ReleaseError(f'Tag {tag} points to {tagged_commit}, expected {commit}.')
 
 
-def validate(github, output, commit):
+def validate(github, output, commit, *, verify_only=False):
     latest = github.call('GET', '/releases/latest', missing_ok=True)
     command = ['java', str(SCRIPTS / 'ReleaseMetadata.java'), str(output)]
     with tempfile.TemporaryDirectory() as scratch:
@@ -99,11 +102,12 @@ def validate(github, output, commit):
         metadata = subprocess.check_output(command, text=True)
 
     version = dict(line.split('=', 1) for line in metadata.splitlines())
-    tag = f"v{version['version_name']}"
-    tagged_commit = github.tag_commit(tag)
-    check_tag(tag, tagged_commit, commit)
-    if latest is not None and latest['tag_name'] == tag and tagged_commit is None:
-        raise ReleaseError(f'Published release {tag} is missing its tag.')
+    if not verify_only:
+        tag = f"v{version['version_name']}"
+        tagged_commit = github.tag_commit(tag)
+        check_tag(tag, tagged_commit, commit)
+        if latest is not None and latest['tag_name'] == tag and tagged_commit is None:
+            raise ReleaseError(f'Published release {tag} is missing its tag.')
     return metadata, version
 
 
@@ -113,12 +117,53 @@ def verify_apk(apk, tools, version):
     return re.findall(r'^Signer #\d+ certificate SHA-256 digest: ([0-9a-f]+)$', output, flags=re.MULTILINE)
 
 
-def draft_body(notes, commit, contents):
-    digest = hashlib.sha256(contents).hexdigest()
-    return f'{notes}\n<!-- APK for {commit}: sha256:{digest} -->\n'
+def asset_names(tag):
+    name = f'TableTennisAz-{tag[1:]}'
+    return f'{name}.apk', f'{name}-verification.zip'
 
 
-def publish(github, candidate, tools, commit):
+def release_body(notes, commit, apk_digest, evidence_digest):
+    return f'{notes}\n<!-- APK for {commit}: sha256:{apk_digest}; evidence sha256:{evidence_digest} -->\n'
+
+
+def release_assets(github, release, names):
+    assets = {}
+    for asset in github.call('GET', f"/releases/{release['id']}/assets?per_page=100"):
+        name = asset['name']
+        if name not in names or name in assets:
+            raise ReleaseError(f"Release {release['tag_name']} contains unexpected assets.")
+        assets[name] = asset
+    return assets
+
+
+def downloaded_asset(github, asset, name, expected_digest):
+    contents = github.call('GET', f"/releases/assets/{asset['id']}", binary=True)
+    check_asset(asset, name, contents)
+    if hashlib.sha256(contents).hexdigest() != expected_digest:
+        raise ReleaseError(f'The uploaded asset {name} does not match the recorded checksum.')
+    return contents
+
+
+def empty_upload(asset):
+    return asset['state'] == 'starter' and asset['size'] == 0
+
+
+def reuse_candidate(github, candidate, version, commit):
+    tag = f'v{version}'
+    release = next((release for release in github.releases() if release['tag_name'] == tag), None)
+    if release is None:
+        return
+    names = asset_names(tag)
+    apk = release_assets(github, release, names).get(names[0])
+    if apk is None or (release['draft'] and empty_upload(apk)):
+        return
+    marker = RELEASE_ASSETS.search(release['body'] or '')
+    if not marker or marker[1] != commit:
+        raise ReleaseError(f'Release {tag} has no recorded APK for {commit}.')
+    (candidate / names[0]).write_bytes(downloaded_asset(github, apk, names[0], marker[2]))
+
+
+def publish(github, candidate, tools, fixture, upgrade, expected_digest, commit):
     with tempfile.TemporaryDirectory() as scratch:
         validated = Path(scratch)
         _, version = validate(github, validated, commit)
@@ -127,13 +172,25 @@ def publish(github, candidate, tools, commit):
             raise ReleaseError('Candidate release notes differ from the checked-out changelog.')
 
         tag = f"v{version['version_name']}"
-        apk = candidate / f"TableTennisAz-{version['version_name']}.apk"
-        signers = verify_apk(apk, tools, version)
-        if not signers:
+        apk_name, evidence_name = asset_names(tag)
+        apk = candidate / apk_name
+        candidate_apk = apk.read_bytes()
+        apk_digest = hashlib.sha256(candidate_apk).hexdigest()
+        if apk_digest != expected_digest:
+            raise ReleaseError('Publication candidate APK SHA-256 mismatch.')
+        if not verify_apk(apk, tools, version):
             raise ReleaseError(f'No signing certificates reported for {apk.name}.')
 
-        candidate_apk = apk.read_bytes()
-        candidate_body = draft_body(notes, commit, candidate_apk)
+        previous = previous_official(github, tag)
+        previous_tag = previous['tag_name']
+        baseline = official_apk_asset(previous)
+        previous_digest = baseline.get('digest')
+        if not previous_digest:
+            previous_digest = 'sha256:' + hashlib.sha256(download_asset(github, baseline)).hexdigest()
+        evidence_identity = (commit, apk_digest, previous_tag, previous_digest.removeprefix('sha256:'))
+        evidence = verification_archive(fixture, upgrade, version['version_name'], *evidence_identity)
+        evidence_digest = hashlib.sha256(evidence).hexdigest()
+        candidate_body = release_body(notes, commit, apk_digest, evidence_digest)
         releases = list(github.releases())
         matching = [release for release in releases if release['tag_name'] == tag]
         if len(matching) > 1:
@@ -144,7 +201,7 @@ def publish(github, candidate, tools, commit):
         if matching:
             release = matching[0]
             release_notes = release['body'] or ''
-            marker = DRAFT_APK.search(release_notes) if release['draft'] else None
+            marker = RELEASE_ASSETS.search(release_notes)
             if marker and marker[1] == commit:
                 release_notes = release_notes[:marker.start()]
             if release['prerelease'] or release_notes != notes:
@@ -159,6 +216,29 @@ def publish(github, candidate, tools, commit):
                 'tag_name': tag, 'target_commitish': commit, 'name': tag, 'body': candidate_body,
                 'draft': True, 'prerelease': False,
             })
+            marker = RELEASE_ASSETS.search(candidate_body)
+
+        release_id = release['id']
+        assets = release_assets(github, release, (apk_name, evidence_name))
+        for name, asset in assets.copy().items():
+            if release['draft'] and empty_upload(asset):
+                # GitHub may leave an empty placeholder after an interrupted upload.
+                github.call('DELETE', f"/releases/assets/{asset['id']}")
+                del assets[name]
+
+        if apk_name in assets:
+            if not marker or marker[2] != apk_digest:
+                raise ReleaseError(f'Release {tag} contains an APK different from the verified candidate.')
+            downloaded_asset(github, assets[apk_name], apk_name, apk_digest)
+        if evidence_name in assets:
+            if apk_name not in assets or not marker[3]:
+                raise ReleaseError(f'Release {tag} has evidence without a recorded APK and evidence checksum.')
+            uploaded_evidence = downloaded_asset(github, assets[evidence_name], evidence_name, marker[3])
+            check_archived_evidence(uploaded_evidence, version['version_name'], *evidence_identity)
+            # The existing evidence already covers these exact APK bytes and commit.
+            candidate_body = release['body']
+        if not release['draft'] and len(assets) != 2:
+            raise ReleaseError(f'Published release {tag} is missing its APK or verification evidence.')
 
         if tagged_commit is None:
             # A draft reserves the release before the tag is created. Creating a ref
@@ -168,52 +248,67 @@ def publish(github, candidate, tools, commit):
                 github.call('POST', '/git/refs', {'ref': f'refs/tags/{tag}', 'sha': commit})
             check_tag(tag, github.tag_commit(tag), commit)
 
-        release_id = release['id']
-        assets = github.call('GET', f'/releases/{release_id}/assets?per_page=100')
-        if len(assets) > 1 or (assets and assets[0]['name'] != apk.name):
-            raise ReleaseError(f'Release {tag} contains unexpected assets.')
-        if assets and release['draft'] and assets[0]['state'] == 'starter' and assets[0]['size'] == 0:
-            # GitHub can leave an empty placeholder when an upload fails with HTTP 502.
-            github.call('DELETE', f"/releases/assets/{assets[0]['id']}")
-            assets = []
-
-        if assets:
-            asset = assets[0]
-            uploaded = github.call('GET', f"/releases/assets/{asset['id']}", binary=True)
-            check_asset(asset, apk.name, uploaded)
-            if release['draft'] and release['body'] != draft_body(notes, commit, uploaded):
-                raise ReleaseError(f'The uploaded APK does not match the APK recorded for the draft {tag}.')
-            existing = validated / apk.name
-            existing.write_bytes(uploaded)
-            if verify_apk(existing, tools, version) != signers:
-                raise ReleaseError(f'Release {tag} contains an APK signed by a different key.')
-        elif release['draft']:
-            # A rebuilt candidate can differ in bytes on retry. Record its digest
-            # only when the draft has no uploaded APK.
+        if release['draft']:
             if release['body'] != candidate_body:
                 github.call('PATCH', f'/releases/{release_id}', {'body': candidate_body})
             upload_url = release['upload_url'].split('{', 1)[0]
-            asset = github.call('POST', f'{upload_url}?{parse.urlencode({"name": apk.name})}', candidate_apk,
-                                content_type='application/vnd.android.package-archive')
-            check_asset(asset, apk.name, candidate_apk)
-        else:
-            raise ReleaseError(f'Published release {tag} is missing {apk.name}.')
-
-        if release['draft']:
+            for name, contents, content_type in (
+                (apk_name, candidate_apk, 'application/vnd.android.package-archive'),
+                (evidence_name, evidence, 'application/zip'),
+            ):
+                if name not in assets:
+                    asset = github.call('POST', f'{upload_url}?{parse.urlencode({"name": name})}', contents,
+                                        content_type=content_type)
+                    check_asset(asset, name, contents)
             if github.tag_commit(tag) != commit:
                 raise ReleaseError(f'Tag {tag} must point to {commit} before publication.')
             release = github.call('PATCH', f'/releases/{release_id}',
-                                  {'draft': False, 'body': notes, 'make_latest': 'true'})
-            if release['draft'] or release['body'] != notes:
+                                  {'draft': False, 'body': candidate_body, 'make_latest': 'true'})
+            if release['draft'] or release['body'] != candidate_body:
                 raise ReleaseError(f'GitHub did not publish {tag} with the selected release notes.')
         print(f"Release {tag} is published at {release['html_url']}")
 
 
 def check_asset(asset, name, contents):
     digest = 'sha256:' + hashlib.sha256(contents).hexdigest()
-    if (asset['name'] != name or asset['state'] != 'uploaded' or asset['size'] != len(contents)
+    if (asset['name'] != name or asset['state'] != 'uploaded' or not contents or asset['size'] != len(contents)
             or (asset.get('digest') and asset['digest'] != digest)):
-        raise ReleaseError(f'GitHub did not confirm the complete APK {name}.')
+        raise ReleaseError(f'GitHub did not confirm the complete asset {name}.')
+
+
+def previous_official(github, excluded_tag=None):
+    release = github.call('GET', '/releases/latest', missing_ok=True)
+    if release and release['tag_name'] == excluded_tag:
+        # A completed publication may be retried. Use the official version below it.
+        versions = {tuple(map(int, entry['tag_name'][1:].split('.'))): entry for entry in github.releases()
+                    if not entry['draft'] and not entry['prerelease'] and OFFICIAL_TAG.fullmatch(entry['tag_name'])}
+        current = tuple(map(int, excluded_tag[1:].split('.')))
+        previous = max((version for version in versions if version < current), default=None)
+        release = versions.get(previous)
+    if release is None or release['draft'] or release['prerelease'] or not OFFICIAL_TAG.fullmatch(release['tag_name']):
+        raise ReleaseError('No previous official Android release is available for upgrade verification.')
+    return release
+
+
+def official_apk_asset(release):
+    tag = release['tag_name']
+    name = f'TableTennisAz-{tag[1:]}.apk'
+    assets = [asset for asset in release['assets'] if asset['name'] == name and asset['state'] == 'uploaded']
+    if len(assets) != 1:
+        raise ReleaseError(f'Expected one uploaded {name} in the official release {tag}.')
+    return assets[0]
+
+
+def download_asset(github, asset):
+    contents = github.call('GET', f"/releases/assets/{asset['id']}", binary=True)
+    check_asset(asset, asset['name'], contents)
+    return contents
+
+
+def download_previous(github, output, excluded_tag):
+    release = previous_official(github, excluded_tag)
+    output.write_bytes(download_asset(github, official_apk_asset(release)))
+    print(f"tag={release['tag_name']}")
 
 
 def main():
@@ -221,19 +316,33 @@ def main():
     actions = parser.add_subparsers(dest='action', required=True)
     validate_command = actions.add_parser('validate')
     validate_command.add_argument('output', type=Path)
+    validate_command.add_argument('--verify-only', action='store_true')
+    previous_command = actions.add_parser('download-previous')
+    previous_command.add_argument('output', type=Path)
+    previous_command.add_argument('--exclude-tag')
+    reuse_command = actions.add_parser('reuse-candidate')
+    reuse_command.add_argument('candidate', type=Path)
+    reuse_command.add_argument('version')
     publish_command = actions.add_parser('publish')
     publish_command.add_argument('candidate', type=Path)
     publish_command.add_argument('tools', type=Path)
+    publish_command.add_argument('fixture', type=Path)
+    publish_command.add_argument('upgrade', type=Path)
+    publish_command.add_argument('expected_digest')
     args = parser.parse_args()
     try:
         commit = checked_commit()
         github = GitHub()
         if args.action == 'validate':
-            metadata, _ = validate(github, args.output, commit)
+            metadata, _ = validate(github, args.output, commit, verify_only=args.verify_only)
             print(metadata, end='')
+        elif args.action == 'download-previous':
+            download_previous(github, args.output, args.exclude_tag)
+        elif args.action == 'reuse-candidate':
+            reuse_candidate(github, args.candidate, args.version, commit)
         else:
-            publish(github, args.candidate, args.tools, commit)
-    except (ReleaseError, OSError, KeyError, subprocess.CalledProcessError) as failure:
+            publish(github, args.candidate, args.tools, args.fixture, args.upgrade, args.expected_digest, commit)
+    except (EvidenceError, ReleaseError, OSError, KeyError, subprocess.CalledProcessError) as failure:
         print(failure, file=sys.stderr)
         return 1
     return 0

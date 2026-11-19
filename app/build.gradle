@@ -8,6 +8,7 @@ def releaseKeystore = providers.environmentVariable('ANDROID_RELEASE_KEYSTORE').
 android {
     namespace 'az.tabletennis'
     compileSdk 36
+    testBuildType = providers.gradleProperty('androidTestBuildType').getOrElse('debug')
     defaultConfig {
         applicationId 'az.tabletennis'
         minSdk 26
@@ -36,6 +37,12 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     testOptions { unitTests.includeAndroidResources = true }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType('release')) { variant ->
+        variant.androidTest?.signingConfig?.setConfig(android.signingConfigs.debug)
+    }
 }
 
 dependencies {

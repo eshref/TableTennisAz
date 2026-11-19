@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Read the NUL-delimited paths from the PR's diff against its base.
+journeys=(match profile rating-history results doubles-profile native-acceptance)
+declare -A selected=()
+while IFS= read -r -d '' path; do
+    case "$path" in
+        app/src/main/res/xml/data_extraction_rules.xml|app/src/androidTest/java/az/tabletennis/Live*Test.java)
+            continue ;;
+        app/src/main/java/az/tabletennis/MatchActivity.java|app/src/androidTest/java/az/tabletennis/MatchDeviceTest.java)
+            screens=(match) ;;
+        app/src/main/java/az/tabletennis/ProfileActivity.java|app/src/androidTest/java/az/tabletennis/ProfileDeviceTest.java)
+            screens=(profile) ;;
+        app/src/main/java/az/tabletennis/ChartActivity.java|app/src/main/java/az/tabletennis/RatingChartView.java|app/src/androidTest/java/az/tabletennis/RatingHistoryDeviceTest.java)
+            screens=(rating-history) ;;
+        app/src/main/java/az/tabletennis/ResultsActivity.java|app/src/main/java/az/tabletennis/ResultsSelection.java|app/src/androidTest/java/az/tabletennis/ResultsDeviceTest.java)
+            screens=(results) ;;
+        app/src/main/java/az/tabletennis/PairResultsActivity.java|app/src/main/java/az/tabletennis/DoublesHistoryView.java|app/src/androidTest/java/az/tabletennis/DoublesProfileDeviceTest.java)
+            screens=(doubles-profile) ;;
+        app/src/main/java/az/tabletennis/ChartObservationRow.java)
+            screens=(rating-history doubles-profile) ;;
+        app/src/main/java/az/tabletennis/MatchCard.java)
+            screens=(profile results doubles-profile) ;;
+        app/src/main/res/values*/strings.xml|app/src/debug/res/values*/strings.xml|scripts/android/fixture-captures.properties)
+            screens=("${journeys[@]}") ;;
+        app/src/main/*|app/src/debug/*|app/src/androidTest/*|app/src/androidTestDebug/*|app/build.gradle|build.gradle|settings.gradle|gradle.properties|gradle/*|gradlew|gradlew.bat|\
+        .github/workflows/android.yml|scripts/android-verify|scripts/android/pr-journey|scripts/android/AndroidVerify.java|\
+        scripts/android/tools.properties|scripts/android/limits.properties|scripts/android/provision-jdk)
+            screens=(native-acceptance) ;;
+        *)
+            continue ;;
+    esac
+
+    for screen in "${screens[@]}"; do
+        selected[$screen]=1
+    done
+done
+for screen in "${journeys[@]}"; do
+    if [[ -v selected[$screen] ]]; then
+        printf '%s\n' "$screen"
+    fi
+done

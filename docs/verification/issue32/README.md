@@ -213,4 +213,4 @@ its signing record are retained under `before-date-grouping/` in the delivery
 directory. Physical-phone installation and signing compatibility, installed
 API 26, and TalkBack remain unverified for this delivery.
 [APK payload comparison](apk-payload-comparison.json)
-· [Historical Android checks](../../android-verification.md)
+· [Current installed verification](../../agents/android-verification.md)

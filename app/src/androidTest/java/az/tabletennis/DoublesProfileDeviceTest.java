@@ -8,8 +8,10 @@ import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayingAtLeast;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -28,16 +30,18 @@ import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.espresso.UiController;
+import androidx.test.espresso.ViewAction;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -79,16 +83,27 @@ public class DoublesProfileDeviceTest {
             capture("profile");
 
             // act
-            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
-            capture("points");
             onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
+            scrollHistoryIntoView();
 
             // assert
             onView(withId(R.id.chart_selected_value)).check(matches(withText("#2")));
+            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
+            capture("rank");
 
             // act
-            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
-            capture("rank");
+            onView(withId(R.id.pair_chart_points)).perform(scrollTo(), click());
+            scrollHistoryIntoView();
+
+            // assert
+            onView(withId(R.id.chart_selected_value)).check(matches(withText("858 xal")));
+            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
+            capture("points");
+            if (Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("failAfterHistoryCheckpoint")))
+                throw new AssertionError("Pilot failure after the host validated both history captures");
+
+            // act
+            onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
             onView(withContentDescription(endsWith("— #3"))).perform(scrollTo(), click());
 
             // assert
@@ -273,34 +288,36 @@ public class DoublesProfileDeviceTest {
         } finally { first.recycle(); second.recycle(); }
     }
 
-    private void capture(String name) throws Exception {
-        CountDownLatch committed = new CountDownLatch(1);
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            for (Activity activity : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)) {
-                View root = activity.getWindow().getDecorView();
-                if (android.os.Build.VERSION.SDK_INT >= 29 && root.isHardwareAccelerated())
-                    root.getViewTreeObserver().registerFrameCommitCallback(committed::countDown);
-                else root.postOnAnimation(committed::countDown);
-                root.invalidate();
-                return;
+    private void scrollHistoryIntoView() {
+        onView(withId(R.id.main_scroll)).perform(new ViewAction() {
+            @Override public Matcher<View> getConstraints() { return isAssignableFrom(ScrollView.class); }
+
+            @Override public String getDescription() { return "frame the history chart for a screenshot"; }
+
+            @Override public void perform(UiController ui, View view) {
+                ScrollView scroll = (ScrollView) view;
+                View chart = scroll.findViewById(R.id.chart);
+                Rect plot = new Rect();
+                chart.getDrawingRect(plot);
+                scroll.offsetDescendantRectToMyCoords(chart, plot);
+
+                View points = scroll.findViewById(R.id.pair_chart_points);
+                Rect mode = new Rect();
+                points.getDrawingRect(mode);
+                scroll.offsetDescendantRectToMyCoords(points, mode);
+
+                // Keep the mode control visible when the viewport also fits the whole plot.
+                scroll.scrollTo(0, Math.max(mode.top, plot.bottom - scroll.getHeight()));
+                ui.loopMainThreadUntilIdle();
             }
-            throw new IllegalStateException("No resumed activity to capture");
         });
-        if (!committed.await(30, TimeUnit.SECONDS)) throw new IllegalStateException("Android did not commit the screenshot frame");
+    }
+
+    private void capture(String name) throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         File directory = new File(context.getExternalFilesDir(null), "issue31");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-        Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if (screenshot == null) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
-                    InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("screencap -p"))) {
-                screenshot = BitmapFactory.decodeStream(input);
-            }
-        }
-        if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
-        try (var output = new FileOutputStream(new File(directory, prefix + "-" + name + ".png"))) {
-            if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
-        } finally { screenshot.recycle(); }
+        ScreenshotCheckpoint.captureWindow(new File(directory, prefix + "-" + name + ".png"));
     }
 }

@@ -18,9 +18,22 @@ trap 'unlink -- "$ANDROID_RELEASE_KEYSTORE"' EXIT
 printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_RELEASE_KEYSTORE"
 unset ANDROID_RELEASE_KEYSTORE_BASE64
 
+staged_apk="$output_dir/TableTennisAz-$RELEASE_VERSION_NAME.apk"
+if [[ -f "$staged_apk" ]]; then
+    signature=$("$android_scripts/verify-release-apk" "$staged_apk" "$android_tools")
+    expected=$(keytool -exportcert -keystore "$ANDROID_RELEASE_KEYSTORE" -alias "$ANDROID_RELEASE_KEY_ALIAS" \
+        -storepass:env ANDROID_RELEASE_KEYSTORE_PASSWORD | sha256sum)
+    actual=$(sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: ([0-9a-f]{64})$/\1/p' <<< "$signature")
+    if [[ "$actual" != "${expected%% *}" ]]; then
+        echo 'The staged APK was signed by a different release key.' >&2
+        exit 1
+    fi
+    exit 0
+fi
+
 ./gradlew :app:assembleRelease --no-configuration-cache
 
 apk=app/build/outputs/apk/release/app-release.apk
 "$android_scripts/verify-release-apk" "$apk" "$android_tools"
 
-install -m 0644 -- "$apk" "$output_dir/TableTennisAz-$RELEASE_VERSION_NAME.apk"
+install -m 0644 -- "$apk" "$staged_apk"

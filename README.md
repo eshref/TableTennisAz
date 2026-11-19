@@ -273,30 +273,45 @@ permissions. See [GitHub's release API permissions](https://docs.github.com/en/r
 ### Publish and verify
 
 After merging the release PR, open **Actions → Publish Android release → Run
-workflow**, select `main`, and start the run. The workflow checks the version
-and changelog, runs the Android host tests and lint, verifies the signed APK,
-and publishes `TableTennisAz-<version>.apk` and the selected notes to GitHub
-Releases. Its `v<version>` tag points to the commit shown on the workflow run.
+workflow** and select `main`. Leave **verify_only** enabled to run all six
+saved-fixture journeys in four configurations and verify an offline in-place
+upgrade from the latest official APK. The verification reports identify the
+signed candidate by commit and SHA-256. [Signed fixture matrix](docs/agents/android-verification.md#signed-release-candidate-matrix) ·
+[In-place upgrade](docs/agents/android-verification.md#signed-in-place-upgrade)
+
+Disable **verify_only** when you intend to publish. The same run checks the
+version, changelog, and APK signature, runs the Android host tests and lint,
+and requires all 24 installed configurations, their required screenshots,
+and the in-place upgrade to pass. The workflow checks the commit and APK
+SHA-256 against the installed evidence before publishing. GitHub Releases
+holds `TableTennisAz-<version>.apk`, the selected changelog notes, and
+`TableTennisAz-<version>-verification.zip`. Its `v<version>` tag points to the
+commit shown on the run.
 
 If publication is interrupted, use **Re-run failed jobs** on the original
-workflow run. Use **Re-run all jobs** on that run if its candidate artifact has
-expired. Retrying preserves a matching tag and any APK already uploaded by
-the workflow. Finish an interrupted release before starting another version.
+workflow run. Use **Re-run all jobs** on that run if a candidate or evidence
+artifact has expired. Retrying uses the exact APK already uploaded to a
+matching draft and preserves matching verification evidence already uploaded.
+Finish an interrupted release before starting another version.
 If GitHub reports a conflicting tag, check the tag and dispatch commit before
 taking any action.
 
-Open the published release and compare its notes with the dated changelog
-section at the tag. Compare the tag's commit with the workflow run's commit.
-Download the APK and compare its SHA-256 with the asset digest shown by GitHub.
-Check its version name and version code against the release PR and its signing
-certificate against the recorded fingerprint.
+Open the release on GitHub and download the APK and its verification ZIP.
+Read `verification.md` and review the fixture and before-and-after upgrade
+screenshots inside the ZIP. Compare the tag's commit and the downloaded APK's
+SHA-256 with the commit and digest in that summary. Check the version name
+and version code against the release PR and the signing certificate against
+the recorded fingerprint. [GitHub Releases](https://github.com/eshref/TableTennisAz/releases)
+
+Replace `vX.Y.Z` with the verified release tag.
 
 ```sh
-tag=v0.4.0
+tag=vX.Y.Z
 apk="TableTennisAz-${tag#v}.apk"
 git fetch origin tag "$tag"
 git rev-parse "$tag^{commit}"
 gh release download "$tag" --pattern "$apk"
+gh release download "$tag" --pattern "TableTennisAz-${tag#v}-verification.zip"
 sha256sum "$apk"
 "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
 "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | head -n 1
@@ -306,9 +321,10 @@ sha256sum "$apk"
 
 If you installed a debug APK for phone review, uninstall it once before
 installing your first official APK. **Uninstalling the debug build clears its
-saved app data**, including offline rankings, profiles, and results. Install
-later official APKs over the existing official app to keep saved data. Official
-updates use the same signing key and higher Android version codes.
+saved app data**, including offline rankings, profiles, and results. After
+reviewing the release evidence, transfer the tested APK to your phone and open
+it to install the update over the existing official app and keep saved data.
+Official updates use the same signing key and higher Android version codes.
 
 ### Verify the release setup locally
 
@@ -321,17 +337,15 @@ GitHub API stand-in.
 
 ## Verification
 
-For Android UI changes and installed-device verification, use the reproducible
-Linux setup and verification command:
+For Android UI changes, open **Android installed check** from the pull request's
+**Checks** tab. It selects saved-fixture journeys covering the changed screens,
+runs them on Android API 36, and publishes the installed APKs, screenshots, and
+diagnostics in the run's **Artifacts** section for seven days. The Android workflow
+also offers the full four-configuration matrix through **Run workflow**.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
+[Journey selection and evidence](docs/agents/android-verification.md)
 
-```sh
-scripts/android-verify
-```
-
-It prepares pinned tools, verifies an installed screen before the full device
-matrix, and prints the evidence location. See the [agent verification guide](docs/agents/android-verification.md)
-for time limits, cleanup, cache locations and selecting other saved-fixture tests.
-The existing host-only command remains available:
+Run the host checks independently:
 
 ```sh
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
@@ -346,92 +360,7 @@ Host coverage includes API 26 and API 36. The rankings and drawer workflows and
 several screen layout suites run on both. The verification report records
 separate installed API 36 results.
 
-The opt-in installed journeys exercise production HTTPS requests for the amateur
-and doubles rankings, profiles, singles history, Results and match details.
-They assert visible data using the current source records.
-
-```sh
-scripts/android-verify --live
-```
-
-This managed Linux command uses a disposable API 36 emulator and installed
-preflight, then runs the existing live rankings, complete experience and doubles
-journeys within the documented full-phase budget. It requires website access
-from Android. The tests prepare fresh app data. For an already connected
-disposable emulator, the existing Gradle route remains available:
-
-```sh
-./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveExperienceTest
-```
-
-This needs a connected emulator/device and website connectivity. The GitHub
-workflow keeps it opt-in using the `live_site` input. Automatic CI runs the
-fixture suite, lint and APK build, and publishes the APK and reports.
-The separate `az.tabletennis.LiveDoublesTest` connected-test class checks the live
-doubles ranking and opens a pair profile, comparing its names, points and
-position with the selected row and checking medal metadata and pair results. Its first load can take
-several minutes; run it with the same instrumentation argument shown above.
-See [verification notes](docs/android-verification.md) for actual checks and
-compatibility limits.
-
-`az.tabletennis.ProfileDeviceTest` is the separate installed, saved-fixture
-profile journey. After installing the app and test APKs, run:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.ProfileDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-It follows a searched player through the dedicated chart, a match, a participant
-profile, and Android Back, then checks retained search after recreation. Captures
-are written to the app's external-files `issue28` directory. Optional arguments
-`-e playerName '<long name>'` and `-e fallback true` prepare layout/fallback
-scenarios. For names containing spaces, quote the whole remote `am instrument`
-command as well as the name so ADB preserves it as one argument.
-`-e reuseSaved true` keeps previously prepared files for a separate
-process restart with network disabled. Set system appearance, display size, and
-font scale externally before each run; these are verification controls.
-
-The saved-fixture doubles profile journey uses the approved reference pair's
-portraits, linked partners, inline chart modes, match navigation and Back context:
-
-```sh
-scripts/android-verify --tests az.tabletennis.DoublesProfileDeviceTest
-```
-
-It captures the profile, both history modes, match cards and long-name fallbacks
-in the app's external-files `issue31` directory. The verifier supplies the theme,
-viewport, text-scale and offline-restart matrix. Installed readiness must pass
-first; see [the issue #31 verification record](docs/verification/issue31/README.md)
-for the actual result and remaining device checks.
-
-`az.tabletennis.RatingHistoryDeviceTest` is the installed saved-fixture chart
-journey. It opens the selected player's dedicated history, inspects an
-observation, and returns with Android Back to the correct profile:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.RatingHistoryDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-Native screenshots are saved in the app's external-files `issue29` directory.
-Use `-e reuseSaved true` after a separate offline process restart; the optional
-`playerName` argument prepares a long-name scenario. Set theme, font scale,
-display size and rotation externally, as for `ProfileDeviceTest`.
-
-
-`az.tabletennis.MatchDeviceTest` checks the installed saved-fixture singles and
-doubles scoreboards, every participant link, Android Back, and recreation:
-
-```sh
-adb shell am instrument -w -r -e class az.tabletennis.MatchDeviceTest \
-  -e capturePrefix light az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-It saves native screenshots under the app's external-files `issue30` directory.
-Run in both system appearances, with larger text, narrow display and landscape;
-use `-e reuseSaved true` for a separate offline restart. The fixture contains
-one cached participant portrait and independent silhouette fallbacks. Production
-HTTP, ambiguous image attribution and photo-failure coverage remain in the host
-match journeys. See the verification notes for completed checks and limitations.
+To verify the live website, choose **Run workflow** in Android Actions and
+enable `live_site`. The opt-in installed journeys exercise production HTTPS
+requests for rankings, profiles, singles history, Results, and match details.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)

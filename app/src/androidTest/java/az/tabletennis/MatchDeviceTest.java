@@ -140,9 +140,11 @@ public class MatchDeviceTest {
             }
         }
         if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
-        try (var output = new FileOutputStream(new File(directory, prefix + "-" + match.id + ".png"))) {
+        File png = new File(directory, prefix + "-" + match.id + ".png");
+        try (var output = new FileOutputStream(png)) {
             if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
         } finally { screenshot.recycle(); }
+        ScreenshotCheckpoint.exportIfRequired(png);
         try (var output = new OutputStreamWriter(new FileOutputStream(new File(directory, prefix + "-" + match.id + ".properties")), StandardCharsets.UTF_8)) {
             visible.store(output, "Visible installed match UI at screenshot capture");
         }
