@@ -18,3 +18,9 @@ match 501, and the first loaded history page at 2026-11-15 12:00 UTC.
 `2c19bbd`, before participant photo metadata. It contains the four named
 participants, Kupa, 15 Nov. 2026 at 18:00 and 3-2, saved at 2026-11-15T12:00Z.
 It verifies that older match details remain readable before optional enrichment.
+
+`legacy-results-events-901` was serialized with the unchanged `SavedData`,
+`ResultsFeed`, `EventCatalog`, and `MatchSummary` classes at `5f11681`, before
+match summaries held tournament stages. It contains match 601 (Kubok A against
+Kubok B, 3-0, Payız Kuboku, 14 Nov. 2026) and the loaded event page, saved at
+2026-11-15T12:00Z.

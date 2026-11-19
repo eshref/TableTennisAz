@@ -34,6 +34,12 @@ The recorded outcome of a completed match, identifying its participants and fina
 **Event**:
 A competition under which the website groups matches and their results.
 
+**Tournament stage**:
+The part of a tournament in which a match is played, such as group play, a knockout round, or the third-place match.
+
+**Group match**:
+A match between entrants assigned to the same tournament group.
+
 **Duel**:
 A match published in the website's separate duels section. Duels can be singles or doubles.
 

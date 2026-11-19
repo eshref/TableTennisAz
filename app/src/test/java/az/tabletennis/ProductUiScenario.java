@@ -136,6 +136,15 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
                 .replace("<div>Şəms Quliyeva</div></div>", "<div>Yeni B</div></div>"));
     }
 
+    protected void publishStage(String path, long matchId, String stage) {
+        website.compute(path, (key, body) -> {
+            var page = org.jsoup.Jsoup.parse(body);
+            var match = page.selectFirst("a[href='/matches/" + matchId + "'] > .match-box");
+            match.appendElement("div").addClass("match-box-stage").appendElement("div").text(stage);
+            return page.outerHtml();
+        });
+    }
+
     private String resultPage(long id, String date, String left, String right, String score, String event) {
         return "<div id='center'><div class='matches-box'>" + resultGroup(id, date, left, right, score, event) + "</div></div>";
     }

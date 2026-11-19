@@ -18,14 +18,15 @@ final class MatchSummary implements Serializable {
     final String eventName;
     final boolean duel;
     final boolean teamChild;
+    final TournamentStage stage;
 
     MatchSummary(long id, List<String> left, List<String> right, String date, String score,
                  long eventId, String eventName, boolean duel) {
-        this(id, left, right, date, score, eventId, eventName, duel, false);
+        this(id, left, right, date, score, eventId, eventName, duel, false, null);
     }
 
     MatchSummary(long id, List<String> left, List<String> right, String date, String score,
-                 long eventId, String eventName, boolean duel, boolean teamChild) {
+                 long eventId, String eventName, boolean duel, boolean teamChild, TournamentStage stage) {
         this.id = id;
         this.left = new java.util.ArrayList<>(left);
         this.right = new java.util.ArrayList<>(right);
@@ -35,9 +36,12 @@ final class MatchSummary implements Serializable {
         this.eventName = eventName;
         this.duel = duel;
         this.teamChild = teamChild;
+        this.stage = stage;
     }
 
     static LocalDate sourceDay(String date) { return LocalDate.parse(date.replace(".", ""), SOURCE_DAY); }
+
+    static boolean isDuelEventName(String eventName) { return "Duello".equalsIgnoreCase(eventName); }
 
     String display() {
         return date + " · " + String.join(" / ", left) + " — " + String.join(" / ", right)

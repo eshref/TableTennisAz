@@ -8,10 +8,12 @@ import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayingAtLeast;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -53,10 +55,14 @@ public class ProfileDeviceTest {
 
             // act
             pressBack();
-            onView(withText("Matç tarixçəsi")).perform(scrollTo());
+            onView(withId(R.id.match_stage_badge)).perform(scrollTo());
 
             // assert
             onView(withId(R.id.profile_name)).check(matches(withText(name)));
+            onView(withId(R.id.match_stage_badge)).check(matches(allOf(withText(R.string.stage_group), isDisplayingAtLeast(100))));
+            onView(withContentDescription("16 Nov. 2026 · " + name
+                    + " — Şəms Quliyeva · 3-1 · Bakı həvəskarlar kuboku · Tək · Turnir · Qrup oyunu"))
+                    .check(matches(withId(R.id.match_card)));
             capture("history");
 
             // act
@@ -124,7 +130,7 @@ public class ProfileDeviceTest {
         long now = System.currentTimeMillis();
         new RankingsStore(context).write(new RankingSnapshot(asList(new RankingSnapshot.Player(12, name, 800)), now));
         MatchSummary single = new MatchSummary(502, asList(name), asList("Şəms Quliyeva"),
-                "16 Nov. 2026", "3-1", 901, "Bakı həvəskarlar kuboku", false);
+                "16 Nov. 2026", "3-1", 901, "Bakı həvəskarlar kuboku", false, false, TournamentStage.GROUP);
         MatchSummary doubles = new MatchSummary(501, asList(name, "Əli Məmmədov"), asList("Məryəm İmanova", "Işıl Əliyeva"),
                 "15 Nov. 2026", "2-3", 0, "Duello", true);
         PlayerProfile profile = new PlayerProfile(12, name, 800, asList(single, doubles),
@@ -157,18 +163,6 @@ public class ProfileDeviceTest {
         File directory = new File(context.getExternalFilesDir(null), "issue28");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-        Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if (screenshot == null) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
-                    InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("screencap -p"))) {
-                screenshot = BitmapFactory.decodeStream(input);
-            }
-        }
-        if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
-        File png = new File(directory, prefix + "-" + name + ".png");
-        try (var output = new FileOutputStream(png)) {
-            if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
-        } finally { screenshot.recycle(); }
-        ScreenshotCheckpoint.exportIfRequired(png);
+        ScreenshotCheckpoint.captureWindow(new File(directory, prefix + "-" + name + ".png"));
     }
 }

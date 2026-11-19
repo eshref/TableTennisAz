@@ -29,22 +29,20 @@ final class MatchCard extends LinearLayout {
         setOnClickListener(view -> open.run());
         String kind = context.getString(match.left.size() == 2 ? R.string.match_doubles : R.string.match_singles);
         // Profile histories, including older snapshots, identify duels by the website's reserved event label.
-        boolean duel = match.duel || (match.eventId == 0 && "Duello".equalsIgnoreCase(match.eventName));
+        boolean duel = match.duel || (match.eventId == 0 && MatchSummary.isDuelEventName(match.eventName));
         String source = context.getString(match.eventId != 0 && duel ? R.string.match_event_and_duel
                 : duel ? R.string.match_duel : R.string.match_event);
         String type = kind + " · " + source;
-        setContentDescription(match.display() + " · " + type);
-        // One actionable TalkBack announcement retains both full sides, score, date, event and type.
+        String stage = match.stage == null ? null : context.getString(match.stage.labelResource);
+        setContentDescription(match.display() + " · " + type + (stage == null ? "" : " · " + stage));
+        // One actionable TalkBack announcement retains both full sides and the match context.
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
         LinearLayout metadata = new LinearLayout(context);
         boolean stack = getResources().getConfiguration().screenWidthDp < 360 * getResources().getConfiguration().fontScale;
         metadata.setOrientation(stack ? VERTICAL : HORIZONTAL);
         metadata.setGravity(Gravity.CENTER_VERTICAL);
         metadata.addView(secondary(match.date), new LayoutParams(stack ? -1 : 0, -2, stack ? 0 : 1));
-        TextView badge = secondary(type);
-        badge.setBackground(Presentation.shape(context, R.color.soft));
-        badge.setPadding(dp(7), dp(3), dp(7), dp(3));
-        metadata.addView(badge, new LayoutParams(-2, -2));
+        metadata.addView(badge(type), new LayoutParams(-2, -2));
         addView(metadata);
         String[] scores = match.score.split("\\s*-\\s*", -1);
         boolean usableScore = scores.length == 2 && scores[0].matches("\\d+") && scores[1].matches("\\d+");
@@ -57,7 +55,47 @@ final class MatchCard extends LinearLayout {
             LayoutParams line = new LayoutParams(-1, dp(1));
             line.topMargin = dp(8);
             addView(divider, line);
-            addView(secondary(match.eventName));
+            TextView event = secondary(match.eventName);
+            event.setId(R.id.match_event_name);
+            if (stage == null) {
+                addView(event);
+            } else {
+                TextView stageBadge = badge(stage);
+                stageBadge.setId(R.id.match_stage_badge);
+                stageBadge.setTextColor(context.getColor(R.color.primary));
+                stageBadge.setTypeface(null, Typeface.BOLD);
+                addView(new EventFooter(event, stageBadge));
+            }
+        }
+    }
+
+    private static final class EventFooter extends LinearLayout {
+        private final LayoutParams eventParams = new LayoutParams(-2, -2);
+        private final LayoutParams stageParams = new LayoutParams(-2, -2);
+        private final int inlineWidth;
+        private final int gap;
+
+        EventFooter(TextView event, TextView stage) {
+            super(event.getContext());
+            setGravity(Gravity.CENTER_VERTICAL);
+            gap = Presentation.dp(getContext(), 8);
+            event.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+            stage.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+            inlineWidth = event.getMeasuredWidth() + gap + stage.getMeasuredWidth();
+            stageParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+            addView(event, eventParams);
+            addView(stage, stageParams);
+        }
+
+        @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            boolean wrap = MeasureSpec.getMode(widthMeasureSpec) != MeasureSpec.UNSPECIFIED
+                    && MeasureSpec.getSize(widthMeasureSpec) < inlineWidth;
+            setOrientation(wrap ? VERTICAL : HORIZONTAL);
+            eventParams.width = wrap ? -2 : 0;
+            eventParams.weight = wrap ? 0 : 1;
+            stageParams.setMarginStart(wrap ? 0 : gap);
+            stageParams.topMargin = wrap ? Presentation.dp(getContext(), 4) : 0;
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         }
     }
 
@@ -82,6 +120,13 @@ final class MatchCard extends LinearLayout {
         TextView label = Presentation.label(getContext(), text, 12);
         label.setTextColor(getContext().getColor(R.color.secondary));
         label.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        return label;
+    }
+
+    private TextView badge(String text) {
+        TextView label = secondary(text);
+        label.setBackground(Presentation.shape(getContext(), R.color.soft));
+        label.setPadding(dp(7), dp(3), dp(7), dp(3));
         return label;
     }
 
