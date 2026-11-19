@@ -49,7 +49,7 @@ public class ProfileDeviceTest {
             onView(withId(R.id.profile_history_action)).perform(scrollTo(), click());
 
             // assert
-            onView(withContentDescription("31.12 — 435.55 xal")).check(matches(withContentDescription("31.12 — 435.55 xal")));
+            onView(withId(R.id.chart_observation)).check(matches(withContentDescription("31.12 — 435.55 xal")));
 
             // act
             pressBack();

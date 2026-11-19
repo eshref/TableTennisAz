@@ -11,7 +11,9 @@ have their own check. [Android Actions](https://github.com/eshref/TableTennisAz/
 
 Confirm the selected journeys reach the changed screens. The selector uses a
 focused journey for each affected screen it recognizes. Shared code and rankings
-also select the combined journey. Each journey publishes its own evidence.
+also select the combined journey. Shared string resources select all journeys
+to reach screen-specific states such as the Duels filter. Each journey publishes
+its own evidence.
 [Changed-file selector](../../scripts/android/pr-journey)
 
 | Changed screens | Journey | Local test class |
