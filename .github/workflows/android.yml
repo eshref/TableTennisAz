@@ -211,7 +211,8 @@ jobs:
           retention-days: 7
           if-no-files-found: error
   installed:
-    name: Android installed check
+    # Keep the required context exclusive to pull request runs.
+    name: ${{ github.event_name == 'pull_request' && 'Android installed check' || 'Android PR result' }}
     needs: [select-installed, installed-journeys]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
