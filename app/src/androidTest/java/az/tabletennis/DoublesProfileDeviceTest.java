@@ -85,14 +85,6 @@ public class DoublesProfileDeviceTest {
             capture("profile");
 
             // act
-            scrollHistoryIntoView();
-
-            // assert
-            onView(withId(R.id.chart_selected_value)).check(matches(withText("858 xal")));
-            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
-            capture("points");
-
-            // act
             onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
             scrollHistoryIntoView();
 
@@ -102,6 +94,16 @@ public class DoublesProfileDeviceTest {
             capture("rank");
 
             // act
+            onView(withId(R.id.pair_chart_points)).perform(scrollTo(), click());
+            scrollHistoryIntoView();
+
+            // assert
+            onView(withId(R.id.chart_selected_value)).check(matches(withText("858 xal")));
+            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
+            capture("points");
+
+            // act
+            onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
             onView(withContentDescription(endsWith("— #3"))).perform(scrollTo(), click());
 
             // assert

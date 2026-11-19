@@ -446,7 +446,7 @@ class AndroidVerify {
         Path captures = evidence.resolve("captures").resolve(prefix);
         Files.createDirectories(captures);
         adb("pull-" + prefix, 90, true, "pull", "/sdcard/Android/data/az.tabletennis/files", captures.toString());
-        Set<String> validated = new HashSet<>();
+        Map<String, Path> validated = new HashMap<>();
         try (var paths = Files.walk(captures)) {
             for (Path png : paths.filter(p -> p.getFileName().toString().startsWith(prefix + "-") && p.toString().endsWith(".png")).toList()) {
                 BufferedImage image = ImageIO.read(png.toFile());
@@ -454,14 +454,19 @@ class AndroidVerify {
                 Set<Integer> colors = new HashSet<>();
                 for (int y = 0; y < height; y += 3) for (int x = 0; x < width; x += 3) colors.add(image.getRGB(x, y));
                 require(colors.size() >= 16, "Blank screenshot: " + png);
-                validated.add(png.getFileName().toString());
+                validated.put(png.getFileName().toString(), png);
             }
         }
         require(!validated.isEmpty(), "No installed screenshots captured for " + prefix);
         if (classes.equals(DOUBLES_PROFILE_TEST)) {
-            for (String capture : List.of("points", "rank")) {
-                String filename = prefix + "-" + capture + ".png";
-                require(validated.contains(filename), "Missing installed screenshot: " + filename);
+            Path points = validated.get(prefix + "-points.png");
+            Path rank = validated.get(prefix + "-rank.png");
+            require(points != null && rank != null, "Missing rating or ranking history screenshot for " + prefix);
+            require(Files.mismatch(points, rank) != -1, "Rating and ranking history screenshots are identical for " + prefix);
+            Path profile = validated.get(prefix + "-profile.png");
+            if (profile != null) {
+                require(Files.mismatch(profile, points) != -1 && Files.mismatch(profile, rank) != -1,
+                        "History screenshot duplicates the profile screenshot for " + prefix);
             }
         }
         result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
