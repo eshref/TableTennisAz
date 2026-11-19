@@ -1,0 +1,392 @@
+<!doctype html>
+<!-- Throwaway prototype. Compare three stage badge placements on Results and profile cards. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tournament stage badges · Prototype</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #edf2ee;
+      color: #183125;
+      font: 16px/1.45 system-ui, sans-serif;
+    }
+    button, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid #43896c; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(235px, 290px) minmax(0, 430px);
+      align-items: start;
+      justify-content: center;
+      gap: clamp(24px, 6vw, 88px);
+      padding: 36px 20px 96px;
+    }
+    .controls { padding-top: 18px; }
+    .prototype-note { margin: 0 0 12px; color: #536b5d; font-size: .875rem; }
+    h1 { margin: 0 0 22px; font-size: clamp(1.75rem, 4vw, 2.35rem); line-height: 1.12; }
+    fieldset { padding: 0; margin: 0 0 20px; border: 0; min-width: 0; }
+    legend { padding: 0; margin: 0 0 7px; font-size: .875rem; font-weight: 650; }
+    .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+    .choices button {
+      min-height: 42px;
+      padding: 6px 11px;
+      background: #f9fbf9;
+      border: 1px solid #c9d8cc;
+      border-radius: 8px;
+      text-align: start;
+    }
+    .choices button[aria-pressed="true"] { background: #006b50; border-color: #006b50; color: white; }
+
+    .preview {
+      --background: #f5f9f6;
+      --surface: #fff;
+      --ink: #183125;
+      --muted: #536b5d;
+      --primary: #006b50;
+      --soft: #dcefe2;
+      --line: #dbe6de;
+      --format: #edf3ee;
+      min-width: 0;
+      width: 100%;
+      max-height: min(760px, calc(100dvh - 108px));
+      overflow: auto;
+      scrollbar-color: var(--line) var(--background);
+      background: var(--background);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 12px 40px #18312519;
+      font: 1rem/1.4 Roboto, system-ui, sans-serif;
+    }
+    .preview[data-theme="dark"] {
+      --background: #101d16;
+      --surface: #192a20;
+      --ink: #e7f1e9;
+      --muted: #b3c8b9;
+      --primary: #8bd8b4;
+      --soft: #254d38;
+      --line: #354c3e;
+      --format: #263c30;
+    }
+    .preview[data-large="true"] { font-size: 1.5rem; }
+    .app-header { background: var(--surface); padding: 16px; border-bottom: 1px solid var(--line); }
+    .app-header h2 { margin: 0; font-size: 1.375em; }
+    .app-body { padding: 13px 16px 18px; min-width: 0; }
+    .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .filters button {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--background);
+      padding: 6px 12px;
+      min-height: 42px;
+      font-size: .875em;
+    }
+    .filters button[aria-pressed="true"] { color: var(--primary); background: var(--soft); border-color: var(--soft); font-weight: 650; }
+    .event-field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: .8em; }
+    .event-field select {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px;
+      background: var(--surface);
+      color-scheme: light dark;
+      font-size: .9em;
+    }
+    .preview[data-theme="dark"] select { color-scheme: dark; }
+    .preview[data-theme="light"] select { color-scheme: light; }
+    .coverage, .date-group { margin: 12px 0 8px; color: var(--muted); font-size: .8em; }
+    .date-group { font-weight: 650; }
+    .profile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .profile p { margin: 0; }
+    .history-title { margin: 15px 0 9px; font-size: 1em; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 10px;
+    }
+    .card-main { padding: 11px 12px; }
+    .meta, .badges, .event-line { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; }
+    .meta { justify-content: space-between; margin-bottom: 9px; }
+    .meta time, .event-name { color: var(--muted); font-size: .8em; }
+    .badge { max-width: 100%; border-radius: 6px; padding: 3px 7px; font-size: .8em; overflow-wrap: anywhere; }
+    .format { color: var(--muted); background: var(--format); }
+    .stage { color: var(--primary); background: var(--soft); font-weight: 700; }
+    .side { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 3px 0; }
+    .side span { display: block; overflow-wrap: anywhere; }
+    .winner .names { font-weight: 650; }
+    .score { font-size: 1.25em; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .event-line { margin-top: 6px; padding-top: 7px; border-top: 1px solid var(--line); }
+    .event-name { min-width: 0; overflow-wrap: anywhere; }
+    .event-line .stage { margin-inline-start: auto; }
+    .stage-line { padding: 7px 12px; background: var(--soft); border-radius: 13px 13px 0 0; }
+    .stage-line .stage { display: inline-block; padding: 0; background: transparent; font-size: .9em; }
+
+    .switcher {
+      position: fixed;
+      inset: auto 0 max(10px, env(safe-area-inset-bottom));
+      width: max-content;
+      max-width: calc(100% - 16px);
+      margin-inline: auto;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 30px;
+      padding: 4px;
+      background: #183125;
+      color: white;
+      box-shadow: 0 4px 20px #1831253a;
+    }
+    .switcher button {
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 50%;
+      background: #315244;
+      font-size: 1.15rem;
+      flex: none;
+    }
+    .switcher button:hover { background: #426b59; }
+    .switcher output { min-width: 10rem; padding: 0 4px; text-align: center; font-size: .875rem; font-weight: 650; }
+    @media (max-width: 650px) {
+      .workspace { grid-template-columns: minmax(0, 430px); gap: 14px; padding: 16px 8px 84px; }
+      .controls { padding: 0 4px; }
+      h1 { margin-bottom: 12px; }
+      fieldset { margin-bottom: 10px; }
+      .preview { max-height: none; }
+    }
+    @media (max-width: 340px) {
+      .app-body, .app-header { padding-inline: 10px; }
+      .switcher output { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="workspace">
+    <section class="controls" aria-labelledby="page-title">
+      <p class="prototype-note">Prototype · Sample results</p>
+      <h1 id="page-title">Tournament stage badges</h1>
+      <fieldset>
+        <legend>Screen</legend>
+        <div class="choices" id="screens">
+          <button type="button" data-screen="results" aria-pressed="true">Results</button>
+          <button type="button" data-screen="player" aria-pressed="false">Player history</button>
+          <button type="button" data-screen="pair" aria-pressed="false">Doubles history</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Appearance</legend>
+        <div class="choices">
+          <button id="dark" type="button" aria-pressed="false">Dark</button>
+          <button id="large" type="button" aria-pressed="false">Large text</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <section class="preview" id="preview" lang="az" aria-labelledby="screen-title" data-theme="light">
+      <header class="app-header"><h2 id="screen-title">Nəticələr</h2></header>
+      <div class="app-body">
+        <div id="results-controls">
+          <div class="filters" id="filters" role="group" aria-label="Nəticə növü">
+            <button type="button" data-filter="all" aria-pressed="false">Hamısı</button>
+            <button type="button" data-filter="tournaments" aria-pressed="true">Turnirlər</button>
+            <button type="button" data-filter="duels" aria-pressed="false">Duellər</button>
+          </div>
+          <div class="event-field" id="event-field">
+            <label for="tournament">Tədbir seç</label>
+            <select id="tournament">
+              <option value="all">Bütün tədbirlər</option>
+              <option value="cup" selected>Bakı həvəskarlar kuboku</option>
+              <option value="doubles">Bakı qoşalar kuboku</option>
+              <option value="league">Payız liqası</option>
+            </select>
+          </div>
+          <p class="coverage">Yalnız yüklənmiş nəticələr göstərilir.</p>
+        </div>
+        <div id="profile" hidden>
+          <div class="profile" id="profile-names"></div>
+          <h3 class="history-title">Matç tarixçəsi</h3>
+        </div>
+        <div id="matches"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="switcher" aria-label="Badge layout">
+    <button id="previous" type="button" aria-label="Previous badge layout">←</button>
+    <output id="variant-label" aria-live="polite"></output>
+    <button id="next" type="button" aria-label="Next badge layout">→</button>
+  </nav>
+
+  <script>
+    const players = ['Nigar Məmmədova', 'Aysel Rzayeva', 'Leyla Hüseynova', 'Ayan Əhmədova',
+      'Günel Nəcəfova', 'Şəbnəm İsmayılzadə', 'Fidan Qasımova', 'Nərmin Hacıyeva'];
+    const pair = [players[0], players[5]];
+    const opponents = [[players[1], players[6]], [players[2], players[7]], [players[3], players[4]]];
+    const events = {cup: 'Bakı həvəskarlar kuboku', doubles: 'Bakı qoşalar kuboku', league: 'Payız liqası'};
+    const stageLabels = {
+      'Play-in': 'Qrup oyunu', '1/16': '1/16', '1/8': '1/8', '1/4': '1/4',
+      '1/2': '1/2', 'Final': 'Final', '3-cü yer oyunu': '3-cü yer oyunu'
+    };
+    const matches = [
+      {day: 18, event: 'cup', stage: 'Final', sides: [[players[0]], [players[1]]], score: [3, 2]},
+      {day: 18, event: 'cup', stage: '3-cü yer oyunu', sides: [[players[2]], [players[3]]], score: [3, 1]},
+      {day: 18, event: 'doubles', stage: 'Final', duel: true, sides: [pair, opponents[0]], score: [3, 1]},
+      {day: 17, event: 'cup', stage: '1/2', sides: [[players[0]], [players[2]]], score: [3, 0]},
+      {day: 17, event: 'doubles', stage: '1/2', sides: [pair, opponents[1]], score: [3, 2]},
+      {day: 17, duel: true, stage: 'Play-in', sides: [[players[0]], [players[4]]], score: [2, 3]},
+      {day: 16, event: 'cup', stage: '1/4', sides: [[players[0]], [players[4]]], score: [3, 2]},
+      {day: 16, event: 'doubles', stage: '3-cü yer oyunu', sides: [opponents[1], opponents[2]], score: [3, 0]},
+      {day: 16, duel: true, sides: [pair, opponents[0]], score: [1, 3]},
+      {day: 15, event: 'cup', stage: '1/8', sides: [[players[0]], [players[5]]], score: [3, 1]},
+      {day: 15, event: 'league', sides: [[players[0]], [players[6]]], score: [1, 3]},
+      {day: 14, event: 'cup', stage: '1/16', sides: [[players[0]], [players[6]]], score: [3, 0]},
+      {day: 14, event: 'doubles', stage: 'Play-in', sides: [pair, opponents[2]], score: [3, 1]},
+      {day: 13, event: 'cup', stage: 'Play-in', sides: [[players[0]], [players[7]]], score: [3, 2]}
+    ];
+
+    const layouts = [
+      {key: 'a', label: 'A · Beside match type'},
+      {key: 'b', label: 'B · Stage header'},
+      {key: 'c', label: 'C · Beside tournament'}
+    ];
+    const titles = {results: 'Nəticələr', player: 'Oyunçu profili', pair: 'Qoşanın profili'};
+    const byId = id => document.getElementById(id);
+    const preview = byId('preview');
+    const tournament = byId('tournament');
+    const initialUrl = new URL(window.location.href);
+    const requestedLayout = new URLSearchParams(initialUrl.hash.slice(1)).get('variant')
+      || initialUrl.searchParams.get('variant');
+    let layout = Math.max(0, layouts.findIndex(item => item.key === requestedLayout));
+    let screen = 'results';
+    let filter = 'tournaments';
+
+    function matchCard(match, date) {
+      const stage = match.event && stageLabels[match.stage];
+      const badge = stage ? `<span class="badge stage">${stage}</span>` : '';
+      const format = match.sides[0].length === 2 ? 'Qoşalar' : 'Tək';
+      const source = match.event ? (match.duel ? 'Turnir · Duel' : 'Turnir') : 'Duel';
+      const event = match.event ? events[match.event] : 'Duello';
+      const key = layouts[layout].key;
+      return `<article class="card">
+        ${key === 'b' && badge ? `<div class="stage-line">${badge}</div>` : ''}
+        <div class="card-main">
+          <div class="meta">
+            <time>${date}</time>
+            <div class="badges"><span class="badge format">${format} · ${source}</span>${key === 'a' ? badge : ''}</div>
+          </div>
+          ${match.sides.map((side, index) => `<div class="side ${match.score[index] > match.score[1 - index] ? 'winner' : ''}">
+            <div class="names">${side.map(name => `<span>${name}</span>`).join('')}</div>
+            <span class="score">${match.score[index]}</span>
+          </div>`).join('')}
+          <div class="event-line"><span class="event-name">${event}</span>${key === 'c' ? badge : ''}</div>
+        </div>
+      </article>`;
+    }
+
+    function renderMatches() {
+      const selected = tournament.value;
+      const rows = matches.filter(match => {
+        if (screen === 'player') return match.sides.some(side => side.length === 1 && side[0] === players[0]);
+        if (screen === 'pair') return match.sides.includes(pair);
+        if (filter === 'duels') return match.duel;
+        if (filter === 'tournaments') return match.event && (selected === 'all' || selected === match.event);
+        return true;
+      });
+      let previousDay;
+      byId('matches').innerHTML = rows.map(match => {
+        const date = `${match.day} noyabr`;
+        const heading = screen === 'results' && previousDay !== match.day ? `<h3 class="date-group">${date}</h3>` : '';
+        previousDay = match.day;
+        return heading + matchCard(match, date);
+      }).join('');
+    }
+
+    function setPressed(group, property, value) {
+      byId(group).querySelectorAll('button').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset[property] === value));
+      });
+    }
+
+    function updateScreen() {
+      byId('screen-title').textContent = titles[screen];
+      byId('results-controls').hidden = screen !== 'results';
+      byId('profile').hidden = screen === 'results';
+      byId('profile-names').replaceChildren(...(screen === 'pair' ? pair : [players[0]]).map(name => {
+        const line = document.createElement('p');
+        line.textContent = name;
+        return line;
+      }));
+      byId('event-field').hidden = filter !== 'tournaments';
+      setPressed('screens', 'screen', screen);
+      setPressed('filters', 'filter', filter);
+      renderMatches();
+      preview.scrollTop = 0;
+    }
+
+    function showLayout() {
+      byId('variant-label').textContent = layouts[layout].label;
+      renderMatches();
+    }
+
+    function changeLayout(delta) {
+      layout = (layout + delta + layouts.length) % layouts.length;
+      const url = new URL(window.location.href);
+      url.searchParams.set('variant', layouts[layout].key);
+      url.hash = '';
+      try {
+        history.replaceState(null, '', url);
+      } catch {
+        // Some browsers allow local files to change the fragment only.
+        history.replaceState(null, '', `#variant=${layouts[layout].key}`);
+      }
+      showLayout();
+    }
+
+    byId('screens').addEventListener('click', event => {
+      const button = event.target.closest('[data-screen]');
+      if (button) {
+        screen = button.dataset.screen;
+        updateScreen();
+      }
+    });
+    byId('filters').addEventListener('click', event => {
+      const button = event.target.closest('[data-filter]');
+      if (button) {
+        filter = button.dataset.filter;
+        updateScreen();
+      }
+    });
+    tournament.addEventListener('change', renderMatches);
+    byId('dark').addEventListener('click', event => {
+      const dark = preview.dataset.theme !== 'dark';
+      preview.dataset.theme = dark ? 'dark' : 'light';
+      event.currentTarget.setAttribute('aria-pressed', dark);
+    });
+    byId('large').addEventListener('click', event => {
+      const large = preview.dataset.large !== 'true';
+      preview.dataset.large = large;
+      event.currentTarget.setAttribute('aria-pressed', large);
+    });
+    byId('previous').addEventListener('click', () => changeLayout(-1));
+    byId('next').addEventListener('click', () => changeLayout(1));
+    document.addEventListener('keydown', event => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+          || event.target.closest('input, select, textarea, [contenteditable]')) return;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        changeLayout(event.key === 'ArrowLeft' ? -1 : 1);
+      }
+    });
+    updateScreen();
+    showLayout();
+  </script>
+</body>
+</html>
