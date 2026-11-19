@@ -16,14 +16,16 @@ import javax.xml.parsers.DocumentBuilderFactory;
 class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
-    private final Path repo, cache, evidence, work, sdk;
+    private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
+    private static final List<String> DOUBLES_PROFILE_CAPTURES = List.of("drawer", "profile", "points", "rank", "matches", "long-names");
+    private final Path repo, source, cache, evidence, work, sdk;
     private final Map<String, String> env = new HashMap<>(System.getenv());
     private final Properties tools = new Properties(), result = new Properties();
     private final List<Process> children = Collections.synchronizedList(new ArrayList<>());
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
     private Path build;
     private Process emulator;
-    private boolean retain, preflightOnly, software, live;
+    private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly;
     private volatile boolean cleaned;
     private String tests = "az.tabletennis.MatchDeviceTest", serial;
     private int adbPort;
@@ -86,6 +88,7 @@ class AndroidVerify {
 
     private AndroidVerify(String[] args) throws Exception {
         repo = Path.of(args[0]).toRealPath();
+        source = Path.of(env.getOrDefault("ANDROID_VERIFY_SOURCE", repo.toString())).toRealPath();
         cache = Path.of(System.getenv("ANDROID_VERIFY_CACHE")).toAbsolutePath();
         evidence = Path.of(System.getenv("ANDROID_VERIFY_EVIDENCE")).toRealPath();
         boolean selectedTests = false;
@@ -93,6 +96,8 @@ class AndroidVerify {
             case "--retain-device" -> retain = true;
             case "--preflight-only" -> preflightOnly = true;
             case "--software" -> software = true;
+            case "--require-kvm" -> requireKvm = true;
+            case "--device-only" -> deviceOnly = true;
             case "--live" -> live = true;
             case "--tests" -> { tests = args[++i]; selectedTests = true; }
             default -> throw new IllegalArgumentException("Unknown argument: " + args[i]);
@@ -101,6 +106,8 @@ class AndroidVerify {
             throw new IllegalArgumentException("--tests requires one fully qualified test class; run separate fixtures separately");
         if (live && (preflightOnly || selectedTests))
             throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
+        if (requireKvm && software)
+            throw new IllegalArgumentException("Use --require-kvm or --software");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
         deadline = Long.parseLong(System.getenv("ANDROID_VERIFY_STARTED")) * 1000 + Long.parseLong(System.getenv("ANDROID_VERIFY_PREFLIGHT_SECONDS")) * 1000;
         sdk = sdkDirectory();
@@ -123,14 +130,24 @@ class AndroidVerify {
     }
 
     private void execute() throws Exception {
+        if (requireKvm && software) {
+            phase = "acceleration";
+            throw new IOException("KVM is required; /dev/kvm must be readable and writable");
+        }
         note("Preparing pinned tools (" + (software ? "software emulation; " + Long.parseLong(env.get("ANDROID_VERIFY_PREFLIGHT_SECONDS")) / 60 + "-minute preflight limit" : "hardware acceleration") + ")");
         if (Files.getFileStore(cache).getUsableSpace() < 12L * 1024 * 1024 * 1024 || Files.getFileStore(work).getUsableSpace() < 12L * 1024 * 1024 * 1024)
             throw new IOException("Tool/device filesystem needs 12 GiB free. Set ANDROID_VERIFY_CACHE and ANDROID_VERIFY_OUTPUT to a larger filesystem.");
         for (String tool : List.of("platform", "build-tools", "platform-tools", "emulator", "image")) install(tool);
         if (!software) {
-            String acceleration = command("acceleration", 30, false, sdk.resolve("emulator/emulator").toString(), "-accel-check");
+            phase = "acceleration";
+            String acceleration = command("acceleration", 30, requireKvm, sdk.resolve("emulator/emulator").toString(), "-accel-check");
             software = !acceleration.contains("installed and usable");
             result.setProperty("mode", software ? "software" : "accelerated");
+            if (requireKvm) {
+                require(!software && acceleration.contains("KVM"), "KVM is required; see acceleration.log");
+                result.setProperty("kvm", "confirmed");
+                note("KVM acceleration confirmed by the Android emulator");
+            }
         }
         phase = "build";
         Path buildParent = Path.of(env.getOrDefault("ANDROID_VERIFY_BUILD_ROOT", "/tmp"));
@@ -142,12 +159,14 @@ class AndroidVerify {
                 + "tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { systemProperty 'java.io.tmpdir', '"
                 + groovy(hostScratch.toString()) + "' } }\n");
         note("Building both APKs in isolated output");
-        run("build", 600, repo.toString() + "/gradlew", "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
+        run("build", 600, source.resolve("gradlew").toString(), "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
                 "-I", init.toString(), ":app:assembleDebug", ":app:assembleDebugAndroidTest");
         Path apk = build.resolve("app/outputs/apk/debug/app-debug.apk");
+        Path testApk = build.resolve("app/outputs/apk/androidTest/debug/app-debug-androidTest.apk");
         result.setProperty("apk.sha256", digest(apk));
+        result.setProperty("testApk.sha256", digest(testApk));
         Files.copy(apk, evidence.resolve("app-debug.apk"));
-        Files.copy(build.resolve("app/outputs/apk/androidTest/debug/app-debug-androidTest.apk"), evidence.resolve("app-debug-androidTest.apk"));
+        Files.copy(testApk, evidence.resolve("app-debug-androidTest.apk"));
         phase = "preflight";
         try { startDevice(); preflight(); }
         catch (Exception first) {
@@ -205,11 +224,12 @@ class AndroidVerify {
         }
         result.setProperty("matrix", "passed");
         note("Installed matrix passed");
+        if (deviceOnly) return;
         // Software emulation and Robolectric together can exhaust an 8 GiB host.
         kill(emulator);
         phase = "host-checks";
         note("Owned emulator stopped; running host integration tests and lint within the same full-phase deadline");
-        run("host-checks", Math.toIntExact(remaining()), repo.toString() + "/gradlew", "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
+        run("host-checks", Math.toIntExact(remaining()), source.resolve("gradlew").toString(), "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
                 "-I", init.toString(), ":app:testDebugUnitTest", ":app:lintDebug");
         result.setProperty("hostChecks", "passed");
     }
@@ -427,7 +447,7 @@ class AndroidVerify {
         Path captures = evidence.resolve("captures").resolve(prefix);
         Files.createDirectories(captures);
         adb("pull-" + prefix, 90, true, "pull", "/sdcard/Android/data/az.tabletennis/files", captures.toString());
-        int count = 0;
+        Set<String> validated = new HashSet<>();
         try (var paths = Files.walk(captures)) {
             for (Path png : paths.filter(p -> p.getFileName().toString().startsWith(prefix + "-") && p.toString().endsWith(".png")).toList()) {
                 BufferedImage image = ImageIO.read(png.toFile());
@@ -435,11 +455,18 @@ class AndroidVerify {
                 Set<Integer> colors = new HashSet<>();
                 for (int y = 0; y < height; y += 3) for (int x = 0; x < width; x += 3) colors.add(image.getRGB(x, y));
                 require(colors.size() >= 16, "Blank screenshot: " + png);
-                count++;
+                validated.add(png.getFileName().toString());
             }
         }
-        require(count > 0, "No installed screenshots captured for " + prefix);
-        result.setProperty(prefix + ".screenshots", Integer.toString(count));
+        require(!validated.isEmpty(), "No installed screenshots captured for " + prefix);
+        if (classes.equals(DOUBLES_PROFILE_TEST)) {
+            for (String capture : DOUBLES_PROFILE_CAPTURES) {
+                String filename = prefix + "-" + capture + ".png";
+                require(validated.contains(filename), "Missing installed screenshot: " + filename);
+            }
+        }
+        result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
+        note("Validated " + validated.size() + " installed screenshots for " + prefix);
     }
 
     private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds) throws Exception {
@@ -549,7 +576,7 @@ class AndroidVerify {
 
     private synchronized Process launch(Path log, String... command) throws IOException {
         if (cleaned) throw new IOException("Run is shutting down");
-        ProcessBuilder builder = new ProcessBuilder(command).directory(repo.toFile()).redirectErrorStream(true).redirectOutput(log.toFile());
+        ProcessBuilder builder = new ProcessBuilder(command).directory(source.toFile()).redirectErrorStream(true).redirectOutput(log.toFile());
         builder.environment().clear();
         builder.environment().putAll(env);
         Process process = builder.start();

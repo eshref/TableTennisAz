@@ -8,10 +8,21 @@ on:
         description: Run the opt-in live website check on Android 8
         type: boolean
         default: false
+      fixture_journey:
+        description: Saved-fixture matrix to run on Android 16
+        type: choice
+        default: none
+        options:
+          - none
+          - doubles-profile
+      app_revision:
+        description: Full commit SHA of the app to build for the fixture matrix
+        type: string
 permissions:
   contents: read
 jobs:
   verify:
+    if: github.event_name != 'workflow_dispatch' || inputs.fixture_journey != 'doubles-profile'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +44,72 @@ jobs:
         with:
           name: Android-reports
           path: app/build/reports/
+  fixture-matrix:
+    if: github.event_name == 'workflow_dispatch' && inputs.fixture_journey == 'doubles-profile'
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      APP_REVISION: ${{ inputs.app_revision }}
+      ANDROID_VERIFY_SOURCE: ${{ github.workspace }}/fixture-source
+      ANDROID_VERIFY_OUTPUT: ${{ github.workspace }}/android-fixture-evidence
+    steps:
+      - name: Validate app revision
+        run: |
+          if [[ ! "$APP_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::Enter the full lowercase commit SHA in app_revision.'
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out pinned app source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.app_revision }}
+          path: fixture-source
+          persist-credentials: false
+      - name: Record checked out revisions
+        run: |
+          source_sha=$(git -C "$ANDROID_VERIFY_SOURCE" rev-parse HEAD)
+          if [[ "$source_sha" != "$APP_REVISION" ]]; then
+            echo '::error::The checked out app source does not match app_revision.'
+            exit 1
+          fi
+          mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          {
+            printf '## Doubles profile fixture matrix\n\n'
+            printf 'App source `%s`\n\nVerifier `%s`\n' "$source_sha" "$GITHUB_SHA"
+          } | tee "$ANDROID_VERIFY_OUTPUT/revisions.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Grant the runner access to KVM
+        run: |
+          if [[ -c /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm
+          fi
+      - name: Run installed preflight and fixture matrix
+        run: scripts/android-verify --require-kvm --device-only --tests az.tabletennis.DoublesProfileDeviceTest
+      - name: Summarize verification
+        if: always()
+        run: |
+          for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
+            [[ -f "$result" ]] || continue
+            {
+              printf '\n```properties\n'
+              cat "$result"
+              printf '```\n'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Upload installed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-api36-doubles-profile
+          path: ${{ env.ANDROID_VERIFY_OUTPUT }}
+          retention-days: 7
   live-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.live_site
     runs-on: ubuntu-latest

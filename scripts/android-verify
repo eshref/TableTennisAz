@@ -10,13 +10,15 @@ export ANDROID_VERIFY_MATRIX_SECONDS="$(sed -n 's/^matrixSeconds=//p' "$limits_f
 if [[ " ${*} " == *" --help "* ]]; then
   cat <<HELP
 Usage: scripts/android-verify [--preflight-only | --live] [--software] [--retain-device]
-                              [--tests fully.qualified.Test]
+                              [--tests fully.qualified.Test] [--require-kvm] [--device-only]
 
 Linux x86_64. Provisions pinned Android tools and uses JDK 21. Default: installed
 MatchDeviceTest in light, dark/offline, narrow/150% text and landscape/150% text.
 Preflight always checks installed singles/doubles scores, focus and screenshots.
 --live runs the existing live rankings, complete experience and doubles journeys
 after preflight, instead of the saved-fixture matrix. Website access is required.
+--require-kvm fails if hardware acceleration is unavailable.
+--device-only skips the host tests and lint after the installed matrix.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one
 recovery. Full device checks have a separate $((ANDROID_VERIFY_MATRIX_SECONDS / 60))-minute budget.
 
@@ -24,6 +26,7 @@ ANDROID_VERIFY_CACHE       Reusable download/SDK cache (default: repo-local).
 ANDROID_VERIFY_OUTPUT     Evidence parent directory (default: repo-local).
 ANDROID_VERIFY_JDK        JDK 21 directory, or 'pinned' to provision the locked JDK.
 ANDROID_VERIFY_BUILD_ROOT Optional scratch parent for isolated Gradle outputs.
+ANDROID_VERIFY_SOURCE     App checkout to build (default: the verifier checkout).
 
 See docs/agents/android-verification.md. SDK/JDK licenses apply to downloads.
 HELP

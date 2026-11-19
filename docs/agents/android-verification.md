@@ -1,8 +1,22 @@
 # Installed Android verification
 
 Use this workflow for Android UI changes and whenever claiming installed-device
-verification. The script, version lock and this guide are repository-owned;
-global agent instructions and CI configuration are unchanged.
+verification. The script, version lock and this guide are repository-owned.
+
+## Hosted doubles profile pilot
+
+Open the [Android workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
+and choose **Run workflow**. Select the branch containing the verifier, choose
+`doubles-profile` for `fixture_journey`, and enter the full commit SHA for
+`app_revision`. The merged build containing #52 is
+`314238d1a982f55432bf4b47d2fd5f87304342e9`.
+
+The run summary records both revisions and the verifier result. The
+`android-api36-doubles-profile` artifact contains the APKs, logs, and captures
+for each completed configuration. In each configuration's capture directory,
+look for the matching `*-points.png` and `*-rank.png` for rating and ranking
+history. Keep `fixture_journey` set to `none` to dispatch the host checks, or
+enable `live_site` to request the existing opt-in website check.
 
 ## Run
 
