@@ -14,8 +14,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static java.util.Arrays.asList;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -23,7 +21,6 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
-import java.io.FileOutputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -151,18 +148,7 @@ public class ResultsDeviceTest {
         File directory = new File(context.getExternalFilesDir(null), "issue27");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-        Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if (screenshot == null) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
-                    InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("screencap -p"))) {
-                screenshot = BitmapFactory.decodeStream(input);
-            }
-        }
-        if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
         File png = new File(directory, prefix + "-" + name + ".png");
-        try (var output = new FileOutputStream(png)) {
-            if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
-        } finally { screenshot.recycle(); }
-        ScreenshotCheckpoint.exportIfRequired(png);
+        ScreenshotCheckpoint.captureWindow(png);
     }
 }
