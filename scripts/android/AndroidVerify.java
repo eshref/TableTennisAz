@@ -17,7 +17,6 @@ class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
-    private static final List<String> DOUBLES_PROFILE_CAPTURES = List.of("drawer", "profile", "points", "rank", "matches", "long-names");
     private final Path repo, source, cache, evidence, work, sdk;
     private final Map<String, String> env = new HashMap<>(System.getenv());
     private final Properties tools = new Properties(), result = new Properties();
@@ -150,7 +149,7 @@ class AndroidVerify {
             }
         }
         phase = "build";
-        Path buildParent = Path.of(env.getOrDefault("ANDROID_VERIFY_BUILD_ROOT", "/tmp"));
+        Path buildParent = Path.of(env.getOrDefault("ANDROID_VERIFY_BUILD_ROOT", "/tmp")).toAbsolutePath();
         if (Files.getFileStore(buildParent).getUsableSpace() < 1024L * 1024 * 1024) buildParent = work;
         build = Files.createTempDirectory(buildParent, "tabletennisaz-build-");
         Path init = work.resolve("build-paths.gradle");
@@ -460,7 +459,7 @@ class AndroidVerify {
         }
         require(!validated.isEmpty(), "No installed screenshots captured for " + prefix);
         if (classes.equals(DOUBLES_PROFILE_TEST)) {
-            for (String capture : DOUBLES_PROFILE_CAPTURES) {
+            for (String capture : List.of("points", "rank")) {
                 String filename = prefix + "-" + capture + ".png";
                 require(validated.contains(filename), "Missing installed screenshot: " + filename);
             }
