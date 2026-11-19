@@ -163,18 +163,6 @@ public class ProfileDeviceTest {
         File directory = new File(context.getExternalFilesDir(null), "issue28");
         if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-        Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if (screenshot == null) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
-                    InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("screencap -p"))) {
-                screenshot = BitmapFactory.decodeStream(input);
-            }
-        }
-        if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
-        File png = new File(directory, prefix + "-" + name + ".png");
-        try (var output = new FileOutputStream(png)) {
-            if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
-        } finally { screenshot.recycle(); }
-        ScreenshotCheckpoint.exportIfRequired(png);
+        ScreenshotCheckpoint.captureWindow(new File(directory, prefix + "-" + name + ".png"));
     }
 }
