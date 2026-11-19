@@ -18,6 +18,10 @@ on:
       app_revision:
         description: Full commit SHA of the app to build for the fixture matrix
         type: string
+      fail_after_history_checkpoint:
+        description: Deliberately fail the fixture journey after collecting the light history PNGs
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -50,6 +54,7 @@ jobs:
     timeout-minutes: 115
     env:
       APP_REVISION: ${{ inputs.app_revision }}
+      FAIL_AFTER_HISTORY_CHECKPOINT: ${{ inputs.fail_after_history_checkpoint }}
       ANDROID_VERIFY_SOURCE: ${{ github.workspace }}/fixture-source
       ANDROID_VERIFY_OUTPUT: ${{ github.workspace }}/android-fixture-evidence
     steps:
@@ -79,6 +84,8 @@ jobs:
           {
             printf '## Doubles profile fixture matrix\n\n'
             printf 'App source and fixture assets `%s`\n\nVerifier and doubles profile test `%s`\n' "$source_sha" "$GITHUB_SHA"
+            printf '\nAndroid API 36 · Journey `doubles-profile` · Deliberate failure `%s`\n' "$FAIL_AFTER_HISTORY_CHECKPOINT"
+            printf '\n[Run and live logs](%s/%s/actions/runs/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
           } | tee "$ANDROID_VERIFY_OUTPUT/revisions.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Use the verifier's doubles profile test
         run: |
@@ -95,10 +102,21 @@ jobs:
             sudo chmod a+rw /dev/kvm
           fi
       - name: Run installed preflight and fixture matrix
-        run: scripts/android-verify --require-kvm --device-only --tests az.tabletennis.DoublesProfileDeviceTest
+        id: installed
+        timeout-minutes: 110
+        run: |
+          set -o pipefail
+          args=(--require-kvm --device-only --tests az.tabletennis.DoublesProfileDeviceTest)
+          if [[ "$FAIL_AFTER_HISTORY_CHECKPOINT" == true ]]; then
+            args+=(--fail-after-history-checkpoint)
+          fi
+          scripts/android-verify "${args[@]}" 2>&1 | tee "$ANDROID_VERIFY_OUTPUT/progress.log"
       - name: Summarize verification
         if: always()
+        env:
+          VERIFICATION_OUTCOME: ${{ steps.installed.outcome }}
         run: |
+          printf '\nInstalled verification result **%s**\n' "$VERIFICATION_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
             [[ -f "$result" ]] || continue
             {
@@ -114,6 +132,7 @@ jobs:
           name: android-api36-doubles-profile
           path: ${{ env.ANDROID_VERIFY_OUTPUT }}
           retention-days: 7
+          if-no-files-found: error
   live-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.live_site
     runs-on: ubuntu-latest

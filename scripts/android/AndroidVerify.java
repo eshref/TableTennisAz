@@ -1,6 +1,9 @@
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -17,6 +20,8 @@ class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
+    private static final String CAPTURE_FILES = "/sdcard/Android/data/az.tabletennis/files";
+    private static final List<String> MATRIX_CONFIGURATIONS = List.of("light", "dark-offline", "narrow-large", "landscape-large");
     private final Path repo, source, cache, evidence, work, sdk;
     private final Map<String, String> env = new HashMap<>(System.getenv());
     private final Properties tools = new Properties(), result = new Properties();
@@ -24,7 +29,7 @@ class AndroidVerify {
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
     private Path build;
     private Process emulator;
-    private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly;
+    private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly, failAfterHistoryCheckpoint;
     private volatile boolean cleaned;
     private String tests = "az.tabletennis.MatchDeviceTest", serial;
     private int adbPort;
@@ -79,9 +84,7 @@ class AndroidVerify {
             runner.result.setProperty("status", "failed");
             runner.result.putIfAbsent("failure", failure.toString());
             System.err.println("FAILED during " + runner.phase + ": " + runner.result.getProperty("failure"));
-            runner.diagnose();
         } finally { runner.cleanup(); }
-        System.out.println("Result: " + runner.result.getProperty("status") + "; evidence: " + runner.evidence);
         System.exit(runner.result.getProperty("status").equals("passed") ? exit : 1);
     }
 
@@ -97,6 +100,7 @@ class AndroidVerify {
             case "--software" -> software = true;
             case "--require-kvm" -> requireKvm = true;
             case "--device-only" -> deviceOnly = true;
+            case "--fail-after-history-checkpoint" -> failAfterHistoryCheckpoint = true;
             case "--live" -> live = true;
             case "--tests" -> { tests = args[++i]; selectedTests = true; }
             default -> throw new IllegalArgumentException("Unknown argument: " + args[i]);
@@ -107,6 +111,8 @@ class AndroidVerify {
             throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
         if (requireKvm && software)
             throw new IllegalArgumentException("Use --require-kvm or --software");
+        if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
+            throw new IllegalArgumentException("--fail-after-history-checkpoint requires the doubles profile matrix");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
         deadline = Long.parseLong(System.getenv("ANDROID_VERIFY_STARTED")) * 1000 + Long.parseLong(System.getenv("ANDROID_VERIFY_PREFLIGHT_SECONDS")) * 1000;
         sdk = sdkDirectory();
@@ -124,6 +130,13 @@ class AndroidVerify {
         result.setProperty("mode", software ? "software" : "accelerated");
         result.setProperty("api", "36");
         result.setProperty("tests", live ? String.join(",", LIVE_TESTS) : tests);
+        result.setProperty("preflight", "not-run");
+        initializeConfiguration("preflight");
+        if (!preflightOnly && !live) {
+            result.setProperty("matrix", "not-run");
+            MATRIX_CONFIGURATIONS.forEach(this::initializeConfiguration);
+            if (tests.equals(DOUBLES_PROFILE_TEST)) result.setProperty("light.historyCheckpoint", "not-run");
+        }
         result.setProperty("started", Instant.now().toString());
         result.setProperty("sdkCache", sdk.toString());
     }
@@ -167,12 +180,14 @@ class AndroidVerify {
         Files.copy(apk, evidence.resolve("app-debug.apk"));
         Files.copy(testApk, evidence.resolve("app-debug-androidTest.apk"));
         phase = "preflight";
+        result.setProperty("preflight", "running");
+        note("Preflight started");
         try { startDevice(); preflight(); }
         catch (Exception first) {
             if (remaining() < 120 || !environmentFailure(first)) throw first;
             note("One automatic environment recovery; the original preflight deadline remains in force");
             result.setProperty("recovery", "1");
-            diagnose();
+            diagnose(deadline);
             try (var logs = Files.list(evidence)) {
                 Path previous = Files.createDirectories(evidence.resolve("first-attempt"));
                 for (Path log : logs.filter(p -> p.toString().endsWith(".log")).toList())
@@ -195,11 +210,13 @@ class AndroidVerify {
             for (String test : LIVE_TESTS) {
                 String prefix = "live-" + test.substring(test.lastIndexOf('.') + 1);
                 note("Live website journey: " + test);
-                runTests(prefix, test, false, false, Math.toIntExact(remaining()));
+                runTests(prefix, test, false, false, Math.toIntExact(remaining()), false);
             }
             result.setProperty("liveSource", "passed");
             return;
         }
+        result.setProperty("matrix", "running");
+        note("Installed fixture matrix started: " + tests);
         instrument("light", tests, false, false, 412, 891);
         disconnect();
         appearance("dark", "412x891", "1.0");
@@ -231,6 +248,11 @@ class AndroidVerify {
         run("host-checks", Math.toIntExact(remaining()), source.resolve("gradlew").toString(), "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
                 "-I", init.toString(), ":app:testDebugUnitTest", ":app:lintDebug");
         result.setProperty("hostChecks", "passed");
+    }
+
+    private void initializeConfiguration(String prefix) {
+        result.setProperty(prefix + ".instrumentation", "not-run");
+        result.setProperty(prefix + ".screenshotCollection", "not-run");
     }
 
     private synchronized void beginFullPhase(String name) throws IOException {
@@ -436,25 +458,30 @@ class AndroidVerify {
     }
 
     private void appearance(String theme, String size, String font) throws Exception {
+        note("Applying Android display settings: " + theme + ", " + size + ", font scale " + font);
         shell("display-" + size, 90, true, "wm size " + size + "; settings put system font_scale " + font
                 + "; settings put system accelerometer_rotation 0; settings put system user_rotation 0; cmd uimode night " + (theme.equals("dark") ? "yes" : "no"));
     }
 
     private void instrument(String prefix, String classes, boolean smoke, boolean reuse, int width, int height) throws Exception {
-        note("Installed checks: " + prefix + " (" + width + "x" + height + ")");
-        runTests(prefix, classes, smoke, reuse, software ? 720 : 240);
+        note("Installed configuration started: " + prefix + " (" + width + "x" + height + ")");
+        result.setProperty(prefix + ".display", width + "x" + height);
+        result.setProperty(prefix + ".instrumentation", "running");
+        boolean historyCheckpoint = prefix.equals("light") && classes.equals(DOUBLES_PROFILE_TEST);
+        runTests(prefix, classes, smoke, reuse, software ? 720 : 240, historyCheckpoint);
+        result.setProperty(prefix + ".instrumentation", "passed");
+        note("Instrumentation passed: " + prefix);
+        result.setProperty(prefix + ".screenshotCollection", "running");
+        note("Screenshot collection started: " + prefix);
         Path captures = evidence.resolve("captures").resolve(prefix);
         Files.createDirectories(captures);
-        adb("pull-" + prefix, 90, true, "pull", "/sdcard/Android/data/az.tabletennis/files", captures.toString());
+        adb("pull-" + prefix, 90, true, "pull", CAPTURE_FILES, captures.toString());
         Map<String, Path> validated = new HashMap<>();
         try (var paths = Files.walk(captures)) {
             for (Path png : paths.filter(p -> p.getFileName().toString().startsWith(prefix + "-") && p.toString().endsWith(".png")).toList()) {
-                BufferedImage image = ImageIO.read(png.toFile());
-                require(image != null && image.getWidth() == width && image.getHeight() == height, "Screenshot dimensions differ from requested " + width + "x" + height + ": " + png);
-                Set<Integer> colors = new HashSet<>();
-                for (int y = 0; y < height; y += 3) for (int x = 0; x < width; x += 3) colors.add(image.getRGB(x, y));
-                require(colors.size() >= 16, "Blank screenshot: " + png);
+                validateScreenshot(png, width, height);
                 validated.put(png.getFileName().toString(), png);
+                result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
             }
         }
         require(!validated.isEmpty(), "No installed screenshots captured for " + prefix);
@@ -469,18 +496,84 @@ class AndroidVerify {
                         "History screenshot duplicates the profile screenshot for " + prefix);
             }
         }
-        result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
-        note("Validated " + validated.size() + " installed screenshots for " + prefix);
+        result.setProperty(prefix + ".screenshotCollection", "passed");
+        note("Screenshot collection passed: " + prefix + " (" + validated.size() + " validated PNGs)");
     }
 
-    private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds) throws Exception {
+    private void validateScreenshot(Path png, int width, int height) throws IOException {
+        BufferedImage image = ImageIO.read(png.toFile());
+        require(image != null && image.getWidth() == width && image.getHeight() == height,
+                "Screenshot dimensions differ from requested " + width + "x" + height + ": " + png);
+        Set<Integer> colors = new HashSet<>();
+        for (int y = 0; y < height; y += 3) for (int x = 0; x < width; x += 3) colors.add(image.getRGB(x, y));
+        require(colors.size() >= 16, "Blank screenshot: " + png);
+    }
+
+    private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds, boolean historyCheckpoint) throws Exception {
         shell(prefix + "-stop", 60, true, "am force-stop az.tabletennis");
         String command = "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
-                + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "")
-                + " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
-        String output = shell("tests-" + prefix, seconds, true, command);
+                + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "");
+        String runner = " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
+        String name = "tests-" + prefix;
+        String output = historyCheckpoint ? runWithHistoryCheckpoint(name, seconds, command, runner)
+                : shell(name, seconds, true, command + runner);
         require(Pattern.compile("(?m)^OK \\([1-9][0-9]* tests?\\)").matcher(output).find(), "Installed tests did not pass with nonzero cases; see tests-" + prefix + ".log");
         result.setProperty(prefix + ".tests", output.substring(output.lastIndexOf("OK (")).strip().split("\n")[0]);
+    }
+
+    private String runWithHistoryCheckpoint(String name, int seconds, String command, String runner) throws Exception {
+        result.setProperty("light.historyCheckpoint", "running");
+        result.setProperty("light.screenshotCollection", "running");
+        note("Screenshot collection started: light doubles history checkpoint");
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            server.setSoTimeout(250);
+            int port = server.getLocalPort();
+            adb("history-checkpoint-reverse", 15, true, "reverse", "tcp:" + port, "tcp:" + port);
+            command += " -e historyCheckpointPort " + port;
+            if (failAfterHistoryCheckpoint) command += " -e failAfterHistoryCheckpoint true";
+            long until = Math.min(deadline, System.currentTimeMillis() + seconds * 1000L);
+            Process tests = launch(evidence.resolve(name + ".log"), adbCommand("shell", "-n", command + runner));
+            try {
+                Path directory = Files.createDirectories(evidence.resolve("checkpoints/light"));
+                collectHistoryCapture(server, tests, until, directory, "light-rank.png");
+                collectHistoryCapture(server, tests, until, directory, "light-points.png");
+                result.setProperty("light.historyCheckpoint", "passed");
+                note("Screenshot collection passed: light doubles history checkpoint");
+                return awaitCommand(name, tests, Math.max(0, until - System.currentTimeMillis()), true);
+            } finally {
+                if (tests.isAlive()) kill(tests);
+            }
+        }
+    }
+
+    private void collectHistoryCapture(ServerSocket server, Process tests, long until, Path directory, String name) throws Exception {
+        while (tests.isAlive() && System.currentTimeMillis() < until) {
+            Socket connection;
+            try { connection = server.accept(); }
+            catch (SocketTimeoutException waiting) { continue; }
+            try (var socket = connection) {
+                socket.setSoTimeout((int) Math.max(1, Math.min(15_000, until - System.currentTimeMillis())));
+                var input = new DataInputStream(socket.getInputStream());
+                require(name.equals(input.readUTF()), "Unexpected history checkpoint PNG; expected " + name);
+                int size = input.readInt();
+                require(size > 0 && size <= 2_000_000, "Unexpected history checkpoint PNG size: " + size);
+                byte[] png = input.readNBytes(size);
+                require(png.length == size, "Incomplete history checkpoint PNG: " + name);
+                Path pending = Files.write(work.resolve(name), png);
+                validateScreenshot(pending, 412, 891);
+                Path rank = directory.resolve("light-rank.png");
+                if (Files.isRegularFile(rank))
+                    require(Files.mismatch(rank, pending) != -1, "Light rating and ranking checkpoint PNGs are identical");
+                Files.move(pending, directory.resolve(name));
+                result.setProperty("light.screenshotCollection", "partial");
+                result.setProperty("light.historyCheckpoint." + name, "validated");
+                note("Host validated checkpoint screenshot: " + name);
+                socket.getOutputStream().write(1);
+                return;
+            }
+        }
+        if (tests.isAlive()) throw new IOException("Timed out waiting for history checkpoint " + name + "; see tests-light.log");
+        throw new IOException("Light instrumentation ended before sending history checkpoint " + name + "; see tests-light.log");
     }
 
     private Properties proof(String prefix, int id) throws Exception {
@@ -558,19 +651,28 @@ class AndroidVerify {
     }
 
     private String adb(String name, int seconds, boolean required, String... args) throws Exception {
+        return command(name, seconds, required, adbCommand(args));
+    }
+
+    private String[] adbCommand(String... args) {
         List<String> command = new ArrayList<>(List.of(adbBinary(), "-P", Integer.toString(adbPort)));
         if (!List.of("connect", "start-server").contains(args[0])) command.addAll(List.of("-s", serial));
         command.addAll(List.of(args));
-        return command(name, seconds, required, command.toArray(String[]::new));
+        return command.toArray(String[]::new);
     }
 
     private String adbBinary() { return sdk.resolve("platform-tools/adb").toString(); }
     private void run(String name, int seconds, String... command) throws Exception { command(name, seconds, true, command); }
 
     private String command(String name, int seconds, boolean required, String... command) throws Exception {
+        long milliseconds = Math.min(seconds, remaining()) * 1000;
+        Process process = launch(evidence.resolve(name + ".log"), command);
+        return awaitCommand(name, process, milliseconds, required);
+    }
+
+    private String awaitCommand(String name, Process process, long milliseconds, boolean required) throws Exception {
         Path log = evidence.resolve(name + ".log");
-        Process process = launch(log, command);
-        if (!process.waitFor(Math.min(seconds, remaining()), TimeUnit.SECONDS)) {
+        if (!process.waitFor(milliseconds, TimeUnit.MILLISECONDS)) {
             kill(process);
             throw new IOException(name + " timeout; see " + log);
         }
@@ -580,11 +682,16 @@ class AndroidVerify {
 
     private synchronized Process launch(Path log, String... command) throws IOException {
         if (cleaned) throw new IOException("Run is shutting down");
+        Process process = startProcess(log, command);
+        children.add(process);
+        return process;
+    }
+
+    private Process startProcess(Path log, String... command) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command).directory(source.toFile()).redirectErrorStream(true).redirectOutput(log.toFile());
         builder.environment().clear();
         builder.environment().putAll(env);
         Process process = builder.start();
-        children.add(process);
         process.getOutputStream().close();
         return process;
     }
@@ -655,22 +762,26 @@ class AndroidVerify {
         throw new IOException("No free isolated emulator port pair");
     }
 
-    private void diagnose() {
-        if (serial == null) return;
-        if (deadline <= System.currentTimeMillis()) return;
+    private void diagnose(long until) {
+        if (emulator == null || !emulator.isAlive()) return;
+        note("Collecting available guest screenshots and diagnostics");
+        diagnostic(until, "failure-pull", "pull", CAPTURE_FILES, evidence.resolve("failure-captures").toString());
         // Read the guest's existing thread dump before depending on a responsive system server.
+        diagnostic(until, "failure-anr", "shell", "-n",
+                "su 0 sh -c 'ls -lt /data/anr; trace=$(ls -1t /data/anr/anr_* 2>/dev/null | head -n 1); "
+                + "if [ -n \"$trace\" ]; then head -n 160 \"$trace\"; fi'");
+        diagnostic(until, "failure-logcat", "shell", "-n",
+                "logcat -b main -b system -b events -d -t 4000 -s AndroidRuntime ActivityManager TestRunner Watchdog am_anr");
+        diagnostic(until, "failure-window", "shell", "-n", "dumpsys window displays");
+    }
+
+    private void diagnostic(long until, String name, String... args) {
+        long milliseconds = Math.min(10_000, until - System.currentTimeMillis());
+        if (milliseconds <= 0) return;
         try {
-            shell("failure-anr", 15, false,
-                    "su 0 sh -c 'ls -lt /data/anr; trace=$(ls -1t /data/anr/anr_* 2>/dev/null | head -n 1); "
-                    + "if [ -n \"$trace\" ]; then head -n 160 \"$trace\"; fi'");
-        } catch (Exception ignored) { }
-        try { shell("failure-window", 15, false, "dumpsys window displays"); } catch (Exception ignored) { }
-        try {
-            shell("failure-logcat", 15, false, "logcat -b main -b system -b events -d -t 4000 -s AndroidRuntime ActivityManager TestRunner Watchdog am_anr");
-        } catch (Exception ignored) { }
-        if (phase.equals("device-matrix")) try {
-            adb("failure-pull", 15, false, "pull", "/sdcard/Android/data/az.tabletennis/files",
-                    evidence.resolve("failure-captures").toString());
+            Process process = startProcess(evidence.resolve(name + ".log"), adbCommand(args));
+            try { process.waitFor(milliseconds, TimeUnit.MILLISECONDS); }
+            finally { if (process.isAlive()) kill(process); }
         } catch (Exception ignored) { }
     }
 
@@ -689,7 +800,11 @@ class AndroidVerify {
             result.setProperty("status", "failed");
             result.setProperty("failure", "Interrupted before completion");
         }
-        for (Process child : List.copyOf(children)) if (child.isAlive()) kill(child);
+        result.replaceAll((key, value) -> value.equals("running") ? "failed" : value);
+        for (Process child : List.copyOf(children)) if (child != emulator && child.isAlive()) kill(child);
+        if (result.getProperty("status").equals("failed"))
+            diagnose(System.currentTimeMillis() + 40_000);
+        if (emulator != null && emulator.isAlive()) kill(emulator);
         if (adbPort != 0) try {
             Process server = new ProcessBuilder(adbBinary(), "-P", Integer.toString(adbPort), "kill-server").redirectErrorStream(true)
                     .redirectOutput(evidence.resolve("adb-stop.log").toFile()).start();
@@ -716,6 +831,7 @@ class AndroidVerify {
             result.setProperty("cleanup", retain ? "device retained explicitly" : "complete");
         } catch (Exception failure) { result.setProperty("cleanup", failure.toString()); result.setProperty("status", "failed"); }
         saveResult();
+        note("Result: " + result.getProperty("status") + "; evidence: " + evidence);
     }
 
     private void saveResult() {

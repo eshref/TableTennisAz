@@ -13,13 +13,25 @@ and choose **Run workflow**. Select the branch containing the verifier, choose
 
 The pinned app checkout provides the production code and fixture assets. The
 verifier checkout provides `DoublesProfileDeviceTest`, so maintainers can adjust
-how the test captures history on the same app build. The run summary records
-both revisions and the verifier result. The
-`android-api36-doubles-profile` artifact contains the APKs, logs, and captures
-for each completed configuration. In each configuration's capture directory,
-look for the matching `*-points.png` and `*-rank.png` for rating and ranking
-history. Keep `fixture_journey` set to `none` to dispatch the host checks, or
-enable `live_site` to request the existing opt-in website check.
+how the test captures history on the same app build. Keep the Actions run URL.
+Open the **Run installed preflight and fixture matrix** step to follow preflight,
+configuration, instrumentation and screenshot progress while it runs. The run
+summary records both revisions and the verifier result.
+
+Download `android-api36-doubles-profile` from that run, including after a failed
+verification. It retains both APKs, `progress.log`, the result with APK checksums
+and per-configuration outcomes, and available diagnostics for seven days.
+The standard-light journey waits for the host to validate each history PNG
+before continuing. Those PNGs are in `checkpoints/light/` inside the evidence
+directory. Completed configurations have validated `*-points.png` and
+`*-rank.png` under `captures/`. A failed run can also have unvalidated guest
+files under `failure-captures/`.
+
+For the retention pilot, enable `fail_after_history_checkpoint`. The light
+journey deliberately fails after the host collects both history PNGs. Confirm
+that the run fails, the checkpoint images download, and the three later
+configurations are reported as `not-run`. Keep `fixture_journey` set to `none`
+to dispatch the host checks, or enable `live_site` for the opt-in website check.
 
 ## Run
 
@@ -131,10 +143,11 @@ runner logs, host-test XML and the result summary. Keep relevant evidence with
 the task; commit screenshots when required by its acceptance criteria. Historical
 feature results remain in `docs/android-verification.md`.
 
-On a guest failure with time left in its phase, inspect `failure-anr.log` for
+On a guest failure, the runner attempts bounded evidence collection during
+cleanup. Inspect `failure-anr.log` for
 the start of the newest Android ANR thread dump. Check its timestamp and process
 against the failure. Window and logcat diagnostics may also be available. An
-incomplete fixture run can save partial images under `failure-captures/`.
+incomplete fixture run can save unvalidated images under `failure-captures/`.
 
 API 26 remains covered by existing host tests. Report installed coverage as API
 36 emulator coverage. Physical-phone behavior, API 26 installation and live HTTP

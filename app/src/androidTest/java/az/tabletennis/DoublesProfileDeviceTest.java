@@ -41,8 +41,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.file.Files;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -104,6 +108,8 @@ public class DoublesProfileDeviceTest {
             onView(withId(R.id.chart_selected_value)).check(matches(withText("858 xal")));
             onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
             capture("points");
+            if (Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("failAfterHistoryCheckpoint")))
+                throw new AssertionError("Pilot failure after the host validated both history captures");
 
             // act
             onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
@@ -344,9 +350,28 @@ public class DoublesProfileDeviceTest {
         try {
             if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
             String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "light");
-            try (var output = new FileOutputStream(new File(directory, prefix + "-" + name + ".png"))) {
+            File png = new File(directory, prefix + "-" + name + ".png");
+            try (var output = new FileOutputStream(png)) {
                 if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
             }
+            String checkpointPort = InstrumentationRegistry.getArguments().getString("historyCheckpointPort");
+            if (checkpointPort != null && (name.equals("rank") || name.equals("points")))
+                exportCheckpoint(png, Integer.parseInt(checkpointPort));
         } finally { screenshot.recycle(); }
+    }
+
+    private void exportCheckpoint(File png, int port) throws Exception {
+        // ADB reverse forwards this loopback connection to the host verifier.
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("127.0.0.1", port), 10_000);
+            socket.setSoTimeout(45_000);
+            var output = new DataOutputStream(socket.getOutputStream());
+            output.writeUTF(png.getName());
+            output.writeInt(Math.toIntExact(png.length()));
+            Files.copy(png.toPath(), output);
+            output.flush();
+            if (socket.getInputStream().read() != 1)
+                throw new IllegalStateException("Host did not validate " + png.getName());
+        }
     }
 }

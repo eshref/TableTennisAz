@@ -19,6 +19,8 @@ Preflight always checks installed singles/doubles scores, focus and screenshots.
 after preflight, instead of the saved-fixture matrix. Website access is required.
 --require-kvm fails if hardware acceleration is unavailable.
 --device-only skips the host tests and lint after the installed matrix.
+--fail-after-history-checkpoint fails the doubles profile journey after the host
+validates both light history PNGs. Use it for the evidence-retention pilot.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one
 recovery. Full device checks have a separate $((ANDROID_VERIFY_MATRIX_SECONDS / 60))-minute budget.
 
