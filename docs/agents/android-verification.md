@@ -269,3 +269,5 @@ instrumentation primary bytecode inside its existing budget. Both requests
 succeeded in about 78 seconds. The ART snapshot after preflight reported `verify`
 for the test APK; native AOT speedup is not established. The command is supported
 by the [Android 16 ART shell implementation](https://android.googlesource.com/platform/art/+/refs/tags/android-16.0.0_r1/libartservice/service/java/com/android/server/art/ArtShellCommand.java).
+
+<!-- Temporary Android applicability validation for issue #57. -->
