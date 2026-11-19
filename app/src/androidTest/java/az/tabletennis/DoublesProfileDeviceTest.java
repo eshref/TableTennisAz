@@ -88,6 +88,7 @@ public class DoublesProfileDeviceTest {
             scrollHistoryIntoView();
 
             // assert
+            onView(withId(R.id.chart_selected_value)).check(matches(withText("858 xal")));
             onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
             capture("points");
 
