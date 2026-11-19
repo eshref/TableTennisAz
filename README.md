@@ -47,25 +47,27 @@ when the pair identity is cached; failures retain saved counts and results.
 Points and position use the latest successfully saved doubles ranking, with its
 own update time. Bonus and event filtering are outside this doubles version.
 
-Doubles ranking refreshes now save complete dated observations on this device,
-including points and published positions for pairs whose profiles have never
-been opened. Small green ↑ / red ↓ indicators show places gained/lost since
-the immediately previous successful saved refresh, with Azerbaijani accessible
-descriptions. Search preserves movement. Unchanged positions, the first
+Each successful refresh saves a complete, dated doubles ranking observation on
+this device, including points and published positions for pairs whose profiles
+have never been opened. Small green ↑ / red ↓ indicators show places gained/lost
+since the immediately previous successful saved refresh, with Azerbaijani
+accessible descriptions. Search preserves movement. Unchanged positions, the first
 observation, and pairs absent from the previous ranking show no indicator.
 Reopening or going offline preserves the latest comparison; failed refreshes
 preserve the ranking, observations, movement, and update time together. A later
 unchanged refresh clears earlier movement. Older saved rankings remain readable;
 observation history starts with new successful refreshes, without backfilling.
 
-Each doubles profile embeds one history chart with Xal / Mövqe controls. It
-shows the pair's recorded points or published positions, with #1 at the top.
-Dates and times identify each observation, including refreshes on the same day;
-horizontal spacing reflects elapsed time. The first observation appears as a
-single dated point with a note about future refreshes. Older saved profiles
-without observations show an explicit empty state. These device-local charts
-remain available offline and after restart; opening profiles, switching modes,
-or refreshing medals and matches does not collect ranking history.
+Each doubles profile embeds a chart with Xal for rating history and Mövqe for
+ranking history. Each mode shows the first observed value and each later
+change, with position #1 at the top of the ranking chart. The chart and dated
+rows use the observation time for the first value and for each change, including
+reversals. Horizontal spacing reflects elapsed time. Switching modes while
+inspecting a row shows the value in effect at that time. A successful repeat
+refresh advances the ranking's update time.
+The profile applies this display rule to all saved observations, including
+offline and after restart. Each mode explains when more entries will appear if
+it has only one entry. Profiles with no saved observations show an empty state.
 
 Singles rankings use the website's Amateur list, ordered by points descending.
 Comfortable rows show a circular player portrait, wrapping full name and points,

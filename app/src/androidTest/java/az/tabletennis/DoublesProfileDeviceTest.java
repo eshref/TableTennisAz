@@ -89,10 +89,10 @@ public class DoublesProfileDeviceTest {
             // act
             onView(withId(R.id.chart_selected_value)).perform(scrollTo());
             capture("rank");
-            onView(withContentDescription(endsWith("— #9"))).perform(scrollTo(), click());
+            onView(withContentDescription(endsWith("— #3"))).perform(scrollTo(), click());
 
             // assert
-            onView(withId(R.id.chart_selected_value)).check(matches(withText("#9")));
+            onView(withId(R.id.chart_selected_value)).check(matches(withText("#3")));
 
             // act
             onView(withId(R.id.pair_chart_points)).perform(scrollTo(), click());
@@ -199,7 +199,9 @@ public class DoublesProfileDeviceTest {
         DoublesPair shared = pair(152, 7, FIRST, 13, "İlqar Həsənov");
         DoublesPair longNames = pair(440, 90003, LONG_FIRST, 90004, LONG_SECOND);
         DoublesRanking first = new DoublesRanking(asList(new DoublesRanking.Row(pair, 9, 800))).observedAfter(null, now - 172_800_000);
-        DoublesRanking middle = new DoublesRanking(asList(new DoublesRanking.Row(pair, 3, 850))).observedAfter(first, now - 120_000);
+        DoublesRanking repeat = new DoublesRanking(asList(new DoublesRanking.Row(pair, 9, 800))).observedAfter(first, now - 86_400_000);
+        DoublesRanking moved = new DoublesRanking(asList(new DoublesRanking.Row(pair, 3, 800))).observedAfter(repeat, now - 180_000);
+        DoublesRanking middle = new DoublesRanking(asList(new DoublesRanking.Row(pair, 3, 850))).observedAfter(moved, now - 120_000);
         DoublesRanking current = new DoublesRanking(asList(new DoublesRanking.Row(shared, 1, 900),
                 new DoublesRanking.Row(pair, 2, 858), new DoublesRanking.Row(longNames, 4, 600))).observedAfter(middle, now);
         new SavedDataStore<>(context, "doubles-ranking", DoublesRanking.class).write(new SavedData<>(current, now));

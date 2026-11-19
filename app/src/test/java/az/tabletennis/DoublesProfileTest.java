@@ -162,7 +162,7 @@ public class DoublesProfileTest extends DoublesUiScenario {
 
         // assert
         assertThat(visibleText()).contains("800 xal", "Reytinqdə yer: #2", "Qızıl medal: məlumat mövcud deyil",
-                "Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb.",
+                "Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb. Qoşa yenilənmiş reytinqdə göründükdə ilk qeyd əlavə olunacaq.",
                 "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — Şəms Quliyeva / Işıl Əliyeva · 3-2 · Kupa · Qoşalar · Turnir",
                 "Daha çox yüklə");
         assertThat(activity().<android.view.View>findViewById(R.id.chart)).isNull();

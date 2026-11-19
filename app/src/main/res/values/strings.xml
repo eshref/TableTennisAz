@@ -72,10 +72,9 @@
     <string name="pair_chart_title">Tarixçə</string>
     <string name="pair_chart_points">Xal</string>
     <string name="pair_chart_rank">Mövqe</string>
-    <string name="pair_chart_rank_point">%1$s — #%2$d</string>
-    <string name="pair_chart_first">Növbəti reytinq yenilənmələri tarixçəyə yeni müşahidələr əlavə edəcək.</string>
-    <string name="pair_chart_empty">Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb.</string>
-    <string name="pair_chart_coverage">Yalnız bu cihazda uğurla saxlanmış reytinq yenilənmələri göstərilir. Yenilənmələr arasındakı dövr üçün məlumat yoxdur.</string>
+    <string name="pair_chart_first">İlk müşahidə göstərilir. Seçilmiş göstərici dəyişdikdə tarixçəyə yeni qeyd əlavə olunur.</string>
+    <string name="pair_chart_empty">Bu cihazda qoşa üçün reytinq müşahidəsi hələ saxlanmayıb. Qoşa yenilənmiş reytinqdə göründükdə ilk qeyd əlavə olunacaq.</string>
+    <string name="pair_chart_coverage">İlk müşahidə və seçilmiş göstəricinin dəyişdiyi yenilənmələr göstərilir. Yenilənmələr arasındakı dövr üçün məlumat yoxdur.</string>
     <string name="pair_gold">Qızıl medal: %1$s</string>
     <string name="pair_silver">Gümüş medal: %1$s</string>
     <string name="pair_bronze">Bürünc medal: %1$s</string>

@@ -23,10 +23,10 @@ A player's position within their category on the website.
 A player's public information, including their rating and match history.
 
 **Rating history**:
-A player's or doubles pair's rating-point values over time. It is distinct from ranking history.
+A player's or doubles pair's rating-point values over time. For doubles pairs, it records the first observed points and each later change.
 
 **Ranking history**:
-A player's or doubles pair's positions in a specified ranking over time. It is distinct from rating history.
+A player's or doubles pair's positions in a specified ranking over time. For doubles pairs, it records the first observed position and each later change.
 
 **Match result**:
 The recorded outcome of a completed match, identifying its participants and final score.
@@ -57,3 +57,6 @@ A doubles pair's public information, including its match results, medal counts, 
 
 **Doubles ranking**:
 The website's ordered list of doubles pairs, using its published pair positions and points. Each partnership is ranked separately; pairs with equal points can occupy different published positions.
+
+**Doubles ranking observation**:
+The published points and positions seen for doubles pairs when the doubles ranking was checked.
