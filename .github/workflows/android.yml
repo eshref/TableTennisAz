@@ -78,8 +78,12 @@ jobs:
           mkdir -p "$ANDROID_VERIFY_OUTPUT"
           {
             printf '## Doubles profile fixture matrix\n\n'
-            printf 'App source `%s`\n\nVerifier `%s`\n' "$source_sha" "$GITHUB_SHA"
+            printf 'App source and fixture assets `%s`\n\nVerifier and doubles profile test `%s`\n' "$source_sha" "$GITHUB_SHA"
           } | tee "$ANDROID_VERIFY_OUTPUT/revisions.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Use the verifier's doubles profile test
+        run: |
+          test_source=app/src/androidTest/java/az/tabletennis/DoublesProfileDeviceTest.java
+          cp "$test_source" "$ANDROID_VERIFY_SOURCE/$test_source"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

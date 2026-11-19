@@ -8,8 +8,10 @@ import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayingAtLeast;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -28,7 +30,10 @@ import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.espresso.UiController;
+import androidx.test.espresso.ViewAction;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
@@ -38,6 +43,7 @@ import java.io.FileOutputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -79,16 +85,22 @@ public class DoublesProfileDeviceTest {
             capture("profile");
 
             // act
-            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
+            scrollHistoryIntoView();
+
+            // assert
+            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
             capture("points");
+
+            // act
             onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
+            scrollHistoryIntoView();
 
             // assert
             onView(withId(R.id.chart_selected_value)).check(matches(withText("#2")));
+            onView(withId(R.id.chart)).check(matches(isDisplayingAtLeast(100)));
+            capture("rank");
 
             // act
-            onView(withId(R.id.chart_selected_value)).perform(scrollTo());
-            capture("rank");
             onView(withContentDescription(endsWith("— #3"))).perform(scrollTo(), click());
 
             // assert
@@ -271,6 +283,31 @@ public class DoublesProfileDeviceTest {
             } while (SystemClock.elapsedRealtime() < deadline);
             throw new AssertionError("Incorrect partnership portraits");
         } finally { first.recycle(); second.recycle(); }
+    }
+
+    private void scrollHistoryIntoView() {
+        onView(withId(R.id.main_scroll)).perform(new ViewAction() {
+            @Override public Matcher<View> getConstraints() { return isAssignableFrom(ScrollView.class); }
+
+            @Override public String getDescription() { return "frame the history chart for a screenshot"; }
+
+            @Override public void perform(UiController ui, View view) {
+                ScrollView scroll = (ScrollView) view;
+                View chart = scroll.findViewById(R.id.chart);
+                Rect plot = new Rect();
+                chart.getDrawingRect(plot);
+                scroll.offsetDescendantRectToMyCoords(chart, plot);
+
+                View points = scroll.findViewById(R.id.pair_chart_points);
+                Rect mode = new Rect();
+                points.getDrawingRect(mode);
+                scroll.offsetDescendantRectToMyCoords(points, mode);
+
+                // Keep the mode control visible when the viewport also fits the whole plot.
+                scroll.scrollTo(0, Math.max(mode.top, plot.bottom - scroll.getHeight()));
+                ui.loopMainThreadUntilIdle();
+            }
+        });
     }
 
     private void capture(String name) throws Exception {

@@ -11,7 +11,10 @@ and choose **Run workflow**. Select the branch containing the verifier, choose
 `app_revision`. The merged build containing #52 is
 `314238d1a982f55432bf4b47d2fd5f87304342e9`.
 
-The run summary records both revisions and the verifier result. The
+The pinned app checkout provides the production code and fixture assets. The
+verifier checkout provides `DoublesProfileDeviceTest`, so maintainers can adjust
+how the test captures history on the same app build. The run summary records
+both revisions and the verifier result. The
 `android-api36-doubles-profile` artifact contains the APKs, logs, and captures
 for each completed configuration. In each configuration's capture directory,
 look for the matching `*-points.png` and `*-rank.png` for rating and ranking
