@@ -331,13 +331,16 @@ esac
                              '--ks-pass', 'env:ANDROID_RELEASE_KEYSTORE_PASSWORD', '--out', apk, unsigned)
         return apk
 
-    def run_workflow(self, apk=None, *, source=None, sha=None, check_status=0, verify_only=None):
+    def run_workflow(self, apk=None, *, source=None, sha=None, check_status=0, verify_only=None,
+                     fixture_failure='', evidence=None):
         source = source or self.source
         if verify_only is None:
             triggers = self.workflow.get('on', self.workflow.get(True))  # PyYAML reads `on` as true.
             verify_only = triggers['workflow_dispatch']['inputs']['verify_only']['default']
         env = dict(self.env, GITHUB_SHA=sha or self.env['GITHUB_SHA'], FIXTURE_APK=str(apk),
-                   FIXTURE_CHECK_STATUS=str(check_status))
+                   FIXTURE_CHECK_STATUS=str(check_status), FIXTURE_FAILURE=fixture_failure,
+                   GITHUB_SERVER_URL='https://github.example', GITHUB_REPOSITORY='example/TableTennisAz',
+                   GITHUB_RUN_ID='42')
         variables = {'github.token': env['GH_TOKEN'], 'github.ref': env['GITHUB_REF'], 'github.sha': env['GITHUB_SHA']}
         variables['github.workspace'] = str(source)
         variables['inputs.verify_only'] = 'true' if verify_only else 'false'
@@ -349,52 +352,80 @@ esac
         slot = self.workflow_slots.setdefault(group, threading.Lock())
         with slot, tempfile.TemporaryDirectory(dir=self.scratch.name) as runner:
             artifacts = Path(runner) / 'artifacts'
-            completed = set()
-            conditions = {'inputs.verify_only': verify_only, 'inputs.verify_only == false': not verify_only}
+            completed = {}
+            conditions = {'inputs.verify_only': verify_only, 'inputs.verify_only == false': not verify_only,
+                          'always() && inputs.verify_only': verify_only}
             for job_id, job in self.workflow['jobs'].items():
                 if 'if' in job and not conditions[job['if']]:
                     continue
-                self.assertTrue(not job.get('needs') or job['needs'] in completed)
-                job_dir = Path(runner) / job_id
-                job_dir.mkdir()
-                job_output = job_dir / 'outputs'
-                variables['runner.temp'] = str(job_dir)
-                workflow_env = self.workflow.get('env', {}) | job.get('env', {})
-                job_env = {name: val for name, val in env.items() if not name.startswith('ANDROID_RELEASE_')}
-                job_env.update({name: resolve(value, variables) for name, value in workflow_env.items()})
-                job_env.update(RUNNER_TEMP=str(job_dir), GITHUB_OUTPUT=str(job_output),
-                               GITHUB_STEP_SUMMARY=str(job_dir / 'summary'))
-                variables.update({f'env.{name}': job_env[name] for name in workflow_env})
-                for step in job['steps']:
-                    if step.get('id') == 'kvm':
-                        continue  # The local fixture substitutes installed verification.
-                    action = step.get('uses', '').partition('@')[0]
-                    inputs = step.get('with', {})
-                    if action == 'actions/checkout':
-                        self.assertEqual(resolve(inputs['ref'], variables), env['GITHUB_SHA'])
-                    elif action in ('actions/upload-artifact', 'actions/download-artifact'):
-                        artifact = artifacts / resolve(inputs['name'], variables)
-                        path = Path(resolve(inputs['path'], variables))
-                        if action == 'actions/upload-artifact':
-                            shutil.copytree(path, artifact)
-                        else:
-                            shutil.copytree(artifact, path)
-                    elif 'run' in step:
-                        step_env = dict(job_env, **{name: resolve(value, variables) for name, value in step.get('env', {}).items()})
-                        result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', step['run']],
-                                                env=step_env, cwd=source, text=True, capture_output=True, timeout=600)
-                        if result.returncode:
-                            return result
-                        if step.get('id'):
-                            variables[f"steps.{step['id']}.outcome"] = 'success'
-                            if job_output.exists():
-                                for line in job_output.read_text().splitlines():
-                                    key, value = line.split('=', 1)
-                                    variables[f"steps.{step['id']}.outputs.{key}"] = value
-                for name, value in job.get('outputs', {}).items():
-                    variables[f'needs.{job_id}.outputs.{name}'] = resolve(value, variables)
-                completed.add(job_id)
+                needs = job.get('needs', [])
+                self.assertTrue(all(dependency in completed for dependency in ([needs] if isinstance(needs, str) else needs)))
+                strategy = job.get('strategy')
+                rows = [{}]
+                if strategy:
+                    self.assertIs(strategy.get('fail-fast'), False)
+                    matrix = re.fullmatch(r'\$\{\{ fromJSON\((.+)\) \}\}', strategy['matrix'])[1]
+                    rows = json.loads(variables[matrix])['include']
+                for index, row in enumerate(rows):
+                    job_vars = variables | {f'matrix.{name}': value for name, value in row.items()}
+                    result = self.run_job(job, job_vars, Path(runner) / f'{job_id}-{index}', source, env, artifacts)
+                    if result.returncode and job_id not in ('verify-signed', 'fixture-summary'):
+                        return result
+                    completed.setdefault(job_id, 'success')
+                    if result.returncode:
+                        completed[job_id] = 'failure'
+                    for name, value in job.get('outputs', {}).items():
+                        variables[f'needs.{job_id}.outputs.{name}'] = resolve(value, job_vars)
+                variables[f'needs.{job_id}.result'] = completed[job_id]
+            if evidence is not None:
+                shutil.copytree(artifacts, evidence)
         return result
+
+    def run_job(self, job, variables, job_dir, source, env, artifacts):
+        job_dir.mkdir()
+        job_output = job_dir / 'outputs'
+        variables['runner.temp'] = str(job_dir)
+        workflow_env = self.workflow.get('env', {}) | job.get('env', {})
+        job_env = {name: val for name, val in env.items() if not name.startswith('ANDROID_RELEASE_')}
+        job_env.update({name: resolve(value, variables) for name, value in workflow_env.items()})
+        job_env.update(RUNNER_TEMP=str(job_dir), GITHUB_OUTPUT=str(job_output), GITHUB_STEP_SUMMARY=str(job_dir / 'summary'))
+        variables.update({f'env.{name}': job_env[name] for name in workflow_env})
+        failure = None
+        for step in job['steps']:
+            if step.get('id') == 'kvm':
+                continue  # The local fixture substitutes installed verification.
+            if step.get('id'):
+                variables[f"steps.{step['id']}.outcome"] = 'skipped'
+            if failure and step.get('if') != 'always()':
+                continue
+            action = step.get('uses', '').partition('@')[0]
+            inputs = step.get('with', {})
+            if action == 'actions/checkout':
+                self.assertEqual(resolve(inputs['ref'], variables), env['GITHUB_SHA'])
+            elif action in ('actions/upload-artifact', 'actions/download-artifact'):
+                path = Path(resolve(inputs['path'], variables))
+                if 'pattern' in inputs:
+                    for artifact in artifacts.glob(resolve(inputs['pattern'], variables)):
+                        shutil.copytree(artifact, path / artifact.name)
+                else:
+                    artifact = artifacts / resolve(inputs['name'], variables)
+                    if action == 'actions/upload-artifact':
+                        shutil.copytree(path, artifact)
+                    else:
+                        shutil.copytree(artifact, path)
+            elif 'run' in step:
+                step_env = dict(job_env, **{name: resolve(value, variables) for name, value in step.get('env', {}).items()})
+                result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', step['run']],
+                                        env=step_env, cwd=source, text=True, capture_output=True, timeout=600)
+                if step.get('id'):
+                    variables[f"steps.{step['id']}.outcome"] = 'failure' if result.returncode else 'success'
+                    if job_output.exists():
+                        for line in job_output.read_text().splitlines():
+                            key, value = line.split('=', 1)
+                            variables[f"steps.{step['id']}.outputs.{key}"] = value
+                if result.returncode and failure is None:
+                    failure = result
+        return failure or result
 
     def assert_release(self, release, tag, sha, apk):
         self.assertFalse(release['draft'])
@@ -410,32 +441,105 @@ esac
             self.assertEqual(response.read(), apk.read_bytes())
         return asset
 
-    def test_verify_only_delivers_the_signed_candidate_without_changing_the_existing_release(self):
+    def install_fixture_verifier(self):
+        screenshots = self.source / 'fixture-screenshots'
+        screenshots.mkdir()
+        for configuration in ('light', 'dark-offline', 'narrow-large', 'landscape-large'):
+            name = f'{configuration}-501.png'
+            shutil.copy2(REPO / 'docs/verification/android-workflow/screenshots' / name, screenshots)
+        verifier = self.source / 'scripts/android-verify'
+        verifier.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == '--require-kvm --device-only --tests az.tabletennis.'*' --release-candidate '* ]]
+[[ -z "${ANDROID_RELEASE_KEYSTORE_BASE64:-}" ]]
+actual=$(sha256sum "$6")
+[[ "${actual%% *}" == "$7" ]]
+run="$ANDROID_VERIFY_OUTPUT/run-fixture"
+mkdir -p "$run"
+cp "$6" "$run/app-release.apk"
+printf 'apk.sha256=%s\\nsource.commit=%s\\napi=36\\ntests=%s\\napk.variant=release\\n' "$7" "$GITHUB_SHA" "$4" > "$run/result.properties"
+printf 'testApk.sha256=%064d\\npreflight=passed\\n' 1 >> "$run/result.properties"
+for configuration in light dark-offline narrow-large landscape-large; do
+  capture="$configuration-screen.png"
+  fixture="fixture-screenshots/$configuration-501.png"
+  printf '%s.expectedScreenshots=%s\\n' "$configuration" "$capture" >> "$run/result.properties"
+  if [[ "$JOURNEY/$configuration" == "results/landscape-large" && "$FIXTURE_FAILURE" == instrumentation ]]; then
+    printf 'landscape-large.instrumentation=failed\\nlandscape-large.screenshotCollection=not-run\\nstatus=failed\\nmatrix=failed\\n' >> "$run/result.properties"
+    printf 'Fixture instrumentation failed\\n' > "$run/tests-landscape-large.log"
+    exit 1
+  fi
+  printf '%s.instrumentation=passed\\n%s.tests=OK (2 tests)\\n%s.screenshotCollection=passed\\n' \\
+    "$configuration" "$configuration" "$configuration" >> "$run/result.properties"
+  checksum=$(sha256sum "$fixture")
+  printf '%s.screenshotSha256.%s=%s\\n' "$configuration" "$capture" "${checksum%% *}" >> "$run/result.properties"
+  if [[ "$JOURNEY/$configuration" == "results/landscape-large" && "$FIXTURE_FAILURE" == missing-png ]]; then
+    continue
+  fi
+  mkdir -p "$run/captures/$configuration/files"
+  if [[ "$JOURNEY/$configuration" == "results/landscape-large" && "$FIXTURE_FAILURE" == corrupt-png ]]; then
+    fixture=fixture-screenshots/light-501.png
+  fi
+  cp "$fixture" "$run/captures/$configuration/files/$capture"
+done
+printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
+''')
+        verifier.chmod(0o755)
+
+    def test_verify_only_covers_the_full_matrix_without_changing_the_existing_release(self):
         # arrange
         released_commit = self.commit()
         self.github.tags['tags/v0.4.0'] = released_commit
         released_version = {'id': 1, 'tag_name': 'v0.4.0', 'draft': False, 'prerelease': False, 'assets': []}
         self.github.releases[1] = dict(released_version)
-        self.commit()
+        sha = self.commit()
         apk = self.apk()
-        verifier = self.source / 'scripts/android-verify'
-        verifier.write_text('''#!/usr/bin/env bash
-set -euo pipefail
-[[ "$*" == '--require-kvm --focused --tests az.tabletennis.RatingHistoryDeviceTest --release-candidate '* ]]
-[[ -z "${ANDROID_RELEASE_KEYSTORE_BASE64:-}" ]]
-printf '%s  %s\\n' "$7" "$6" | sha256sum --check
-cp "$6" verified-candidate.apk
-''')
-        verifier.chmod(0o755)
+        self.install_fixture_verifier()
+        evidence = Path(self.scratch.name) / 'evidence'
 
         # act
-        result = self.run_workflow(apk)
+        result = self.run_workflow(apk, evidence=evidence)
 
         # assert
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual((self.source / 'verified-candidate.apk').read_bytes(), apk.read_bytes())
+        journeys = {'match': 'Match', 'profile': 'Profile', 'rating-history': 'RatingHistory', 'results': 'Results',
+                    'doubles-profile': 'DoublesProfile', 'native-acceptance': 'NativeAcceptance'}
+        bundle = evidence / 'android-signed-fixture-matrix'
+        summary = (bundle / 'verification.md').read_text()
+        self.assertIn(f'TableTennisAz-0.4.0.apk', summary)
+        self.assertIn(sha, summary)
+        self.assertIn(hashlib.sha256(apk.read_bytes()).hexdigest(), summary)
+        self.assertIn('24/24', summary)
+        for journey, class_prefix in journeys.items():
+            run = evidence / f'android-signed-api36-{journey}' / 'run-fixture'
+            self.assertEqual((run / 'app-release.apk').read_bytes(), apk.read_bytes())
+            self.assertIn(f'tests=az.tabletennis.{class_prefix}DeviceTest', (run / 'result.properties').read_text())
+            for configuration in ('light', 'dark-offline', 'narrow-large', 'landscape-large'):
+                self.assertTrue((bundle / 'screenshots' / journey / configuration / f'{configuration}-screen.png').is_file())
         self.assertEqual(self.api('/releases'), [released_version])
         self.assertEqual(self.api('/git/ref/tags/v0.4.0')['object']['sha'], released_commit)
+
+    def test_incomplete_matrix_preserves_available_evidence(self):
+        # arrange
+        self.commit()
+        apk = self.apk()
+        self.install_fixture_verifier()
+        for failure, outcome in (('instrumentation', 'failed'), ('missing-png', 'missing'), ('corrupt-png', 'mismatch')):
+            with self.subTest(failure=failure):
+                evidence = Path(self.scratch.name) / failure
+
+                # act
+                result = self.run_workflow(apk, fixture_failure=failure, evidence=evidence)
+
+                # assert
+                self.assertNotEqual(result.returncode, 0)
+                bundle = evidence / 'android-signed-fixture-matrix'
+                summary = (bundle / 'verification.md').read_text()
+                self.assertIn('23/24', summary)
+                self.assertRegex(summary, rf'(?m)^\| results \| landscape-large \| .*{outcome}')
+                self.assertTrue((bundle / 'screenshots/results/light/light-screen.png').is_file())
+                self.assertFalse((bundle / 'screenshots/results/landscape-large/landscape-large-screen.png').exists())
+                self.assertTrue((bundle / 'screenshots/native-acceptance/landscape-large/landscape-large-screen.png').is_file())
+                self.assertEqual(self.api('/releases'), [])
 
     def test_publishes_and_preserves_a_completed_release(self):
         # arrange

@@ -273,9 +273,10 @@ permissions. See [GitHub's release API permissions](https://docs.github.com/en/r
 ### Publish and verify
 
 After merging the release PR, open **Actions → Publish Android release → Run
-workflow** and select `main`. Leave **verify_only** enabled for the signed
-candidate pilot. The run summary ties the installed rating history evidence
-to the candidate's SHA-256. [Signed candidate verification](docs/agents/android-verification.md#signed-release-candidate-pilot)
+workflow** and select `main`. Leave **verify_only** enabled to run all six
+saved-fixture journeys in four configurations against the signed candidate.
+The summary and screenshot bundle identify the candidate by commit and SHA-256.
+[Signed release candidate matrix](docs/agents/android-verification.md#signed-release-candidate-matrix)
 
 Disable **verify_only** when you intend to publish. The workflow checks the
 version and changelog, runs the Android host tests and lint, verifies the APK

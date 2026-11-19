@@ -86,23 +86,28 @@ changing the gate, verify an applicable PR with downloadable evidence, an
 unrelated PR with a successful applicability result, and a failed installed
 check with downloadable partial evidence. [Protect main ruleset](https://github.com/eshref/TableTennisAz/rules/27339222)
 
-## Signed release candidate pilot
+## Signed release candidate matrix
 
 After the workflow is merged to `main`, dispatch **Publish Android release**
 from `main` with **verify_only** enabled. The protected `android-release`
-environment signs the candidate once. The verification job downloads the APK,
-checks its SHA-256 against the build job's output, and installs that copy on a
-KVM-accelerated API 36 emulator. The instrumentation APK is built against the
-release variant with the debug signer. The disposable userdebug emulator
-allows root to start instrumentation with that signer.
-The pilot can use the latest published version number on a newer commit.
+environment signs the candidate once. Six parallel jobs each download the
+same APK, check its SHA-256, and install it on a KVM-accelerated API 36 emulator.
+Each job runs preflight and one saved-fixture journey from the table above
+through all four configurations, with the same fixture and restart behavior.
+The instrumentation APK is built against the release variant with the debug
+signer. The disposable userdebug emulator allows root to start instrumentation
+with that signer. A verify-only run can use the latest published version number
+on a newer commit and skips publication.
 [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
 
-Open **Verify signed APK on Android 16** and review the summary and
-`android-signed-api36-rating-history` artifact. Expect successful preflight and
-the standard-light singles rating history journey. The artifact includes both
-installed APKs, `result.properties` with the source commit and both APK
-SHA-256 checksums, and the validated `light-chart.png` and
-`light-observations.png` checkpoints. The verify-only run skips publication.
-Record the run URL alongside the results and screenshots when reviewing the
-candidate.
+Open **Summarize signed fixture matrix** for the candidate identity and all
+24 configuration outcomes. A complete run reports nonzero passing
+instrumentation and all required PNGs for every configuration. Download
+`android-signed-fixture-matrix` for `verification.md`, validated screenshots
+by journey and configuration, and the recorded APK checksums.
+
+Download `android-signed-api36-<journey>` for both installed APKs, the light
+checkpoints, progress and test logs, and available failure diagnostics. These
+artifacts are retained for seven days, including available evidence from
+failed runs. Record the run URL, result, and screenshots when reviewing the
+candidate. Live website checks remain available on demand through **Android**.

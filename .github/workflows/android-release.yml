@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       verify_only:
-        description: Verify a signed candidate on Android 16 without publishing a release
+        description: Run the full signed fixture matrix on Android 16 without publishing a release
         type: boolean
         default: true
 
@@ -24,6 +24,7 @@ jobs:
     outputs:
       version_name: ${{ steps.metadata.outputs.version_name }}
       apk_sha256: ${{ steps.signed.outputs.apk_sha256 }}
+      fixture_matrix: ${{ steps.fixtures.outputs.matrix }}
     steps:
       - name: Check dispatch ref
         run: |
@@ -35,6 +36,9 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Plan saved-fixture journeys
+        id: fixtures
+        run: python3 scripts/android/release-matrix.py plan >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -78,13 +82,18 @@ jobs:
           overwrite: true
 
   verify-signed:
-    name: Verify signed APK on Android 16
+    name: Verify signed APK (${{ matrix.journey }})
     needs: candidate
     if: inputs.verify_only
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.candidate.outputs.fixture_matrix) }}
     runs-on: ubuntu-latest
     timeout-minutes: 115
     env:
-      ANDROID_VERIFY_OUTPUT: ${{ github.workspace }}/android-release-evidence
+      JOURNEY: ${{ matrix.journey }}
+      CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
+      CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,30 +114,31 @@ jobs:
           if [[ -c /dev/kvm && ! -w /dev/kvm ]]; then
             sudo chmod a+rw /dev/kvm
           fi
-      - name: Run installed preflight and rating history journey
+      - name: Run installed preflight and saved-fixture matrix
         id: installed
         timeout-minutes: 110
         env:
-          CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
-          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+          TEST_CLASS: az.tabletennis.${{ matrix.test }}
         run: |
           set -o pipefail
+          export ANDROID_VERIFY_OUTPUT="$RUNNER_TEMP/android-release-evidence"
           mkdir -p "$ANDROID_VERIFY_OUTPUT"
-          scripts/android-verify --require-kvm --focused --tests az.tabletennis.RatingHistoryDeviceTest \
+          scripts/android-verify --require-kvm --device-only --tests "$TEST_CLASS" \
             --release-candidate "$RUNNER_TEMP/android-release/TableTennisAz-$CANDIDATE_VERSION.apk" "$CANDIDATE_SHA256" \
             2>&1 | tee "$ANDROID_VERIFY_OUTPUT/progress.log"
       - name: Summarize signed verification
         if: always()
         env:
           VERIFICATION_OUTCOME: ${{ steps.installed.outcome }}
-          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
         run: |
+          ANDROID_VERIFY_OUTPUT="$RUNNER_TEMP/android-release-evidence"
           mkdir -p "$ANDROID_VERIFY_OUTPUT"
+          printf 'installed=%s\n' "$VERIFICATION_OUTCOME" > "$ANDROID_VERIFY_OUTPUT/job.properties"
           {
             printf '## Signed Android verification\n\n'
-            printf 'Commit `%s` · Candidate SHA-256 `%s`\n\n' "$GITHUB_SHA" "$CANDIDATE_SHA256"
-            printf 'Android API 36 · Rating history · Standard light · **%s**\n\n' "$VERIFICATION_OUTCOME"
-            printf 'Download `android-signed-api36-rating-history` from this run’s artifacts.\n'
+            printf 'Commit `%s` · Candidate `TableTennisAz-%s.apk` · SHA-256 `%s`\n\n' "$GITHUB_SHA" "$CANDIDATE_VERSION" "$CANDIDATE_SHA256"
+            printf 'Android API 36 · Journey `%s` · Installed matrix **%s**\n\n' "$JOURNEY" "$VERIFICATION_OUTCOME"
+            printf 'Download `android-signed-api36-%s` from this run’s artifacts.\n' "$JOURNEY"
             for result in "$ANDROID_VERIFY_OUTPUT"/run-*/result.properties; do
               [[ -f "$result" ]] || continue
               printf '\n```properties\n'
@@ -140,10 +150,43 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-signed-api36-rating-history
-          path: ${{ env.ANDROID_VERIFY_OUTPUT }}
+          name: android-signed-api36-${{ matrix.journey }}
+          path: ${{ runner.temp }}/android-release-evidence
           retention-days: 7
           if-no-files-found: error
+          overwrite: true
+
+  fixture-summary:
+    name: Summarize signed fixture matrix
+    needs: [candidate, verify-signed]
+    if: always() && inputs.verify_only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: android-signed-api36-*
+          path: ${{ runner.temp }}/android-signed-journeys
+      - name: Report fixture coverage and collect validated screenshots
+        if: always()
+        env:
+          CANDIDATE_VERSION: ${{ needs.candidate.outputs.version_name }}
+          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+          FIXTURE_RESULT: ${{ needs.verify-signed.result }}
+        run: |
+          python3 scripts/android/release-matrix.py "$RUNNER_TEMP/android-signed-journeys" \
+            "$RUNNER_TEMP/android-signed-fixture-matrix" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-signed-fixture-matrix
+          path: ${{ runner.temp }}/android-signed-fixture-matrix
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
 
   publish:
     needs: candidate

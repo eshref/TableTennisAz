@@ -21,7 +21,7 @@ class AndroidVerify {
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
     private static final List<String> DOUBLES_HISTORY_CAPTURES = List.of("rank", "points");
-    private static final Map<String, List<String>> FOCUSED_CAPTURES = Map.of(
+    private static final Map<String, List<String>> FIXTURE_CAPTURES = Map.of(
             "az.tabletennis.MatchDeviceTest", List.of("501", "502"),
             "az.tabletennis.ProfileDeviceTest", List.of("profile", "history"),
             "az.tabletennis.RatingHistoryDeviceTest", List.of("chart", "observations"),
@@ -131,10 +131,11 @@ class AndroidVerify {
             throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
         if (requireKvm && software)
             throw new IllegalArgumentException("Use --require-kvm or --software");
-        if (focused && (preflightOnly || live || !FOCUSED_CAPTURES.containsKey(tests)))
+        if (focused && (preflightOnly || live || !FIXTURE_CAPTURES.containsKey(tests)))
             throw new IllegalArgumentException("--focused requires a supported saved-fixture journey after preflight");
-        if (releaseCandidate != null && (!focused || !expectedReleaseSha256.matches("[0-9a-f]{64}")))
-            throw new IllegalArgumentException("--release-candidate requires --focused and a lowercase SHA-256");
+        if (releaseCandidate != null && (preflightOnly || live || !FIXTURE_CAPTURES.containsKey(tests)
+                || !expectedReleaseSha256.matches("[0-9a-f]{64}")))
+            throw new IllegalArgumentException("--release-candidate requires a supported saved-fixture journey and a lowercase SHA-256");
         if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
             throw new IllegalArgumentException("--fail-after-history-checkpoint requires the doubles profile journey");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
@@ -167,7 +168,13 @@ class AndroidVerify {
         } else if (!preflightOnly && !live) {
             result.setProperty("matrix", "not-run");
             MATRIX_CONFIGURATIONS.forEach(this::initializeConfiguration);
-            if (tests.equals(DOUBLES_PROFILE_TEST)) result.setProperty("light.historyCheckpoint", "not-run");
+            if (releaseCandidate != null) {
+                result.setProperty("light.checkpoints", "not-run");
+                for (String configuration : MATRIX_CONFIGURATIONS)
+                    result.setProperty(configuration + ".expectedScreenshots", String.join(",", requiredScreenshots(configuration, tests)));
+            } else if (tests.equals(DOUBLES_PROFILE_TEST)) {
+                result.setProperty("light.historyCheckpoint", "not-run");
+            }
         }
         result.setProperty("started", Instant.now().toString());
         result.setProperty("sdkCache", sdk.toString());
@@ -543,9 +550,7 @@ class AndroidVerify {
         note("Installed configuration started: " + prefix + " (" + width + "x" + height + ")");
         result.setProperty(prefix + ".display", width + "x" + height);
         result.setProperty(prefix + ".instrumentation", "running");
-        List<String> requiredCaptures = focused && prefix.equals("light") ? FOCUSED_CAPTURES.get(classes)
-                : classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();
-        List<String> screenshots = requiredCaptures.stream().map(name -> prefix + "-" + name + ".png").toList();
+        List<String> screenshots = requiredScreenshots(prefix, classes);
         runTests(prefix, classes, smoke, reuse, software ? 720 : 240, prefix.equals("light") ? screenshots : List.of());
         result.setProperty(prefix + ".screenshotCollection", "running");
         note("Screenshot collection started: " + prefix);
@@ -557,6 +562,8 @@ class AndroidVerify {
             for (Path png : paths.filter(p -> p.getFileName().toString().startsWith(prefix + "-") && p.toString().endsWith(".png")).toList()) {
                 validateScreenshot(png, width, height);
                 validated.put(png.getFileName().toString(), png);
+                if (releaseCandidate != null && MATRIX_CONFIGURATIONS.contains(prefix))
+                    result.setProperty(prefix + ".screenshotSha256." + png.getFileName(), digest(png));
                 result.setProperty(prefix + ".screenshots", Integer.toString(validated.size()));
             }
         }
@@ -575,6 +582,15 @@ class AndroidVerify {
         }
         result.setProperty(prefix + ".screenshotCollection", "passed");
         note("Screenshot collection passed: " + prefix + " (" + validated.size() + " validated PNGs)");
+    }
+
+    private List<String> requiredScreenshots(String prefix, String classes) {
+        List<String> captures;
+        if (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null))
+            captures = FIXTURE_CAPTURES.get(classes);
+        else
+            captures = classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();
+        return captures.stream().map(name -> prefix + "-" + name + ".png").toList();
     }
 
     private void validateScreenshot(Path png, int width, int height) throws IOException {
@@ -605,7 +621,7 @@ class AndroidVerify {
     }
 
     private String runWithCheckpoints(String name, int seconds, String command, String runner, Set<String> missing) throws Exception {
-        String checkpointResult = focused ? "light.checkpoints" : "light.historyCheckpoint";
+        String checkpointResult = focused || releaseCandidate != null ? "light.checkpoints" : "light.historyCheckpoint";
         result.setProperty(checkpointResult, "running");
         result.setProperty("light.screenshotCollection", "running");
         note("Screenshot collection started: light checkpoints");
@@ -655,7 +671,9 @@ class AndroidVerify {
         Path rank = directory.resolve("light-rank.png");
         if (name.equals("light-points.png") && Files.isRegularFile(rank))
             require(Files.mismatch(rank, pending) != -1, "Light rating and ranking checkpoint PNGs are identical");
-        Files.move(pending, directory.resolve(name));
+        Path checkpoint = Files.move(pending, directory.resolve(name));
+        if (releaseCandidate != null)
+            result.setProperty("light.checkpointSha256." + name, digest(checkpoint));
         missing.remove(name);
         result.setProperty("light.screenshotCollection", "partial");
         result.setProperty(checkpointResult + "." + name, "validated");
