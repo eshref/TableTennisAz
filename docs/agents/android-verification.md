@@ -85,3 +85,24 @@ The **Protect main** ruleset requires **Android installed check**. When
 changing the gate, verify an applicable PR with downloadable evidence, an
 unrelated PR with a successful applicability result, and a failed installed
 check with downloadable partial evidence. [Protect main ruleset](https://github.com/eshref/TableTennisAz/rules/27339222)
+
+## Signed release candidate pilot
+
+After the workflow is merged to `main`, dispatch **Publish Android release**
+from `main` with **verify_only** enabled. The protected `android-release`
+environment signs the candidate once. The verification job downloads the APK,
+checks its SHA-256 against the build job's output, and installs that copy on a
+KVM-accelerated API 36 emulator. The instrumentation APK is built against the
+release variant with the debug signer. The disposable userdebug emulator
+allows root to start instrumentation with that signer.
+The pilot can use the latest published version number on a newer commit.
+[Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
+
+Open **Verify signed APK on Android 16** and review the summary and
+`android-signed-api36-rating-history` artifact. Expect successful preflight and
+the standard-light singles rating history journey. The artifact includes both
+installed APKs, `result.properties` with the source commit and both APK
+SHA-256 checksums, and the validated `light-chart.png` and
+`light-observations.png` checkpoints. The verify-only run skips publication.
+Record the run URL alongside the results and screenshots when reviewing the
+candidate.

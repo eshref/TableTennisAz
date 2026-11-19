@@ -21,6 +21,8 @@ after preflight, instead of the saved-fixture matrix. Website access is required
 --device-only skips the host tests and lint after the installed matrix.
 --focused runs one supported saved-fixture journey in standard light after
 preflight and requires its checkpoint screenshots. Host checks run separately.
+--release-candidate APK SHA256 verifies and installs an existing signed APK
+with release-compatible instrumentation. Use it with --focused.
 --fail-after-history-checkpoint fails the doubles profile journey after the host
 validates both light history PNGs. Use it for the evidence-retention pilot.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one

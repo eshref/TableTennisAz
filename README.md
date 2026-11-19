@@ -273,10 +273,14 @@ permissions. See [GitHub's release API permissions](https://docs.github.com/en/r
 ### Publish and verify
 
 After merging the release PR, open **Actions → Publish Android release → Run
-workflow**, select `main`, and start the run. The workflow checks the version
-and changelog, runs the Android host tests and lint, verifies the signed APK,
-and publishes `TableTennisAz-<version>.apk` and the selected notes to GitHub
-Releases. Its `v<version>` tag points to the commit shown on the workflow run.
+workflow** and select `main`. Leave **verify_only** enabled for the signed
+candidate pilot. The run summary ties the installed rating history evidence
+to the candidate's SHA-256. [Signed candidate verification](docs/agents/android-verification.md#signed-release-candidate-pilot)
+
+Disable **verify_only** when you intend to publish. The workflow checks the
+version and changelog, runs the Android host tests and lint, verifies the APK
+signature, and publishes `TableTennisAz-<version>.apk` and the selected notes
+to GitHub Releases. Its `v<version>` tag points to the commit shown on the run.
 
 If publication is interrupted, use **Re-run failed jobs** on the original
 workflow run. Use **Re-run all jobs** on that run if its candidate artifact has

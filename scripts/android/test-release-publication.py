@@ -289,7 +289,7 @@ class WorkflowTest(ReleaseFixture):
 
     def configure_source(self, source):
         if not (source / 'scripts').exists():
-            (source / 'scripts').symlink_to(SCRIPTS.parent, target_is_directory=True)
+            shutil.copytree(SCRIPTS, source / 'scripts/android')
         wrapper = source / 'gradlew'
         wrapper.write_text('''#!/usr/bin/env bash
 set -euo pipefail
@@ -331,11 +331,16 @@ esac
                              '--ks-pass', 'env:ANDROID_RELEASE_KEYSTORE_PASSWORD', '--out', apk, unsigned)
         return apk
 
-    def run_workflow(self, apk=None, *, source=None, sha=None, check_status=0):
+    def run_workflow(self, apk=None, *, source=None, sha=None, check_status=0, verify_only=None):
         source = source or self.source
+        if verify_only is None:
+            triggers = self.workflow.get('on', self.workflow.get(True))  # PyYAML reads `on` as true.
+            verify_only = triggers['workflow_dispatch']['inputs']['verify_only']['default']
         env = dict(self.env, GITHUB_SHA=sha or self.env['GITHUB_SHA'], FIXTURE_APK=str(apk),
                    FIXTURE_CHECK_STATUS=str(check_status))
         variables = {'github.token': env['GH_TOKEN'], 'github.ref': env['GITHUB_REF'], 'github.sha': env['GITHUB_SHA']}
+        variables['github.workspace'] = str(source)
+        variables['inputs.verify_only'] = 'true' if verify_only else 'false'
         variables.update({f'secrets.{name}': value for name, value in env.items() if name.startswith('ANDROID_RELEASE_')})
         # Run the workflow's shell steps with local per-ref scheduling and artifact transfer.
         concurrency = self.workflow['concurrency']
@@ -345,15 +350,24 @@ esac
         with slot, tempfile.TemporaryDirectory(dir=self.scratch.name) as runner:
             artifacts = Path(runner) / 'artifacts'
             completed = set()
+            conditions = {'inputs.verify_only': verify_only, 'inputs.verify_only == false': not verify_only}
             for job_id, job in self.workflow['jobs'].items():
+                if 'if' in job and not conditions[job['if']]:
+                    continue
                 self.assertTrue(not job.get('needs') or job['needs'] in completed)
                 job_dir = Path(runner) / job_id
                 job_dir.mkdir()
                 job_output = job_dir / 'outputs'
-                job_env = dict(env | self.workflow.get('env', {}) | job.get('env', {}),
-                               RUNNER_TEMP=str(job_dir), GITHUB_OUTPUT=str(job_output))
                 variables['runner.temp'] = str(job_dir)
+                workflow_env = self.workflow.get('env', {}) | job.get('env', {})
+                job_env = {name: val for name, val in env.items() if not name.startswith('ANDROID_RELEASE_')}
+                job_env.update({name: resolve(value, variables) for name, value in workflow_env.items()})
+                job_env.update(RUNNER_TEMP=str(job_dir), GITHUB_OUTPUT=str(job_output),
+                               GITHUB_STEP_SUMMARY=str(job_dir / 'summary'))
+                variables.update({f'env.{name}': job_env[name] for name in workflow_env})
                 for step in job['steps']:
+                    if step.get('id') == 'kvm':
+                        continue  # The local fixture substitutes installed verification.
                     action = step.get('uses', '').partition('@')[0]
                     inputs = step.get('with', {})
                     if action == 'actions/checkout':
@@ -371,10 +385,12 @@ esac
                                                 env=step_env, cwd=source, text=True, capture_output=True, timeout=600)
                         if result.returncode:
                             return result
-                        if step.get('id') and job_output.exists():
-                            for line in job_output.read_text().splitlines():
-                                key, value = line.split('=', 1)
-                                variables[f"steps.{step['id']}.outputs.{key}"] = value
+                        if step.get('id'):
+                            variables[f"steps.{step['id']}.outcome"] = 'success'
+                            if job_output.exists():
+                                for line in job_output.read_text().splitlines():
+                                    key, value = line.split('=', 1)
+                                    variables[f"steps.{step['id']}.outputs.{key}"] = value
                 for name, value in job.get('outputs', {}).items():
                     variables[f'needs.{job_id}.outputs.{name}'] = resolve(value, variables)
                 completed.add(job_id)
@@ -394,6 +410,33 @@ esac
             self.assertEqual(response.read(), apk.read_bytes())
         return asset
 
+    def test_verify_only_delivers_the_signed_candidate_without_changing_the_existing_release(self):
+        # arrange
+        released_commit = self.commit()
+        self.github.tags['tags/v0.4.0'] = released_commit
+        released_version = {'id': 1, 'tag_name': 'v0.4.0', 'draft': False, 'prerelease': False, 'assets': []}
+        self.github.releases[1] = dict(released_version)
+        self.commit()
+        apk = self.apk()
+        verifier = self.source / 'scripts/android-verify'
+        verifier.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == '--require-kvm --focused --tests az.tabletennis.RatingHistoryDeviceTest --release-candidate '* ]]
+[[ -z "${ANDROID_RELEASE_KEYSTORE_BASE64:-}" ]]
+printf '%s  %s\\n' "$7" "$6" | sha256sum --check
+cp "$6" verified-candidate.apk
+''')
+        verifier.chmod(0o755)
+
+        # act
+        result = self.run_workflow(apk)
+
+        # assert
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.source / 'verified-candidate.apk').read_bytes(), apk.read_bytes())
+        self.assertEqual(self.api('/releases'), [released_version])
+        self.assertEqual(self.api('/git/ref/tags/v0.4.0')['object']['sha'], released_commit)
+
     def test_publishes_and_preserves_a_completed_release(self):
         # arrange
         self.use_gradle_project()
@@ -401,7 +444,7 @@ esac
         built_apk = self.source / 'app/build/outputs/apk/release/app-release.apk'
 
         # act
-        result = self.run_workflow()
+        result = self.run_workflow(verify_only=False)
 
         # assert
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -415,7 +458,7 @@ esac
         rebuilt_apk = self.apk(variant='rebuilt')
 
         # act
-        retry = self.run_workflow(rebuilt_apk)
+        retry = self.run_workflow(rebuilt_apk, verify_only=False)
 
         # assert
         self.assertEqual(retry.returncode, 0, retry.stderr)
@@ -432,7 +475,7 @@ esac
                 self.commit(code=code)
 
                 # act
-                result = self.run_workflow(apk, check_status=host_status)
+                result = self.run_workflow(apk, check_status=host_status, verify_only=False)
 
                 # assert
                 self.assertNotEqual(result.returncode, 0)
@@ -458,7 +501,7 @@ esac
         def attempt(candidate):
             _, sha, apk, source = candidate
             start.wait(timeout=5)
-            return self.run_workflow(apk, source=source, sha=sha)
+            return self.run_workflow(apk, source=source, sha=sha, verify_only=False)
 
         # act
         with ThreadPoolExecutor(max_workers=len(candidates)) as threads:
@@ -485,7 +528,7 @@ esac
                 retry_apk = self.apk(variant=f'{interruption}-retry')
 
                 # act
-                result = self.run_workflow(apk)
+                result = self.run_workflow(apk, verify_only=False)
 
                 # assert
                 self.assertNotEqual(result.returncode, 0)
@@ -501,7 +544,7 @@ esac
                     self.commit('0.5.0')
 
                     # act
-                    other_attempt = self.run_workflow(other_apk)
+                    other_attempt = self.run_workflow(other_apk, verify_only=False)
 
                     # assert
                     self.assertNotEqual(other_attempt.returncode, 0)
@@ -515,7 +558,7 @@ esac
                     self.env['ANDROID_RELEASE_GITHUB_TOKEN'] = self.github.publish_token
 
                 # act
-                retry = self.run_workflow(retry_apk)
+                retry = self.run_workflow(retry_apk, verify_only=False)
 
                 # assert
                 self.assertEqual(retry.returncode, 0, retry.stderr)
@@ -532,7 +575,7 @@ esac
         original = self.apk()
         substitute = self.apk(variant='substitute').read_bytes()
         self.github.interruption = 'publish'
-        attempt = self.run_workflow(original)
+        attempt = self.run_workflow(original, verify_only=False)
         self.assertNotEqual(attempt.returncode, 0)
         release_id, = self.github.releases
         asset, = self.github.releases[release_id]['assets']
@@ -540,7 +583,7 @@ esac
         asset.update(size=len(substitute), digest='sha256:' + hashlib.sha256(substitute).hexdigest())
 
         # act
-        retry = self.run_workflow(original)
+        retry = self.run_workflow(original, verify_only=False)
 
         # assert
         self.assertNotEqual(retry.returncode, 0)

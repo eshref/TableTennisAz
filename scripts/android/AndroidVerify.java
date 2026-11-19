@@ -36,6 +36,10 @@ class AndroidVerify {
     private final Properties tools = new Properties(), result = new Properties();
     private final List<Process> children = Collections.synchronizedList(new ArrayList<>());
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
+    private final Path appApk, testApk;
+    private final String variant;
+    private Path releaseCandidate;
+    private String expectedReleaseSha256;
     private Path build;
     private Process emulator;
     private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly, focused, failAfterHistoryCheckpoint;
@@ -113,6 +117,12 @@ class AndroidVerify {
             case "--fail-after-history-checkpoint" -> failAfterHistoryCheckpoint = true;
             case "--live" -> live = true;
             case "--tests" -> { tests = args[++i]; selectedTests = true; }
+            case "--release-candidate" -> {
+                if (args.length - i < 3)
+                    throw new IllegalArgumentException("--release-candidate requires an APK path and its SHA-256");
+                releaseCandidate = Path.of(args[++i]);
+                expectedReleaseSha256 = args[++i];
+            }
             default -> throw new IllegalArgumentException("Unknown argument: " + args[i]);
         }
         if (!tests.matches("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)+"))
@@ -123,6 +133,8 @@ class AndroidVerify {
             throw new IllegalArgumentException("Use --require-kvm or --software");
         if (focused && (preflightOnly || live || !FOCUSED_CAPTURES.containsKey(tests)))
             throw new IllegalArgumentException("--focused requires a supported saved-fixture journey after preflight");
+        if (releaseCandidate != null && (!focused || !expectedReleaseSha256.matches("[0-9a-f]{64}")))
+            throw new IllegalArgumentException("--release-candidate requires --focused and a lowercase SHA-256");
         if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
             throw new IllegalArgumentException("--fail-after-history-checkpoint requires the doubles profile journey");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
@@ -133,6 +145,9 @@ class AndroidVerify {
         Files.copy(repo.resolve("scripts/android/limits.properties"), evidence.resolve("limits.properties"));
         // Allocate disposable state only after fallible cache/configuration setup succeeds.
         work = Files.createTempDirectory(evidence.getParent(), "device-");
+        variant = releaseCandidate == null ? "debug" : "release";
+        appApk = evidence.resolve("app-" + variant + ".apk");
+        testApk = evidence.resolve("app-" + variant + "-androidTest.apk");
         env.put("ANDROID_HOME", sdk.toString());
         env.put("ANDROID_SDK_ROOT", sdk.toString());
         env.put("ANDROID_USER_HOME", work.resolve("android-user").toString());
@@ -140,6 +155,7 @@ class AndroidVerify {
         env.put("ANDROID_AVD_HOME", work.resolve("avds").toString());
         env.remove("ANDROID_SERIAL");
         result.setProperty("mode", software ? "software" : "accelerated");
+        result.setProperty("apk.variant", variant);
         result.setProperty("api", "36");
         result.setProperty("tests", live ? String.join(",", LIVE_TESTS) : tests);
         result.setProperty("preflight", "not-run");
@@ -158,6 +174,16 @@ class AndroidVerify {
     }
 
     private void execute() throws Exception {
+        if (releaseCandidate != null) {
+            phase = "candidate-checksum";
+            result.setProperty("source.commit", command("source-revision", 15, true, "git", "rev-parse", "HEAD").strip());
+            result.setProperty("apk.expectedSha256", expectedReleaseSha256);
+            Files.copy(releaseCandidate, appApk);
+            String actual = digest(appApk);
+            result.setProperty("apk.sha256", actual);
+            require(actual.equals(expectedReleaseSha256), "Signed release candidate SHA-256 mismatch");
+            note("Verified signed release candidate SHA-256: " + actual);
+        }
         if (requireKvm && software) {
             phase = "acceleration";
             throw new IOException("KVM is required; /dev/kvm must be readable and writable");
@@ -178,23 +204,7 @@ class AndroidVerify {
             }
         }
         phase = "build";
-        Path buildParent = Path.of(env.getOrDefault("ANDROID_VERIFY_BUILD_ROOT", "/tmp")).toAbsolutePath();
-        if (Files.getFileStore(buildParent).getUsableSpace() < 1024L * 1024 * 1024) buildParent = work;
-        build = Files.createTempDirectory(buildParent, "tabletennisaz-build-");
-        Path init = work.resolve("build-paths.gradle");
-        Path hostScratch = Files.createDirectories(work.resolve("host-tmp"));
-        Files.writeString(init, "allprojects { layout.buildDirectory.set(new File('" + groovy(build.toString()) + "', project.name)); "
-                + "tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { systemProperty 'java.io.tmpdir', '"
-                + groovy(hostScratch.toString()) + "' } }\n");
-        note("Building both APKs in isolated output");
-        run("build", 600, source.resolve("gradlew").toString(), "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
-                "-I", init.toString(), ":app:assembleDebug", ":app:assembleDebugAndroidTest");
-        Path apk = build.resolve("app/outputs/apk/debug/app-debug.apk");
-        Path testApk = build.resolve("app/outputs/apk/androidTest/debug/app-debug-androidTest.apk");
-        result.setProperty("apk.sha256", digest(apk));
-        result.setProperty("testApk.sha256", digest(testApk));
-        Files.copy(apk, evidence.resolve("app-debug.apk"));
-        Files.copy(testApk, evidence.resolve("app-debug-androidTest.apk"));
+        prepareApks();
         phase = "preflight";
         result.setProperty("preflight", "running");
         note("Preflight started");
@@ -285,8 +295,35 @@ class AndroidVerify {
         phase = "host-checks";
         note("Owned emulator stopped; running host integration tests and lint within the same full-phase deadline");
         run("host-checks", Math.toIntExact(remaining()), source.resolve("gradlew").toString(), "--no-daemon", "--project-cache-dir", build.resolve("gradle-cache").toString(),
-                "-I", init.toString(), ":app:testDebugUnitTest", ":app:lintDebug");
+                "-I", work.resolve("build-paths.gradle").toString(), ":app:testDebugUnitTest", ":app:lintDebug");
         result.setProperty("hostChecks", "passed");
+    }
+
+    private void prepareApks() throws Exception {
+        Path buildParent = Path.of(env.getOrDefault("ANDROID_VERIFY_BUILD_ROOT", "/tmp")).toAbsolutePath();
+        if (Files.getFileStore(buildParent).getUsableSpace() < 1024L * 1024 * 1024) buildParent = work;
+        build = Files.createTempDirectory(buildParent, "tabletennisaz-build-");
+        Path init = work.resolve("build-paths.gradle");
+        Path hostScratch = Files.createDirectories(work.resolve("host-tmp"));
+        Files.writeString(init, "allprojects { layout.buildDirectory.set(new File('" + groovy(build.toString()) + "', project.name)); "
+                + "tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { systemProperty 'java.io.tmpdir', '"
+                + groovy(hostScratch.toString()) + "' } }\n");
+        List<String> gradle = new ArrayList<>(List.of(source.resolve("gradlew").toString(), "--no-daemon",
+                "--project-cache-dir", build.resolve("gradle-cache").toString(), "-I", init.toString()));
+        if (releaseCandidate == null) {
+            note("Building both debug APKs in isolated output");
+            gradle.addAll(List.of(":app:assembleDebug", ":app:assembleDebugAndroidTest"));
+        } else {
+            note("Building instrumentation for the release variant in isolated output");
+            gradle.addAll(List.of(":app:assembleReleaseAndroidTest", "-PandroidTestBuildType=release"));
+        }
+        run("build", 600, gradle.toArray(String[]::new));
+        if (releaseCandidate == null) {
+            Files.copy(build.resolve("app/outputs/apk/debug/app-debug.apk"), appApk);
+            result.setProperty("apk.sha256", digest(appApk));
+        }
+        Files.copy(build.resolve("app/outputs/apk/androidTest").resolve(variant).resolve(testApk.getFileName()), testApk);
+        result.setProperty("testApk.sha256", digest(testApk));
     }
 
     private void initializeConfiguration(String prefix) {
@@ -478,8 +515,8 @@ class AndroidVerify {
         // Software first-boot work can keep installation busy beyond three minutes.
         // command() also clamps each install to the remaining total phase budget.
         int installSeconds = software ? Math.toIntExact(remaining()) : 180;
-        adb("install-app", installSeconds, true, "install", "--no-streaming", "-r", evidence.resolve("app-debug.apk").toString());
-        adb("install-tests", installSeconds, true, "install", "--no-streaming", "-r", "-t", evidence.resolve("app-debug-androidTest.apk").toString());
+        adb("install-app", installSeconds, true, "install", "--no-streaming", "-r", appApk.toString());
+        adb("install-tests", installSeconds, true, "install", "--no-streaming", "-r", "-t", testApk.toString());
         if (software) {
             note("Compiling app and test bytecode before installed checks (within the preflight budget)");
             for (String target : List.of("az.tabletennis", "az.tabletennis.test"))
@@ -551,7 +588,9 @@ class AndroidVerify {
 
     private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds, List<String> checkpoints) throws Exception {
         shell(prefix + "-stop", 60, true, "am force-stop az.tabletennis");
-        String command = "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
+        // The owned userdebug emulator permits root to start instrumentation with a separate signer.
+        String command = (releaseCandidate == null ? "" : "su 0 ")
+                + "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
                 + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "");
         String runner = " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
         String name = "tests-" + prefix;

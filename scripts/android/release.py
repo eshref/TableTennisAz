@@ -82,7 +82,7 @@ def check_tag(tag, tagged_commit, commit):
         raise ReleaseError(f'Tag {tag} points to {tagged_commit}, expected {commit}.')
 
 
-def validate(github, output, commit):
+def validate(github, output, commit, *, verify_only=False):
     latest = github.call('GET', '/releases/latest', missing_ok=True)
     command = ['java', str(SCRIPTS / 'ReleaseMetadata.java'), str(output)]
     with tempfile.TemporaryDirectory() as scratch:
@@ -99,11 +99,12 @@ def validate(github, output, commit):
         metadata = subprocess.check_output(command, text=True)
 
     version = dict(line.split('=', 1) for line in metadata.splitlines())
-    tag = f"v{version['version_name']}"
-    tagged_commit = github.tag_commit(tag)
-    check_tag(tag, tagged_commit, commit)
-    if latest is not None and latest['tag_name'] == tag and tagged_commit is None:
-        raise ReleaseError(f'Published release {tag} is missing its tag.')
+    if not verify_only:
+        tag = f"v{version['version_name']}"
+        tagged_commit = github.tag_commit(tag)
+        check_tag(tag, tagged_commit, commit)
+        if latest is not None and latest['tag_name'] == tag and tagged_commit is None:
+            raise ReleaseError(f'Published release {tag} is missing its tag.')
     return metadata, version
 
 
@@ -221,6 +222,7 @@ def main():
     actions = parser.add_subparsers(dest='action', required=True)
     validate_command = actions.add_parser('validate')
     validate_command.add_argument('output', type=Path)
+    validate_command.add_argument('--verify-only', action='store_true')
     publish_command = actions.add_parser('publish')
     publish_command.add_argument('candidate', type=Path)
     publish_command.add_argument('tools', type=Path)
@@ -229,7 +231,7 @@ def main():
         commit = checked_commit()
         github = GitHub()
         if args.action == 'validate':
-            metadata, _ = validate(github, args.output, commit)
+            metadata, _ = validate(github, args.output, commit, verify_only=args.verify_only)
             print(metadata, end='')
         else:
             publish(github, args.candidate, args.tools, commit)
