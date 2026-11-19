@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       verify_only:
-        description: Run the signed Android 16 fixture matrix and upgrade check without publishing a release
+        description: Verify the signed APK without publishing a release
         type: boolean
         default: true
 
@@ -21,6 +21,9 @@ jobs:
   candidate:
     runs-on: ubuntu-latest
     environment: android-release
+    permissions:
+      # Draft release assets are visible only with push access.
+      contents: write
     outputs:
       version_name: ${{ steps.metadata.outputs.version_name }}
       apk_sha256: ${{ steps.signed.outputs.apk_sha256 }}
@@ -38,7 +41,7 @@ jobs:
           persist-credentials: false
       - name: Plan saved-fixture journeys
         id: fixtures
-        run: python3 scripts/android/release-matrix.py plan >> "$GITHUB_OUTPUT"
+        run: python3 scripts/android/release_matrix.py plan >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -60,6 +63,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Run Android host checks
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug
+      - name: Recover the staged APK on a publication retry
+        if: inputs.verify_only == false
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+        run: python3 scripts/android/release.py reuse-candidate "$RUNNER_TEMP/android-release" "$RELEASE_VERSION_NAME"
       - name: Build and verify signed APK
         id: signed
         env:
@@ -71,8 +80,10 @@ jobs:
           RELEASE_VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
         run: |
           candidate="$RUNNER_TEMP/android-release"
-          scripts/android/build-release-candidate "$candidate" "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
-          digest=$(sha256sum "$candidate/TableTennisAz-$RELEASE_VERSION_NAME.apk")
+          apk="$candidate/TableTennisAz-$RELEASE_VERSION_NAME.apk"
+          tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          scripts/android/build-release-candidate "$candidate" "$tools"
+          digest=$(sha256sum "$apk")
           printf 'apk_sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
@@ -84,7 +95,6 @@ jobs:
   verify-signed:
     name: Verify signed APK (${{ matrix.journey }})
     needs: candidate
-    if: inputs.verify_only
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.candidate.outputs.fixture_matrix) }}
@@ -159,7 +169,7 @@ jobs:
   fixture-summary:
     name: Summarize signed fixture matrix
     needs: [candidate, verify-signed]
-    if: always() && inputs.verify_only
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +187,7 @@ jobs:
           CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
           FIXTURE_RESULT: ${{ needs.verify-signed.result }}
         run: |
-          python3 scripts/android/release-matrix.py "$RUNNER_TEMP/android-signed-journeys" \
+          python3 scripts/android/release_matrix.py "$RUNNER_TEMP/android-signed-journeys" \
             "$RUNNER_TEMP/android-signed-fixture-matrix" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -191,7 +201,6 @@ jobs:
   verify-upgrade:
     name: Verify in-place Android upgrade
     needs: candidate
-    if: inputs.verify_only
     runs-on: ubuntu-latest
     timeout-minutes: 115
     env:
@@ -215,7 +224,13 @@ jobs:
         id: previous
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/android/release.py download-previous "$RUNNER_TEMP/previous-official.apk" >> "$GITHUB_OUTPUT"
+          VERIFY_ONLY: ${{ inputs.verify_only }}
+        run: |
+          args=("$RUNNER_TEMP/previous-official.apk")
+          if [[ "$VERIFY_ONLY" == false ]]; then
+            args+=(--exclude-tag "v$CANDIDATE_VERSION")
+          fi
+          python3 scripts/android/release.py download-previous "${args[@]}" >> "$GITHUB_OUTPUT"
       - name: Grant the runner access to KVM
         id: kvm
         run: |
@@ -271,7 +286,7 @@ jobs:
           overwrite: true
 
   publish:
-    needs: candidate
+    needs: [candidate, fixture-summary, verify-upgrade]
     if: inputs.verify_only == false
     runs-on: ubuntu-latest
     environment: android-release
@@ -293,7 +308,19 @@ jobs:
         with:
           name: TableTennisAz-${{ needs.candidate.outputs.version_name }}-candidate
           path: ${{ runner.temp }}/android-release/
-      - name: Publish verified APK
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-signed-fixture-matrix
+          path: ${{ runner.temp }}/android-signed-fixture-matrix
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-signed-upgrade
+          path: ${{ runner.temp }}/android-signed-upgrade
+      - name: Publish verified APK and evidence
         env:
           GH_TOKEN: ${{ secrets.ANDROID_RELEASE_GITHUB_TOKEN || github.token }}
-        run: python3 scripts/android/release.py publish "$RUNNER_TEMP/android-release" "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          CANDIDATE_SHA256: ${{ needs.candidate.outputs.apk_sha256 }}
+        run: |
+          python3 scripts/android/release.py publish "$RUNNER_TEMP/android-release" \
+            "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION" \
+            "$RUNNER_TEMP/android-signed-fixture-matrix" "$RUNNER_TEMP/android-signed-upgrade" "$CANDIDATE_SHA256"

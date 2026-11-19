@@ -279,30 +279,39 @@ upgrade from the latest official APK. The verification reports identify the
 signed candidate by commit and SHA-256. [Signed fixture matrix](docs/agents/android-verification.md#signed-release-candidate-matrix) ·
 [In-place upgrade](docs/agents/android-verification.md#signed-in-place-upgrade)
 
-Disable **verify_only** when you intend to publish. The workflow checks the
-version and changelog, runs the Android host tests and lint, verifies the APK
-signature, and publishes `TableTennisAz-<version>.apk` and the selected notes
-to GitHub Releases. Its `v<version>` tag points to the commit shown on the run.
+Disable **verify_only** when you intend to publish. The same run checks the
+version, changelog, and APK signature, runs the Android host tests and lint,
+and requires all 24 installed configurations, their required screenshots,
+and the in-place upgrade to pass. The workflow checks the commit and APK
+SHA-256 against the installed evidence before publishing. GitHub Releases
+holds `TableTennisAz-<version>.apk`, the selected changelog notes, and
+`TableTennisAz-<version>-verification.zip`. Its `v<version>` tag points to the
+commit shown on the run.
 
 If publication is interrupted, use **Re-run failed jobs** on the original
-workflow run. Use **Re-run all jobs** on that run if its candidate artifact has
-expired. Retrying preserves a matching tag and any APK already uploaded by
-the workflow. Finish an interrupted release before starting another version.
+workflow run. Use **Re-run all jobs** on that run if a candidate or evidence
+artifact has expired. Retrying uses the exact APK already uploaded to a
+matching draft and preserves matching verification evidence already uploaded.
+Finish an interrupted release before starting another version.
 If GitHub reports a conflicting tag, check the tag and dispatch commit before
 taking any action.
 
-Open the published release and compare its notes with the dated changelog
-section at the tag. Compare the tag's commit with the workflow run's commit.
-Download the APK and compare its SHA-256 with the asset digest shown by GitHub.
-Check its version name and version code against the release PR and its signing
-certificate against the recorded fingerprint.
+Open the release on GitHub and download the APK and its verification ZIP.
+Read `verification.md` and review the fixture and before-and-after upgrade
+screenshots inside the ZIP. Compare the tag's commit and the downloaded APK's
+SHA-256 with the commit and digest in that summary. Check the version name
+and version code against the release PR and the signing certificate against
+the recorded fingerprint. [GitHub Releases](https://github.com/eshref/TableTennisAz/releases)
+
+Replace `vX.Y.Z` with the verified release tag.
 
 ```sh
-tag=v0.4.0
+tag=vX.Y.Z
 apk="TableTennisAz-${tag#v}.apk"
 git fetch origin tag "$tag"
 git rev-parse "$tag^{commit}"
 gh release download "$tag" --pattern "$apk"
+gh release download "$tag" --pattern "TableTennisAz-${tag#v}-verification.zip"
 sha256sum "$apk"
 "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
 "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | head -n 1
@@ -312,9 +321,10 @@ sha256sum "$apk"
 
 If you installed a debug APK for phone review, uninstall it once before
 installing your first official APK. **Uninstalling the debug build clears its
-saved app data**, including offline rankings, profiles, and results. Install
-later official APKs over the existing official app to keep saved data. Official
-updates use the same signing key and higher Android version codes.
+saved app data**, including offline rankings, profiles, and results. After
+reviewing the release evidence, transfer the tested APK to your phone and open
+it to install the update over the existing official app and keep saved data.
+Official updates use the same signing key and higher Android version codes.
 
 ### Verify the release setup locally
 

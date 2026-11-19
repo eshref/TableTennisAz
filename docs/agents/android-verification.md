@@ -89,8 +89,9 @@ check with downloadable partial evidence. [Protect main ruleset](https://github.
 ## Signed release candidate matrix
 
 After the workflow is merged to `main`, dispatch **Publish Android release**
-from `main` with **verify_only** enabled. The protected `android-release`
-environment signs the candidate once. Six parallel jobs each download the
+from `main`. Leave **verify_only** enabled for a verification run. The
+protected `android-release` environment provides the production-signed
+candidate. Six parallel jobs each download the
 same APK, check its SHA-256, and install it on a KVM-accelerated API 36 emulator.
 Each job runs preflight and one saved-fixture journey from the table above
 through all four configurations, with the same fixture and restart behavior.
@@ -114,7 +115,7 @@ candidate. Live website checks remain available on demand through **Android**.
 
 ## Signed in-place upgrade
 
-The same **verify_only** dispatch runs **Verify in-place Android upgrade** in
+The same dispatch runs **Verify in-place Android upgrade** in
 parallel with the fixture matrix. The job downloads the latest official APK
 from GitHub Releases and checks that it and the candidate have the same
 application ID and signing certificates. It installs the official APK first,
@@ -132,3 +133,14 @@ their versions and checksums, the phase outcomes in `result.properties`, and
 the before and after screenshots under `captures/`. A failed job retains the
 available evidence and diagnostics. Record the run URL, result, and screenshots
 when reviewing the upgrade. [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
+
+## Official release evidence
+
+With **verify_only** disabled, publication requires both installed checks
+and verifies the collected results and screenshots against the APK SHA-256
+and commit. The release publishes the APK and
+`TableTennisAz-<version>-verification.zip` together. Open `verification.md` in
+the ZIP for the workflow run, candidate identity, and test results. The ZIP
+also contains the validated screenshots and recorded phase outcomes. Review
+these assets before installing the APK over the official app on the phone.
+[GitHub Releases](https://github.com/eshref/TableTennisAz/releases)

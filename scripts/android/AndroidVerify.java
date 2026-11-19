@@ -26,19 +26,11 @@ class AndroidVerify {
     private static final Pattern APK_PACKAGE = Pattern.compile("(?m)^package: name='([^']+)' versionCode='([0-9]+)' versionName='([^']+)'");
     private static final Pattern APK_SIGNER = Pattern.compile("(?m)^Signer #\\d+ certificate SHA-256 digest: ([0-9a-f]{64})$");
     private static final List<String> DOUBLES_HISTORY_CAPTURES = List.of("rank", "points");
-    private static final Map<String, List<String>> FIXTURE_CAPTURES = Map.of(
-            "az.tabletennis.MatchDeviceTest", List.of("501", "502"),
-            "az.tabletennis.ProfileDeviceTest", List.of("profile", "history"),
-            "az.tabletennis.RatingHistoryDeviceTest", List.of("chart", "observations"),
-            "az.tabletennis.ResultsDeviceTest", List.of("results", "long-names", "long-names-second-side", "empty"),
-            DOUBLES_PROFILE_TEST, List.of("profile", "rank", "points", "matches", "long-names"),
-            "az.tabletennis.NativeAcceptanceDeviceTest", List.of("players", "player-profile", "singles-history", "doubles",
-                    "doubles-profile", "doubles-rank-history", "drawer", "results", "match", "empty-results"));
     private static final String CAPTURE_FILES = "/sdcard/Android/data/az.tabletennis/files";
     private static final List<String> MATRIX_CONFIGURATIONS = List.of("light", "dark-offline", "narrow-large", "landscape-large");
     private final Path repo, source, cache, evidence, work, sdk;
     private final Map<String, String> env = new HashMap<>(System.getenv());
-    private final Properties tools = new Properties(), result = new Properties();
+    private final Properties tools = new Properties(), result = new Properties(), fixtureCaptures = new Properties();
     private final List<Process> children = Collections.synchronizedList(new ArrayList<>());
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
     private final Path appApk, testApk;
@@ -113,6 +105,9 @@ class AndroidVerify {
         source = Path.of(env.getOrDefault("ANDROID_VERIFY_SOURCE", repo.toString())).toRealPath();
         cache = Path.of(System.getenv("ANDROID_VERIFY_CACHE")).toAbsolutePath();
         evidence = Path.of(System.getenv("ANDROID_VERIFY_EVIDENCE")).toRealPath();
+        try (Reader input = Files.newBufferedReader(repo.resolve("scripts/android/fixture-captures.properties"))) {
+            fixtureCaptures.load(input);
+        }
         boolean selectedTests = false;
         for (int i = 1; i < args.length; i++) switch (args[i]) {
             case "--retain-device" -> retain = true;
@@ -150,9 +145,10 @@ class AndroidVerify {
                 throw new IllegalArgumentException("--upgrade-from requires --require-kvm, a signed --release-candidate and an official release tag; it selects its own journey");
             tests = UPGRADE_TEST;
         }
-        if (focused && (preflightOnly || live || !FIXTURE_CAPTURES.containsKey(tests)))
+        if (focused && (preflightOnly || live || tests.equals(UPGRADE_TEST) || !fixtureCaptures.containsKey(tests)))
             throw new IllegalArgumentException("--focused requires a supported saved-fixture journey after preflight");
-        if (releaseCandidate != null && (preflightOnly || live || (previousRelease == null && !FIXTURE_CAPTURES.containsKey(tests))
+        if (releaseCandidate != null && (preflightOnly || live || !fixtureCaptures.containsKey(tests)
+                || (previousRelease == null && tests.equals(UPGRADE_TEST))
                 || !expectedReleaseSha256.matches("[0-9a-f]{64}")))
             throw new IllegalArgumentException("--release-candidate requires a supported saved-fixture journey and a lowercase SHA-256");
         if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
@@ -690,10 +686,8 @@ class AndroidVerify {
 
     private List<String> requiredScreenshots(String prefix, String classes) {
         List<String> captures;
-        if (classes.equals(UPGRADE_TEST))
-            captures = List.of("rating", "ranking");
-        else if (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null))
-            captures = FIXTURE_CAPTURES.get(classes);
+        if (classes.equals(UPGRADE_TEST) || (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null)))
+            captures = List.of(fixtureCaptures.getProperty(classes).split(","));
         else
             captures = classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();
         return captures.stream().map(name -> prefix + "-" + name + ".png").toList();
