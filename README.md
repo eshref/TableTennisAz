@@ -321,17 +321,25 @@ GitHub API stand-in.
 
 ## Verification
 
-For Android UI changes and installed-device verification, use the reproducible
-Linux setup and verification command:
+For Android UI changes, open **Android installed check** from the pull request's
+**Checks** tab. It selects saved-fixture journeys covering the changed screens,
+runs them on Android API 36, and publishes the installed APKs, screenshots, and
+diagnostics in the run's **Artifacts** section for seven days. The Android workflow
+also offers the full four-configuration matrix through **Run workflow**.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
+[Journey selection and evidence](docs/agents/android-verification.md)
+
+For local troubleshooting, run installed preflight on Linux:
 
 ```sh
-scripts/android-verify
+scripts/android-verify --preflight-only
 ```
 
-It prepares pinned tools, verifies an installed screen before the full device
-matrix, and prints the evidence location. See the [agent verification guide](docs/agents/android-verification.md)
-for time limits, cleanup, cache locations and selecting other saved-fixture tests.
-The existing host-only command remains available:
+It prepares pinned tools, verifies the installed match screens, and prints the
+evidence location. The guide covers phase limits and running a journey locally.
+[Local troubleshooting](docs/agents/android-verification.md#local-troubleshooting)
+
+Run the host checks independently:
 
 ```sh
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest

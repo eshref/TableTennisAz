@@ -165,8 +165,10 @@ public class ProfileDeviceTest {
             }
         }
         if (screenshot == null) throw new IllegalStateException("Android did not provide a screenshot");
-        try (var output = new FileOutputStream(new File(directory, prefix + "-" + name + ".png"))) {
+        File png = new File(directory, prefix + "-" + name + ".png");
+        try (var output = new FileOutputStream(png)) {
             if (!screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) throw new IllegalStateException("Cannot save screenshot");
         } finally { screenshot.recycle(); }
+        ScreenshotCheckpoint.exportIfRequired(png);
     }
 }

@@ -16,4 +16,4 @@ Single-context layout: `GLOSSARY.md` and `docs/adr/`. Before exploring domain be
 
 ### Installed Android verification
 
-For Android UI changes or installed-device verification claims, follow `docs/agents/android-verification.md` and run `scripts/android-verify`. Report its result and evidence path. A passing installed preflight is required before full device checks; respect the documented time limit when it fails.
+For Android UI changes or installed-device verification claims, start with the GitHub Actions workflow in [the Android verification guide](docs/agents/android-verification.md). Confirm the selected journey covers the changed screens and report the run URL, result, and evidence. For local troubleshooting, run the documented preflight and respect its time limit.

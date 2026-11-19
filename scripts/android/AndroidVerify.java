@@ -20,6 +20,15 @@ class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
+    private static final List<String> DOUBLES_HISTORY_CAPTURES = List.of("rank", "points");
+    private static final Map<String, List<String>> FOCUSED_CAPTURES = Map.of(
+            "az.tabletennis.MatchDeviceTest", List.of("501", "502"),
+            "az.tabletennis.ProfileDeviceTest", List.of("profile", "history"),
+            "az.tabletennis.RatingHistoryDeviceTest", List.of("chart", "observations"),
+            "az.tabletennis.ResultsDeviceTest", List.of("results", "long-names", "long-names-second-side", "empty"),
+            DOUBLES_PROFILE_TEST, List.of("profile", "rank", "points", "matches", "long-names"),
+            "az.tabletennis.NativeAcceptanceDeviceTest", List.of("players", "player-profile", "singles-history", "doubles",
+                    "doubles-profile", "doubles-rank-history", "drawer", "results", "match", "empty-results"));
     private static final String CAPTURE_FILES = "/sdcard/Android/data/az.tabletennis/files";
     private static final List<String> MATRIX_CONFIGURATIONS = List.of("light", "dark-offline", "narrow-large", "landscape-large");
     private final Path repo, source, cache, evidence, work, sdk;
@@ -29,7 +38,7 @@ class AndroidVerify {
     private final List<Path> temporaryDirectories = Collections.synchronizedList(new ArrayList<>());
     private Path build;
     private Process emulator;
-    private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly, failAfterHistoryCheckpoint;
+    private boolean retain, preflightOnly, software, live, requireKvm, deviceOnly, focused, failAfterHistoryCheckpoint;
     private volatile boolean cleaned;
     private String tests = "az.tabletennis.MatchDeviceTest", serial;
     private int adbPort;
@@ -100,6 +109,7 @@ class AndroidVerify {
             case "--software" -> software = true;
             case "--require-kvm" -> requireKvm = true;
             case "--device-only" -> deviceOnly = true;
+            case "--focused" -> focused = true;
             case "--fail-after-history-checkpoint" -> failAfterHistoryCheckpoint = true;
             case "--live" -> live = true;
             case "--tests" -> { tests = args[++i]; selectedTests = true; }
@@ -111,8 +121,10 @@ class AndroidVerify {
             throw new IllegalArgumentException("--live runs the existing live journeys after preflight; use it separately from --tests and --preflight-only");
         if (requireKvm && software)
             throw new IllegalArgumentException("Use --require-kvm or --software");
+        if (focused && (preflightOnly || live || !FOCUSED_CAPTURES.containsKey(tests)))
+            throw new IllegalArgumentException("--focused requires a supported saved-fixture journey after preflight");
         if (failAfterHistoryCheckpoint && (!tests.equals(DOUBLES_PROFILE_TEST) || preflightOnly))
-            throw new IllegalArgumentException("--fail-after-history-checkpoint requires the doubles profile matrix");
+            throw new IllegalArgumentException("--fail-after-history-checkpoint requires the doubles profile journey");
         software |= !Files.isReadable(Path.of("/dev/kvm")) || !Files.isWritable(Path.of("/dev/kvm"));
         deadline = Long.parseLong(System.getenv("ANDROID_VERIFY_STARTED")) * 1000 + Long.parseLong(System.getenv("ANDROID_VERIFY_PREFLIGHT_SECONDS")) * 1000;
         sdk = sdkDirectory();
@@ -132,7 +144,11 @@ class AndroidVerify {
         result.setProperty("tests", live ? String.join(",", LIVE_TESTS) : tests);
         result.setProperty("preflight", "not-run");
         initializeConfiguration("preflight");
-        if (!preflightOnly && !live) {
+        if (focused) {
+            result.setProperty("focused", "not-run");
+            initializeConfiguration("light");
+            result.setProperty("light.checkpoints", "not-run");
+        } else if (!preflightOnly && !live) {
             result.setProperty("matrix", "not-run");
             MATRIX_CONFIGURATIONS.forEach(this::initializeConfiguration);
             if (tests.equals(DOUBLES_PROFILE_TEST)) result.setProperty("light.historyCheckpoint", "not-run");
@@ -218,16 +234,24 @@ class AndroidVerify {
         result.setProperty("preflight", "passed");
         note("Preflight passed: installed scores, window focus, nonblank screenshots and dimensions");
         if (preflightOnly) return;
-        beginFullPhase(live ? "live-source" : "device-matrix");
+        beginFullPhase(live ? "live-source" : focused ? "focused-journey" : "device-matrix");
         if (live) {
             result.setProperty("liveSource", "failed");
             connect();
             for (String test : LIVE_TESTS) {
                 String prefix = "live-" + test.substring(test.lastIndexOf('.') + 1);
                 note("Live website journey: " + test);
-                runTests(prefix, test, false, false, Math.toIntExact(remaining()), false);
+                runTests(prefix, test, false, false, Math.toIntExact(remaining()), List.of());
             }
             result.setProperty("liveSource", "passed");
+            return;
+        }
+        if (focused) {
+            result.setProperty("focused", "running");
+            note("Focused installed fixture journey started: " + tests);
+            instrument("light", tests, false, false, 412, 891);
+            result.setProperty("focused", "passed");
+            note("Focused installed fixture journey passed");
             return;
         }
         result.setProperty("matrix", "running");
@@ -482,10 +506,10 @@ class AndroidVerify {
         note("Installed configuration started: " + prefix + " (" + width + "x" + height + ")");
         result.setProperty(prefix + ".display", width + "x" + height);
         result.setProperty(prefix + ".instrumentation", "running");
-        boolean historyCheckpoint = prefix.equals("light") && classes.equals(DOUBLES_PROFILE_TEST);
-        runTests(prefix, classes, smoke, reuse, software ? 720 : 240, historyCheckpoint);
-        result.setProperty(prefix + ".instrumentation", "passed");
-        note("Instrumentation passed: " + prefix);
+        List<String> requiredCaptures = focused && prefix.equals("light") ? FOCUSED_CAPTURES.get(classes)
+                : classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();
+        List<String> screenshots = requiredCaptures.stream().map(name -> prefix + "-" + name + ".png").toList();
+        runTests(prefix, classes, smoke, reuse, software ? 720 : 240, prefix.equals("light") ? screenshots : List.of());
         result.setProperty(prefix + ".screenshotCollection", "running");
         note("Screenshot collection started: " + prefix);
         Path captures = evidence.resolve("captures").resolve(prefix);
@@ -500,10 +524,11 @@ class AndroidVerify {
             }
         }
         require(!validated.isEmpty(), "No installed screenshots captured for " + prefix);
+        for (String screenshot : screenshots)
+            require(validated.containsKey(screenshot), "Missing required screenshot: " + screenshot);
         if (classes.equals(DOUBLES_PROFILE_TEST)) {
             Path points = validated.get(prefix + "-points.png");
             Path rank = validated.get(prefix + "-rank.png");
-            require(points != null && rank != null, "Missing rating or ranking history screenshot for " + prefix);
             require(Files.mismatch(points, rank) != -1, "Rating and ranking history screenshots are identical for " + prefix);
             Path profile = validated.get(prefix + "-profile.png");
             if (profile != null) {
@@ -524,36 +549,52 @@ class AndroidVerify {
         require(colors.size() >= 16, "Blank screenshot: " + png);
     }
 
-    private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds, boolean historyCheckpoint) throws Exception {
+    private void runTests(String prefix, String classes, boolean smoke, boolean reuse, int seconds, List<String> checkpoints) throws Exception {
         shell(prefix + "-stop", 60, true, "am force-stop az.tabletennis");
         String command = "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
                 + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "");
         String runner = " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
         String name = "tests-" + prefix;
-        String output = historyCheckpoint ? runWithHistoryCheckpoint(name, seconds, command, runner)
-                : shell(name, seconds, true, command + runner);
+        Set<String> missing = new LinkedHashSet<>(checkpoints);
+        String output = checkpoints.isEmpty() ? shell(name, seconds, true, command + runner)
+                : runWithCheckpoints(name, seconds, command, runner, missing);
         require(Pattern.compile("(?m)^OK \\([1-9][0-9]* tests?\\)").matcher(output).find(), "Installed tests did not pass with nonzero cases; see tests-" + prefix + ".log");
         result.setProperty(prefix + ".tests", output.substring(output.lastIndexOf("OK (")).strip().split("\n")[0]);
+        result.setProperty(prefix + ".instrumentation", "passed");
+        note("Instrumentation passed: " + prefix);
+        require(missing.isEmpty(), "Missing required checkpoint screenshots: " + missing);
     }
 
-    private String runWithHistoryCheckpoint(String name, int seconds, String command, String runner) throws Exception {
-        result.setProperty("light.historyCheckpoint", "running");
+    private String runWithCheckpoints(String name, int seconds, String command, String runner, Set<String> missing) throws Exception {
+        String checkpointResult = focused ? "light.checkpoints" : "light.historyCheckpoint";
+        result.setProperty(checkpointResult, "running");
         result.setProperty("light.screenshotCollection", "running");
-        note("Screenshot collection started: light doubles history checkpoint");
+        note("Screenshot collection started: light checkpoints");
         try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
             server.setSoTimeout(250);
             int port = server.getLocalPort();
-            adb("history-checkpoint-reverse", 15, true, "reverse", "tcp:" + port, "tcp:" + port);
-            command += " -e historyCheckpointPort " + port;
+            adb("checkpoint-reverse", 15, true, "reverse", "tcp:" + port, "tcp:" + port);
+            command += " -e checkpointPort " + port + " -e checkpointScreenshots " + String.join(",", missing);
             if (failAfterHistoryCheckpoint) command += " -e failAfterHistoryCheckpoint true";
             long until = Math.min(deadline, System.currentTimeMillis() + seconds * 1000L);
             Process tests = launch(evidence.resolve(name + ".log"), adbCommand("shell", "-n", command + runner));
             try {
                 Path directory = Files.createDirectories(evidence.resolve("checkpoints/light"));
-                collectHistoryCapture(server, tests, until, directory, "light-rank.png");
-                collectHistoryCapture(server, tests, until, directory, "light-points.png");
-                result.setProperty("light.historyCheckpoint", "passed");
-                note("Screenshot collection passed: light doubles history checkpoint");
+                while (!missing.isEmpty() && tests.isAlive() && System.currentTimeMillis() < until) {
+                    Socket connection;
+                    try { connection = server.accept(); }
+                    catch (SocketTimeoutException waiting) { continue; }
+                    try (var socket = connection) {
+                        socket.setSoTimeout((int) Math.max(1, Math.min(15_000, until - System.currentTimeMillis())));
+                        collectCheckpoint(socket, directory, missing, checkpointResult);
+                    }
+                }
+                if (missing.isEmpty()) {
+                    result.setProperty(checkpointResult, "passed");
+                    note("Screenshot collection passed: light checkpoints");
+                } else {
+                    result.setProperty(checkpointResult + ".missing", String.join(", ", missing));
+                }
                 return awaitCommand(name, tests, Math.max(0, until - System.currentTimeMillis()), true);
             } finally {
                 if (tests.isAlive()) kill(tests);
@@ -561,34 +602,26 @@ class AndroidVerify {
         }
     }
 
-    private void collectHistoryCapture(ServerSocket server, Process tests, long until, Path directory, String name) throws Exception {
-        while (tests.isAlive() && System.currentTimeMillis() < until) {
-            Socket connection;
-            try { connection = server.accept(); }
-            catch (SocketTimeoutException waiting) { continue; }
-            try (var socket = connection) {
-                socket.setSoTimeout((int) Math.max(1, Math.min(15_000, until - System.currentTimeMillis())));
-                var input = new DataInputStream(socket.getInputStream());
-                require(name.equals(input.readUTF()), "Unexpected history checkpoint PNG; expected " + name);
-                int size = input.readInt();
-                require(size > 0 && size <= 2_000_000, "Unexpected history checkpoint PNG size: " + size);
-                byte[] png = input.readNBytes(size);
-                require(png.length == size, "Incomplete history checkpoint PNG: " + name);
-                Path pending = Files.write(work.resolve(name), png);
-                validateScreenshot(pending, 412, 891);
-                Path rank = directory.resolve("light-rank.png");
-                if (Files.isRegularFile(rank))
-                    require(Files.mismatch(rank, pending) != -1, "Light rating and ranking checkpoint PNGs are identical");
-                Files.move(pending, directory.resolve(name));
-                result.setProperty("light.screenshotCollection", "partial");
-                result.setProperty("light.historyCheckpoint." + name, "validated");
-                note("Host validated checkpoint screenshot: " + name);
-                socket.getOutputStream().write(1);
-                return;
-            }
-        }
-        if (tests.isAlive()) throw new IOException("Timed out waiting for history checkpoint " + name + "; see tests-light.log");
-        throw new IOException("Light instrumentation ended before sending history checkpoint " + name + "; see tests-light.log");
+    private void collectCheckpoint(Socket socket, Path directory, Set<String> missing,
+                                   String checkpointResult) throws Exception {
+        var input = new DataInputStream(socket.getInputStream());
+        String name = input.readUTF();
+        require(missing.contains(name), "Unexpected checkpoint PNG: " + name + "; awaiting " + missing);
+        int size = input.readInt();
+        require(size > 0 && size <= 2_000_000, "Unexpected checkpoint PNG size: " + size);
+        byte[] png = input.readNBytes(size);
+        require(png.length == size, "Incomplete checkpoint PNG: " + name);
+        Path pending = Files.write(work.resolve(name), png);
+        validateScreenshot(pending, 412, 891);
+        Path rank = directory.resolve("light-rank.png");
+        if (name.equals("light-points.png") && Files.isRegularFile(rank))
+            require(Files.mismatch(rank, pending) != -1, "Light rating and ranking checkpoint PNGs are identical");
+        Files.move(pending, directory.resolve(name));
+        missing.remove(name);
+        result.setProperty("light.screenshotCollection", "partial");
+        result.setProperty(checkpointResult + "." + name, "validated");
+        note("Host validated checkpoint screenshot: " + name);
+        socket.getOutputStream().write(1);
     }
 
     private Properties proof(String prefix, int id) throws Exception {

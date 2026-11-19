@@ -10,7 +10,7 @@ export ANDROID_VERIFY_MATRIX_SECONDS="$(sed -n 's/^matrixSeconds=//p' "$limits_f
 if [[ " ${*} " == *" --help "* ]]; then
   cat <<HELP
 Usage: scripts/android-verify [--preflight-only | --live] [--software] [--retain-device]
-                              [--tests fully.qualified.Test] [--require-kvm] [--device-only]
+                              [--tests fully.qualified.Test] [--require-kvm] [--device-only | --focused]
 
 Linux x86_64. Provisions pinned Android tools and uses JDK 21. Default: installed
 MatchDeviceTest in light, dark/offline, narrow/150% text and landscape/150% text.
@@ -19,6 +19,8 @@ Preflight always checks installed singles/doubles scores, focus and screenshots.
 after preflight, instead of the saved-fixture matrix. Website access is required.
 --require-kvm fails if hardware acceleration is unavailable.
 --device-only skips the host tests and lint after the installed matrix.
+--focused runs one supported saved-fixture journey in standard light after
+preflight and requires its checkpoint screenshots. Host checks run separately.
 --fail-after-history-checkpoint fails the doubles profile journey after the host
 validates both light history PNGs. Use it for the evidence-retention pilot.
 Software preflight has a $((ANDROID_VERIFY_PREFLIGHT_SECONDS / 60))-minute total budget, including tool setup and one

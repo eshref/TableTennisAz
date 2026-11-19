@@ -1,44 +1,73 @@
 # Installed Android verification
 
-Use this workflow for Android UI changes and whenever claiming installed-device
-verification. The script, version lock and this guide are repository-owned.
+## GitHub Actions
 
-## Hosted doubles profile pilot
+Open **Android installed check** from the pull request's **Checks** tab. Keep
+the run URL. The summary shows the journeys selected from the PR's changes.
+Each selected journey runs in standard light after installed preflight on an
+accelerated API 36 emulator. Unrelated PRs receive a successful applicability
+result before emulator setup. Host integration tests, lint, and the debug build
+have their own check. [Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
 
-Open the [Android workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
-and choose **Run workflow**. Select the branch containing the verifier, choose
-`doubles-profile` for `fixture_journey`, and enter the full commit SHA for
-`app_revision`. The merged build containing #52 is
-`314238d1a982f55432bf4b47d2fd5f87304342e9`.
+Confirm the selected journeys reach the changed screens. The selector uses a
+focused journey for each affected screen it recognizes. Shared code and rankings
+also select the combined journey. Each journey publishes its own evidence.
+[Changed-file selector](../../scripts/android/pr-journey)
 
-The pinned app checkout provides the production code and fixture assets. The
-verifier checkout provides `DoublesProfileDeviceTest`, so maintainers can adjust
-how the test captures history on the same app build. Keep the Actions run URL.
-Open the **Run installed preflight and fixture matrix** step to follow preflight,
-configuration, instrumentation and screenshot progress while it runs. The run
-summary records both revisions and the verifier result.
+| Changed screens | Journey | Local test class |
+| --- | --- | --- |
+| Singles and doubles match details | `match` | `MatchDeviceTest` |
+| Player profile and links to history and matches | `profile` | `ProfileDeviceTest` |
+| Dedicated singles rating history | `rating-history` | `RatingHistoryDeviceTest` |
+| Results, filters, and event selection | `results` | `ResultsDeviceTest` |
+| Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
+| Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 
-Download `android-api36-doubles-profile` from that run, including after a failed
-verification. It retains both APKs, `progress.log`, the result with APK checksums
-and per-configuration outcomes, and available diagnostics for seven days.
-The standard-light journey waits for the host to validate each history PNG
-before continuing. Those PNGs are in `checkpoints/light/` inside the evidence
-directory. Completed configurations have validated `*-points.png` and
-`*-rank.png` under `captures/`. A failed run can also have unvalidated guest
-files under `failure-captures/`.
+On the run page, open **Run installed preflight and saved-fixture journey** for
+live progress. Download `android-api36-<journey>` from **Artifacts** on the same
+page, including after failure. The archive contains the exact installed
+`app-debug.apk` and test APK when built, `verification.md`, `progress.log`, and
+the per-run `result.properties` with both APK checksums and phase outcomes.
+It is retained for seven days. Inspect the PNGs in `checkpoints/light/`, where
+the host validates required light captures as the test reaches them. Completed
+configurations have validated PNGs under `captures/`. A failed run can also
+contain diagnostics and unvalidated guest files under `failure-captures/`.
+A required screenshot or instrumentation failure fails the check.
 
-For the retention pilot, enable `fail_after_history_checkpoint`. The light
-journey deliberately fails after the host collects both history PNGs. Confirm
-that the run fails, the checkpoint images download, and the three later
-configurations are reported as `not-run`. Keep `fixture_journey` set to `none`
-to dispatch the host checks, or enable `live_site` for the opt-in website check.
+### Full matrix on demand
 
-## Run
+Choose **Run workflow** in Android Actions, select the branch, and choose a
+`fixture_journey` from the table. This runs the four configurations described
+below. Use `none` for host checks and `live_site` for the opt-in website check.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
 
-From the repository root on Linux x86_64:
+For the doubles profile pilot, set `app_revision` to pin the app and fixtures.
+The merged build containing #52 is `314238d1a982f55432bf4b47d2fd5f87304342e9`.
+The workflow records the pinned app revision and the revision supplying the
+verifier and doubles profile test. The `fail_after_history_checkpoint` option
+deliberately fails after the host validates the two history PNGs. The images
+remain downloadable and the three later configurations show `not-run`.
+[Pilot pass 1](https://github.com/eshref/TableTennisAz/actions/runs/44463512013)
+[Pilot pass 2](https://github.com/eshref/TableTennisAz/actions/runs/44463976826)
+[Pilot pass 3](https://github.com/eshref/TableTennisAz/actions/runs/44464322734)
+[Pilot failure](https://github.com/eshref/TableTennisAz/actions/runs/44464707062)
+
+### Required check rollout
+
+Verify the applicable, unrelated, and failed PR cases on GitHub Actions before
+adding **Android installed check** from the GitHub Actions app to the existing
+**Protect main** ruleset. For the applicable run, check the journey, validated
+PNGs, summary and APK checksums in the seven-day artifact. For the unrelated run,
+check the successful applicability summary and skipped emulator setup. For the
+failed run, check the failed job conclusion and download its partial evidence.
+[Protect main ruleset](https://github.com/eshref/TableTennisAz/rules/27339222)
+
+## Local troubleshooting
+
+Start with preflight from the repository root on Linux x86_64:
 
 ```sh
-scripts/android-verify
+scripts/android-verify --preflight-only
 ```
 
 The command discovers JDK 21 or provisions it, downloads checksum-pinned Android
@@ -53,21 +82,17 @@ libraries required by the Linux emulator. No privileged installation is used.
 The downloaded JDK and Android SDK remain subject to their upstream licenses.
 
 It prefers readable/writable `/dev/kvm`; otherwise it uses software CPU emulation.
-Phase limits are defined in [limits.properties](../../scripts/android/limits.properties)
-and printed by `scripts/android-verify --help`. The preflight total includes setup,
-build and at most one automatic environment recovery. Full device checks have a
-separate budget. Keep these committed limits unchanged unless the user explicitly
+Preflight has a 60-minute budget for setup, build and at most one automatic
+environment recovery. Full device checks have a separate 45-minute budget.
+`scripts/android-verify --help` prints the configured limits. Keep these
+committed limits unchanged unless the user explicitly
 authorizes a different cap. Recovery retains the original deadline and first-attempt logs.
 Stop at a failed result and report the failed phase and evidence path. Further
 troubleshooting beyond that budget requires the user's explicit authorization.
 Let software preflight run before other builds or test suites; the command
 deliberately defers host checks until installed readiness is established.
-
-For a setup-only check:
-
-```sh
-scripts/android-verify --preflight-only
-```
+Evidence is written to the printed `.android-verification/evidence/run-*` path.
+[Phase limits](../../scripts/android/limits.properties)
 
 Preflight still installs and runs the app. It checks both saved match scores,
 window focus, nonblank installed screenshots, and their actual 412×891 dimensions.
@@ -77,7 +102,8 @@ pass verification.
 
 ## Full checks and evidence
 
-The default full run exercises `MatchDeviceTest` in four configurations:
+The default full run (`scripts/android-verify`) exercises `MatchDeviceTest` in
+four configurations:
 
 1. Standard light at 412×891.
 2. Dark at 412×891 after disabling networking and restarting the app process,
@@ -92,18 +118,15 @@ offline tests, and compares visible scores/update labels, the offline notice
 and disabled Refresh against the light capture. These assertions use installed
 public view outputs; private stored files only prepare fixtures.
 
-The same preflight can precede other existing installed test classes:
+Use the class from the journey table to reproduce the focused PR check or to run
+its full matrix locally:
 
 ```sh
+scripts/android-verify --focused --tests az.tabletennis.ProfileDeviceTest
 scripts/android-verify --tests az.tabletennis.ProfileDeviceTest
 ```
 
-Select the journey that covers the changed screens: `MatchDeviceTest`,
-`ProfileDeviceTest`, `RatingHistoryDeviceTest`, `ResultsDeviceTest` or
-`DoublesProfileDeviceTest`. `NativeAcceptanceDeviceTest` connects all seven
-approved entry views in one journey. Run classes
-separately because they prepare different saved fixtures. The default match
-journey does not establish visual acceptance for an unrelated screen.
+Run classes separately because they prepare different saved fixtures.
 
 Selected tests must capture screenshots using the supplied `capturePrefix`.
 Match, profile, doubles-profile, rating-history and combined acceptance journeys
@@ -128,8 +151,8 @@ stops on the first failed journey and records which classes passed. Use those
 results to verify Android's production HTTPS requests.
 
 Open `result.properties` in the printed evidence directory. A completed run has
-`status=passed`, `preflight=passed` and `cleanup=complete`. Full fixture runs also
-have `matrix=passed`. Live runs have `liveSource=passed`. Inspect the
+`status=passed`, `preflight=passed` and `cleanup=complete`. Look for
+`focused=passed`, `matrix=passed`, or `liveSource=passed` for the chosen run. Inspect the
 PNGs against the approved reference before claiming visual acceptance.
 Automated nonblank/dimension checks establish that
 a capture exists; visual review establishes its composition and readability.
