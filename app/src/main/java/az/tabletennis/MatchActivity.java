@@ -125,3 +125,5 @@ public class MatchActivity extends SavedScreen<MatchDetails> {
         return label;
     }
 }
+
+// Issue #57 validation exercises this journey alongside a failing doubles profile journey.

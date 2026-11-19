@@ -86,6 +86,9 @@ public class DoublesProfileDeviceTest {
             onView(withId(R.id.pair_bronze)).check(matches(withContentDescription("Bürünc medal: 12")));
             awaitPortraits();
             capture("profile");
+            if ("light".equals(InstrumentationRegistry.getArguments().getString("capturePrefix"))) {
+                throw new AssertionError("Issue #57 validation failed after the first required screenshot");
+            }
 
             // act
             onView(withId(R.id.pair_chart_rank)).perform(scrollTo(), click());
