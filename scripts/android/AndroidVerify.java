@@ -188,11 +188,26 @@ class AndroidVerify {
             note("One automatic environment recovery; the original preflight deadline remains in force");
             result.setProperty("recovery", "1");
             diagnose(deadline);
+            Path previous = Files.createDirectories(evidence.resolve("first-attempt"));
             try (var logs = Files.list(evidence)) {
-                Path previous = Files.createDirectories(evidence.resolve("first-attempt"));
                 for (Path log : logs.filter(p -> p.toString().endsWith(".log")).toList())
                     Files.copy(log, previous.resolve(log.getFileName()), StandardCopyOption.REPLACE_EXISTING);
             }
+            for (String directory : List.of("captures", "failure-captures")) {
+                Path captures = evidence.resolve(directory);
+                if (Files.isDirectory(captures)) Files.move(captures, previous.resolve(directory));
+            }
+            Properties firstResult = new Properties();
+            for (String key : result.stringPropertyNames()) {
+                if (!key.startsWith("preflight.")) continue;
+                String value = (String) result.remove(key);
+                firstResult.setProperty(key, value.equals("running") ? "failed" : value);
+            }
+            firstResult.setProperty("failure", first.toString());
+            try (Writer output = Files.newBufferedWriter(previous.resolve("result.properties"))) {
+                firstResult.store(output, "First preflight attempt");
+            }
+            initializeConfiguration("preflight");
             run("reconnect-offline", 30, adbBinary(), "-P", Integer.toString(adbPort), "reconnect", "offline");
             waitAdb(software ? 600 : 60);
             configureRuntime();
