@@ -268,13 +268,13 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         awaitText(NEWER);
         layoutTournamentList();
         assertThat(requestTo("/uploads/podium-portrait.png")).isEqualTo("/uploads/podium-portrait.png");
-        assertThat(visibleText()).contains("Məzahir Həsənov", "Etibar Yunusov", "Səid Quluzadə", "Priz: 0 AZN");
+        assertThat(visibleText()).contains("Məzahir Həsənov", "Etibar Yunusov", "Səid Quluzadə", "0 AZN");
 
         // act
         searchFor("baki sexsi kuboku 2025");
 
         // assert
-        assertThat(visibleText()).contains(OLDER, "08.11.2025", "Priz: —")
+        assertThat(visibleText()).contains(OLDER, "8 noyabr 2025", "Priz: —")
                 .doesNotContain("Məzahir Həsənov", "Etibar Yunusov", "Səid Quluzadə");
 
         // act
@@ -299,6 +299,7 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         // assert
         awaitText(NEWER);
         assertThat(tournamentNames()).containsExactly(NEWER, OTHER, OLDER);
+        assertThat(visibleText()).contains("31 oktyabr 2026 – 15 noyabr 2026");
         assertThat(visibleText()).doesNotContain("Komanda Liqası", "Qoşa Kuboku", "Naməlum Kubok");
         assertCatalogueRequest();
         assertThat(requestedPaths()).isEmpty();
@@ -308,8 +309,8 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
 
         // assert
         assertThat(tournamentNames()).containsExactly(NEWER, OLDER);
-        assertThat(visibleText()).contains("14.11.2026 – 16.11.2026", "08.11.2025", "Oyunçu sayı: 24",
-                "Priz: 0 AZN", "Oyunçu sayı: —", "Priz: —");
+        assertThat(visibleText()).contains("14–16 noyabr 2026", "8 noyabr 2025", "24 oyunçu",
+                "0 AZN", "— oyunçu", "—", "Priz: —");
 
         // act
         clickText(NEWER);
@@ -368,8 +369,8 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
 
         // assert
         assertThat(tournamentNames()).containsExactly(DOUBLES, OLDER_DOUBLES);
-        assertThat(visibleText()).contains("15.11.2026 – 18.11.2026", "08.11.2025", "8 qoşa",
-                "Priz: 0 AZN", "— qoşa", "Priz: —");
+        assertThat(visibleText()).contains("15–18 noyabr 2026", "8 noyabr 2025", "8 qoşa",
+                "0 AZN", "— qoşa", "Priz: —");
 
         // act
         searchFor("qosa kuboku 2026");
@@ -480,7 +481,7 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         website.put(CATALOGUE, """
                 {"version":1,"tournaments":[
                   {"id":902,"name":"Bakı Şəxsi Kuboku 2025","format":"singles","start":"2025-11-08","end":"2025-11-08"},
-                  {"id":903,"name":"Gəncə Kuboku","format":"singles","start":"2026-11-15","end":"2026-11-15"},
+                  {"id":903,"name":"Gəncə Kuboku","format":"singles","start":"2026-10-31","end":"2026-11-15"},
                   {"id":906,"name":"Naməlum Kubok","format":"unknown","start":"2026-11-18","end":"2026-11-18"},
                   {"id":904,"name":"Komanda Liqası","format":"team","start":"2026-11-18","end":"2026-11-18"},
                   {"id":907,"name":"Bakı Qoşa Kuboku 2025","format":"doubles","start":"2025-11-08","end":"2025-11-08"},
