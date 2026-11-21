@@ -44,6 +44,7 @@ final class WebsiteSource {
         if (previous != null && more) for (MatchSummary match : previous.matches) matches.put(match.id, match);
         if (previous != null && !more) {
             // Refresh only source pages the reader has already loaded; preserve browsing progress.
+            duels = null;
             for (ResultsFeed.Page page : loaded) {
                 ResultPage result = resultPage(page);
                 mergeResults(matches, result.matches);

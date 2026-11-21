@@ -34,6 +34,24 @@ The recorded outcome of a completed match, identifying its participants and fina
 **Event**:
 A competition under which the website groups matches and their results.
 
+**Completed tournament**:
+A tournament listed among the website’s finished competitions with published match results.
+
+**Singles tournament**:
+A tournament in which individual players compete for the tournament standings.
+
+**Doubles tournament**:
+A tournament in which doubles pairs compete for the tournament standings.
+
+**Team tournament**:
+A tournament in which team lineups compete for the tournament standings. A fixture between teams may include singles or doubles matches.
+
+**New tournament**:
+A completed singles or doubles tournament first listed in the website’s Results index after the index snapshot used for the device’s initial successful tournament refresh. Once it appears in its category, it stays new until the user opens that list.
+
+**Tournament podium**:
+The medal placements and their finishers published by the website for a completed tournament.
+
 **Tournament stage**:
 The part of a tournament in which a match is played, such as group play, a knockout round, or the third-place match.
 
@@ -54,6 +72,9 @@ A match between two pairs, with two players competing together on each side.
 
 **Doubles pair**:
 A partnership of two players competing together in doubles. Partnerships with different teammates are separate pairs, so a player can belong to more than one pair.
+
+**Doubles tournament pair count**:
+The tournament’s published total of doubles pairs, or the number of distinct pairs in its complete published match results when the website provides only an individual player count.
 
 **Ranking movement**:
 The change in a doubles pair's published position between two observations of the doubles ranking. A lower position number is an upward movement; a higher number is a downward movement.

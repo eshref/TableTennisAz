@@ -22,21 +22,39 @@ import android.widget.Toast;
 
 /** Main destinations share a compact bar and a modal, accessible navigation drawer. */
 final class MainScreenChrome {
+    enum Destination {
+        RANKINGS(R.string.rankings_title, R.id.destination_rankings, R.drawable.ic_list, RankingsActivity.class),
+        RESULTS(R.string.results_title, R.id.destination_results, R.drawable.ic_trophy, ResultsActivity.class),
+        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_trophy, DuelsActivity.class);
+
+        final int title;
+        final int id;
+        final int icon;
+        final Class<? extends Activity> screen;
+
+        Destination(int title, int id, int icon, Class<? extends Activity> screen) {
+            this.title = title;
+            this.id = id;
+            this.icon = icon;
+            this.screen = screen;
+        }
+    }
+
     final LinearLayout body;
     final Button refresh;
     final TextView updated;
     private final Activity activity;
-    private final boolean rankings;
+    private final Destination currentDestination;
     private final FrameLayout frame;
     private final LinearLayout page;
     private final Button menu;
     private View drawer;
     private android.window.OnBackInvokedCallback backCallback;
 
-    MainScreenChrome(Activity activity, boolean rankings, Runnable refreshAction) {
+    MainScreenChrome(Activity activity, Destination currentDestination, Runnable refreshAction) {
         this.activity = activity;
         Presentation.systemBars(activity);
-        this.rankings = rankings;
+        this.currentDestination = currentDestination;
         frame = new FrameLayout(activity);
         frame.setFocusableInTouchMode(true);
         frame.setBackgroundColor(activity.getColor(R.color.background));
@@ -54,7 +72,7 @@ final class MainScreenChrome {
         menu = action("☰", R.string.open_menu, this::openDrawer);
         menu.setId(R.id.open_menu);
         bar.addView(menu, new LinearLayout.LayoutParams(dp(48), -2));
-        TextView title = Presentation.label(activity, activity.getString(rankings ? R.string.rankings_title : R.string.results_title), 22);
+        TextView title = Presentation.label(activity, activity.getString(currentDestination.title), 22);
         if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         refresh = action("↻", R.string.refresh, refreshAction);
@@ -133,10 +151,11 @@ final class MainScreenChrome {
         caption.setTextColor(activity.getColor(R.color.secondary));
         caption.setPadding(dp(12), 0, dp(12), dp(12));
         panel.addView(caption);
-        LinearLayout.LayoutParams destinationSize = new LinearLayout.LayoutParams(-1, -2);
-        destinationSize.bottomMargin = dp(6);
-        panel.addView(destination(R.string.rankings_title, R.id.destination_rankings, true), destinationSize);
-        panel.addView(destination(R.string.results_title, R.id.destination_results, false));
+        for (Destination target : Destination.values()) {
+            LinearLayout.LayoutParams destinationSize = new LinearLayout.LayoutParams(-1, -2);
+            destinationSize.bottomMargin = dp(6);
+            panel.addView(destination(target), destinationSize);
+        }
         panel.addView(privacyPolicyLink());
         panel.addView(new View(activity), new LinearLayout.LayoutParams(1, 0, 1));
         TextView footer = Presentation.label(activity, activity.getString(R.string.drawer_footer), 12);
@@ -177,10 +196,10 @@ final class MainScreenChrome {
         return link;
     }
 
-    private RadioButton destination(int title, int id, boolean targetRankings) {
+    private RadioButton destination(Destination target) {
         RadioButton choice = new RadioButton(activity);
-        choice.setId(id);
-        choice.setText(title);
+        choice.setId(target.id);
+        choice.setText(target.title);
         choice.setButtonDrawable(null);
         choice.setTextSize(14);
         choice.setPadding(dp(16), dp(13), dp(16), dp(13));
@@ -196,20 +215,24 @@ final class MainScreenChrome {
         GradientDrawable mask = Presentation.shape(activity, R.color.surface);
         mask.setCornerRadius(dp(14));
         choice.setBackground(new RippleDrawable(ColorStateList.valueOf(activity.getColor(R.color.soft)), backgrounds, mask));
-        choice.setCompoundDrawablesRelativeWithIntrinsicBounds(targetRankings ? R.drawable.ic_list : R.drawable.ic_trophy, 0, 0, 0);
+        choice.setCompoundDrawablesRelativeWithIntrinsicBounds(target.icon, 0, 0, 0);
         choice.setCompoundDrawablePadding(dp(14));
         choice.setCompoundDrawableTintList(colors);
         choice.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        choice.setChecked(rankings == targetRankings);
-        choice.setTypeface(Typeface.create(rankings == targetRankings ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
-        choice.setOnClickListener(view -> {
-            closeDrawer();
-            if (rankings == targetRankings) return;
-            Intent intent = new Intent(activity, targetRankings ? RankingsActivity.class : ResultsActivity.class);
-            if (targetRankings) intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            activity.startActivity(intent);
-        });
+        boolean selectedDestination = currentDestination == target;
+        choice.setChecked(selectedDestination);
+        choice.setTypeface(Typeface.create(selectedDestination ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
+        choice.setOnClickListener(view -> navigateTo(target));
         return choice;
+    }
+
+    private void navigateTo(Destination target) {
+        closeDrawer();
+        if (currentDestination == target) return;
+        Intent intent = new Intent(activity, target.screen);
+        if (target == Destination.RANKINGS) intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        activity.startActivity(intent);
+        if (currentDestination != Destination.RANKINGS && target != Destination.RANKINGS) activity.finish();
     }
 
     private Button action(String symbol, int description, Runnable action) {

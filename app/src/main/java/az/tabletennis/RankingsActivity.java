@@ -100,7 +100,7 @@ public class RankingsActivity extends Activity {
     }
 
     private void createScreen() {
-        chrome = new MainScreenChrome(this, true, this::refreshRankings);
+        chrome = new MainScreenChrome(this, MainScreenChrome.Destination.RANKINGS, this::refreshRankings);
         updated = chrome.updated;
         refresh = chrome.refresh;
         LinearLayout root = new LinearLayout(this);

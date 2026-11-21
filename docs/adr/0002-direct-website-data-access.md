@@ -10,3 +10,5 @@ payloads, but would add hosting and maintenance.
 Website markup changes can require an app update. Large HTML responses also
 make loading and caching behavior important. Offline access to previously loaded
 data, with visible update times, is already part of the agreed scope.
+
+The tournament lists use a [generated catalogue on GitHub Pages](0009-publish-tournament-catalogue-on-github-pages.md).
