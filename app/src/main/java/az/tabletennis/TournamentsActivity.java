@@ -15,15 +15,11 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.uuuu", Locale.ROOT);
-
     private EditText search;
     private ListView list;
     private TextView empty;
@@ -130,9 +126,7 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
 
     private final class TournamentCard extends LinearLayout {
         private final TextView name;
-        private final TextView dates;
-        private final TextView entrants;
-        private final TextView prize;
+        private final TournamentFactsView facts;
         private final TournamentPodiumView podium;
 
         TournamentCard() {
@@ -148,48 +142,21 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
             addView(surface, new LayoutParams(-1, -2));
 
             name = label("", 17);
-            name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            name.setPadding(0, 0, 0, dp(4));
+            name.setTypeface(Typeface.DEFAULT_BOLD);
+            name.setPadding(0, 0, 0, dp(6));
             surface.addView(name);
-            dates = fact();
-            entrants = fact();
-            prize = fact();
-            if (getResources().getConfiguration().screenWidthDp >= 600) {
-                LinearLayout facts = new LinearLayout(getContext());
-                facts.setOrientation(HORIZONTAL);
-                facts.addView(dates, new LayoutParams(0, -2, 2));
-                facts.addView(entrants, new LayoutParams(0, -2, 1));
-                facts.addView(prize, new LayoutParams(0, -2, 1));
-                surface.addView(facts, new LayoutParams(-1, -2));
-            } else {
-                surface.addView(dates);
-                surface.addView(entrants);
-                surface.addView(prize);
-            }
+            facts = new TournamentFactsView(getContext());
+            surface.addView(facts, new LayoutParams(-1, -2));
             podium = new TournamentPodiumView(getContext());
             LayoutParams podiumSize = new LayoutParams(-1, -2);
-            podiumSize.topMargin = dp(8);
+            podiumSize.topMargin = dp(12);
             surface.addView(podium, podiumSize);
         }
 
         void bind(TournamentCatalogue.Tournament tournament) {
             name.setText(tournament.name);
-            String start = DATE.format(tournament.start);
-            dates.setText(tournament.start.equals(tournament.end) ? start
-                    : getString(R.string.tournament_date_range, start, DATE.format(tournament.end)));
-            String unknown = getString(R.string.tournament_unknown_value);
-            Long count = showsDoubles() ? tournament.pairs : tournament.players;
-            entrants.setText(getString(showsDoubles() ? R.string.tournament_pairs : R.string.tournament_players,
-                    count == null ? unknown : count.toString()));
-            prize.setText(getString(R.string.tournament_prize, tournament.prize == null ? unknown : tournament.prize));
+            facts.bind(tournament, showsDoubles());
             podium.bind(tournament.podium(), application);
-        }
-
-        private TextView fact() {
-            TextView view = label("", 14);
-            view.setTextColor(getColor(R.color.secondary));
-            view.setPadding(0, dp(2), 0, dp(2));
-            return view;
         }
     }
 }

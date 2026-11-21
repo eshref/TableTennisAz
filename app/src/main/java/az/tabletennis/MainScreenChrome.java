@@ -28,8 +28,8 @@ final class MainScreenChrome {
         SINGLES_TOURNAMENTS(R.string.singles_tournaments, R.id.destination_singles_tournaments,
                 R.drawable.ic_trophy, SinglesTournamentsActivity.class),
         DOUBLES_TOURNAMENTS(R.string.doubles_tournaments, R.id.destination_doubles_tournaments,
-                R.drawable.ic_trophy, DoublesTournamentsActivity.class),
-        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_trophy, DuelsActivity.class);
+                R.drawable.ic_pair, DoublesTournamentsActivity.class),
+        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_crossed_swords, DuelsActivity.class);
 
         final int title;
         final int id;

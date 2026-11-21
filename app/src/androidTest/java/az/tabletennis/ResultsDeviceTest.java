@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.not;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
@@ -137,8 +138,7 @@ public class ResultsDeviceTest {
             // assert
             onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
                     .check(matches(hasDescendant(withText(EVENT))));
-            onView(withText("14.11.2026 – 16.11.2026")).check(matches(isDisplayed()));
-            onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+            assertTournamentFacts("14–16 noyabr 2026", "24 oyunçu");
 
             // act
             framePodium();
@@ -208,8 +208,7 @@ public class ResultsDeviceTest {
             // assert
             onView(withText(EVENT)).check(doesNotExist());
             onView(withText(OLDER_DOUBLES_EVENT)).check(doesNotExist());
-            onView(withText("8 qoşa")).check(matches(isDisplayed()));
-            onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+            assertTournamentFacts("15–18 noyabr 2026", "8 qoşa");
 
             // act
             framePodium();
@@ -507,6 +506,32 @@ public class ResultsDeviceTest {
         MatchDetails details = new MatchDetails(502, asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov")),
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva")), "16 Nov. 2026", "", "3-1", EVENT);
         new SavedDataStore<>(context, "match-502", MatchDetails.class).write(new SavedData<>(details, now));
+    }
+
+    private void assertTournamentFacts(String date, String entrants) {
+        onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
+                .check((card, missing) -> {
+                    matches(allOf(hasDescendant(allOf(withText(date), isDisplayed())),
+                            hasDescendant(allOf(withText(entrants), isDisplayed())),
+                            hasDescendant(allOf(withText("0 AZN"), isDisplayed())))).check(card, missing);
+                    int dateTop = factTop(card, date);
+                    int prizeTop = factTop(card, "0 AZN");
+                    Configuration config = card.getResources().getConfiguration();
+                    if (config.screenWidthDp <= 320 && config.fontScale >= 1.5f && prizeTop <= dateTop) {
+                        throw new AssertionError("Expected the prize to wrap below the date on a narrow screen with larger text");
+                    }
+                    if (config.screenWidthDp >= 400 && config.fontScale <= 1f && prizeTop != dateTop) {
+                        throw new AssertionError("Expected the prize on the same row as the date at standard text size");
+                    }
+                });
+    }
+
+    private int factTop(View card, String text) {
+        ArrayList<View> facts = new ArrayList<>();
+        card.findViewsWithText(facts, text, View.FIND_VIEWS_WITH_TEXT);
+        int[] location = new int[2];
+        facts.get(0).getLocationOnScreen(location);
+        return location[1];
     }
 
     private void framePodium() {

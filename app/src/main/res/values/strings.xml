@@ -60,7 +60,8 @@
     <string name="tournament_search_hint">Turnirin adı ilə axtar</string>
     <string name="tournament_match_results">Matç nəticələri</string>
     <string name="tournament_date_range">%1$s – %2$s</string>
-    <string name="tournament_players">Oyunçu sayı: %1$s</string>
+    <string name="tournament_day_range">%1$s–%2$s</string>
+    <string name="tournament_players">%1$s oyunçu</string>
     <string name="tournament_pairs">%1$s qoşa</string>
     <string name="tournament_prize">Priz: %1$s</string>
     <string name="tournament_unknown_value">—</string>
