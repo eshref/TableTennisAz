@@ -22,12 +22,9 @@ public class ResultsFilterTest extends ProductUiScenario {
         publishStage("/matches/results/event/901?page=2", 602, "1/4");
         publishStage("/matches/results/event/902", 603, "1/16");
         publishStage("/matches/results/event/903", 605, "3-cü yer oyunu");
-        openScreen();
 
         // act
-        activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
-        followNavigation();
+        openDirect(ResultsActivity.class, "", 0);
 
         // assert
         awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir · Final");
@@ -139,10 +136,8 @@ public class ResultsFilterTest extends ProductUiScenario {
         server.shutdown();
 
         // act
-        restart();
-        activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
-        followNavigation();
+        closeProductScreens();
+        openDirect(ResultsActivity.class, "", 0);
 
         // assert
         assertThat(visibleText()).contains("16 Nov. 2026 · Təzə nəticə — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir · 1/4",

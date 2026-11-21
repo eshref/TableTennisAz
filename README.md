@@ -4,10 +4,10 @@ Native Azerbaijani rankings, player profiles, rating history, and match results
 for Android 8.0 (API 26) and newer. The app opens on amateur individual-player
 rankings. This implements the first-delivery scope in issues #1–#9.
 
-Open the menu in the top bar to switch between Rankings and Results. The refresh
-icon updates the active selection, and the app follows the phone’s light/dark
-appearance. Returning to Rankings preserves each mode’s search and scroll;
-Results also retains its selection and browsing position.
+The top-bar menu lists **Reytinq**, **Şəxsi turnirlər**, **Qoşa turnirlər**, and
+**Duellər** in that order. The refresh icon updates the active screen, and the
+app follows the phone’s light/dark appearance. Returning to rankings preserves
+each mode’s search and scroll position.
 
 Rankings also has an Oyunçular / Qoşalar switch. Doubles ranks partnerships using
 the website's published positions and points, so equal points can have different
@@ -120,32 +120,18 @@ ambiguous unlinked doubles photos are not assigned by their display order.
 Android Back returns through the match and originating history/feed, retaining
 the reading position. Older saved match details remain usable offline.
 
-## Results coverage
+## Tournament results and duels
 
-Results combines event matches and duels, with All results / Tournament matches /
-Duels selections and an event chooser. Cup and league events are both included.
-An event can be selected even if it was absent from the initial general batch.
+**Şəxsi turnirlər** and **Qoşa turnirlər** list completed singles and doubles
+tournaments, newest first. Search by tournament name and tap a card to open
+its match results. The menu and relevant tournament entry show a dot for new
+tournaments. Opening a tournament list clears its own dot.
 
-Date headings group consecutive cards on the same calendar day.
-Match cards separate each side's full names and final score from the source date,
-match type, and event. Doubles names wrap, and the higher-scoring side's names
-receive bold emphasis. Tap a card to open the existing match detail; Back retains
-the Results selection and browsing context. The type chips and event chooser
-remain reachable while scrolling on small screens. A verified empty filtered
-selection offers **Filtrləri təmizlə** to return to the general feed.
-
-A new general batch retrieves one duel page and at most two event-result pages.
-The event chooser is retrieved separately. Event continuations alternate with
-previously unseen events; selecting one event loads one of its pages per batch.
-Load more advances the saved source cursors. Repeated match identities are
-merged, retaining event and duel membership. Loaded matches are sorted by their
-supplied dates, without inventing within-day times or treating IDs as dates.
-
-The event chooser has no verified global date order. The visible feed is partial
-and may omit recent matches elsewhere on the website. A failed batch does not
-save partial results or advance its cursors. Each filter/event selection has its
-own durable snapshot; an offline selection never visited before is unavailable,
-rather than a verified empty result.
+**Duellər** opens a single list of singles and doubles duels, newest first.
+Both tournament results and duels group match cards by date. Tap a card to
+open match details and use Android Back to return through the screens you
+visited. Load more retrieves the next page for the current tournament or duel
+list. Each feed keeps its own saved results for offline use.
 
 ## Freshness and offline use
 
@@ -165,13 +151,10 @@ not record player categories. An internet connection is needed to download the
 first amateur ranking; the app explains this when no usable ranking is available.
 Newly downloaded amateur rankings remain available offline.
 
-Profile/history and Results refresh revisit the source pages already downloaded
-for that player or selection,
-retaining its loading progress. Load more adds a bounded batch and retains the
-last full refresh time so older rows do not appear newly refreshed. Returning to
-a stale selection refreshes its loaded coverage, rather than scanning the archive.
-Each Results selection has its own last successful update time. When opening an
-unloaded tournament selection, the app reuses an event catalog up to 48 hours old.
+Refreshing a profile, history, tournament results screen, or duel list revisits
+its downloaded source pages. Load more adds a bounded batch and retains the
+last full refresh time so older rows do not appear newly refreshed. Each
+tournament results screen and the duel list have their own update times.
 
 ## Build and install
 
@@ -198,14 +181,15 @@ The [issue #32 delivery record](docs/verification/issue32/README.md) contains th
 local phone-review APK path, native comparison evidence and verification limits.
 
 Try searching a player, opening their profile and chart, then following a match
-and its participants. In Results, try the three result types, choose an event,
-and use Load more. After loading these screens, disconnect and restart the app
-to check previously visited screens and their update times.
+and its participants. From the menu, find a tournament in **Şəxsi turnirlər**
+or **Qoşa turnirlər**, open its results, and use Load more when available. Open
+**Duellər** to browse duel matches. After loading these screens, disconnect and
+restart the app to check previously visited screens and their update times.
 
 This debug APK is for testing. For an official signed APK, see
 [GitHub Releases](https://github.com/eshref/TableTennisAz/releases).
 The app fetches public website HTML/JSON directly. Website markup changes may
-require an updated APK; feed coverage is partial as described above.
+require an updated APK.
 
 ## Preparing an Android release
 
@@ -362,5 +346,5 @@ separate installed API 36 results.
 
 To verify the live website, choose **Run workflow** in Android Actions and
 enable `live_site`. The opt-in installed journeys exercise production HTTPS
-requests for rankings, profiles, singles history, Results, and match details.
+requests for rankings, profiles, singles history, duels, and match details.
 [Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)

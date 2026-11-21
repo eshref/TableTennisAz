@@ -19,12 +19,9 @@ public class BatchedResultsTest extends ProductUiScenario {
         publishStage("/matches/results/event/902", 502, "1/2");
         publishStage("/matches/results/event/903", 605, "Unknown stage");
         publishStage("/matches/duellos", 501, "Play-in");
-        openScreen();
 
         // act
-        activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
-        followNavigation();
+        openDirect(ResultsActivity.class, "", 0);
 
         // assert
         awaitText("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir · Qrup oyunu");
@@ -43,10 +40,8 @@ public class BatchedResultsTest extends ProductUiScenario {
         responses.put("/matches/results/event/903", () -> new okhttp3.mockwebserver.MockResponse().setResponseCode(503));
 
         // act
-        restart();
-        activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
-        followNavigation();
+        closeProductScreens();
+        openDirect(ResultsActivity.class, "", 0);
         clickText("Daha çox yüklə");
 
         // assert
@@ -79,10 +74,8 @@ public class BatchedResultsTest extends ProductUiScenario {
         server.shutdown();
 
         // act
-        restart();
-        activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
-        followNavigation();
+        closeProductScreens();
+        openDirect(ResultsActivity.class, "", 0);
 
         // assert
         assertThat(visibleText()).contains("16 Nov. 2026 · Səhifə 2 A — Səhifə 2 B · 3-2 · Payız Kuboku · Tək · Turnir · 1/8",

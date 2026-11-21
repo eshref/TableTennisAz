@@ -1,5 +1,9 @@
 # Open Results as a recent-match feed
 
+The main menu now opens singles tournaments, doubles tournaments, and duels
+directly. This approved navigation supersedes the combined Results entry
+described here. [Issue #70](https://github.com/eshref/TableTennisAz/issues/70)
+
 After comparing interactive prototypes, the project owner chose a recent-results
 feed with an optional event filter for Q14. This makes match results directly
 visible on entering Results, with links to match details and player profiles.

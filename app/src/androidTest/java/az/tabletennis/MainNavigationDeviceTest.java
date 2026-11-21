@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 /** Opt-in installed-app check of Android's actual destination stack, with saved fixtures. */
 @RunWith(AndroidJUnit4.class)
 public class MainNavigationDeviceTest {
-    @Test public void drawerSwitchesReuseRankingsAndBackClosesTheDrawerBeforeReturningFromResults() throws Exception {
+    @Test public void drawerSwitchesReuseRankingsAndBackClosesTheDrawerBeforeReturningFromDuels() throws Exception {
         // arrange
         givenSavedMainScreens();
 
@@ -73,19 +73,18 @@ public class MainNavigationDeviceTest {
             capture("drawer");
 
             // act
-            onView(withId(R.id.destination_results)).perform(click());
+            onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
 
             // assert
             onView(withId(R.id.result_rows)).check(matches(isDisplayed()));
             capture("results");
 
             // act
-            onView(withText(R.string.duel_results)).perform(click());
             onView(withId(R.id.open_menu)).perform(click());
             pressBack();
 
             // assert
-            onView(withText(R.string.duel_results)).check(matches(isChecked()));
+            onView(withText(R.string.duel_results)).check(matches(isDisplayed()));
 
             // act
             onView(withId(R.id.open_menu)).perform(click());
@@ -97,10 +96,10 @@ public class MainNavigationDeviceTest {
 
             // act
             onView(withId(R.id.open_menu)).perform(click());
-            onView(withId(R.id.destination_results)).perform(click());
+            onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
 
             // assert
-            onView(withText(R.string.duel_results)).check(matches(isChecked()));
+            onView(withText(R.string.duel_results)).check(matches(isDisplayed()));
 
             // act
             pressBack();
@@ -138,10 +137,7 @@ public class MainNavigationDeviceTest {
         EventCatalog catalog = new EventCatalog(asList());
         ResultsFeed feed = new ResultsFeed(asList(new MatchSummary(501, asList("İlqar Həsənov"),
                 asList("Əli Məmmədov"), "16 Nov. 2026", "3-1", 0, "Duello", true)), catalog, asList(), asList(), null);
-        new SavedDataStore<>(context, "events", EventCatalog.class).write(new SavedData<>(catalog, now));
-        new SavedDataStore<>(context, "results-all-0", ResultsFeed.class).write(new SavedData<>(feed, now));
         new SavedDataStore<>(context, "results-duels-0", ResultsFeed.class).write(new SavedData<>(feed, now));
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
     }
 
     private void givenRankingWithoutObservations() throws Exception {

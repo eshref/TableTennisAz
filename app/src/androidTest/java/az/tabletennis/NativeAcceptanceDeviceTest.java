@@ -8,6 +8,7 @@ import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
@@ -18,7 +19,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.hasToString;
 
 import android.app.Activity;
 import android.content.Context;
@@ -64,7 +64,7 @@ public class NativeAcceptanceDeviceTest {
     private static final String LONG_EVENT = "Bakı həvəskarlar kuboku 2026 — final mərhələsi";
     private static final String SINGLE_CARD = "16 Nov. 2026 · İlqar Həsənov — Məryəm İmanova · 3-1 · " + EVENT + " · Tək · Turnir";
 
-    @Test public void sevenViewsKeepTheirIdentitiesAndBackContextAcrossBothMainDestinations() throws Exception {
+    @Test public void rankingsAndTournamentResultsKeepTheirBackContext() throws Exception {
         // arrange
         givenApprovedReferenceJourney();
 
@@ -161,7 +161,10 @@ public class NativeAcceptanceDeviceTest {
             onView(withId(R.id.open_menu)).perform(click());
 
             // assert
-            onView(withId(R.id.destination_rankings)).check(matches(isDisplayed()));
+            onView(withId(R.id.destination_rankings)).check(matches(isChecked()));
+            onView(withId(R.id.destination_singles_tournaments)).check(matches(withText(R.string.singles_tournaments)));
+            onView(withId(R.id.destination_doubles_tournaments)).check(matches(withText(R.string.doubles_tournaments)));
+            onView(withId(R.id.destination_duels)).check(matches(withText(R.string.duel_results)));
             capture("drawer");
 
             // act
@@ -171,11 +174,11 @@ public class NativeAcceptanceDeviceTest {
             onView(withId(R.id.privacy_policy)).check(matches(allOf(isDisplayed(), withText(R.string.privacy_policy))));
 
             // act
-            onView(withId(R.id.destination_results)).perform(scrollTo(), click());
-            onView(withText("Hamısı")).perform(scrollTo(), click());
+            onView(withId(R.id.destination_singles_tournaments)).perform(scrollTo(), click());
+            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0).perform(click());
 
             // assert
-            onView(withText("Hamısı")).check(matches(isChecked()));
+            onView(withContentDescription(SINGLE_CARD)).check(matches(hasDescendant(withText(EVENT))));
             capture("results");
 
             // act
@@ -209,18 +212,17 @@ public class NativeAcceptanceDeviceTest {
             onView(withContentDescription(SINGLE_CARD)).check(matches(withContentDescription(SINGLE_CARD)));
 
             // act
-            onView(withId(R.id.event_filter)).perform(scrollTo(), click());
-            onData(hasToString(LONG_EVENT)).perform(click());
+            pressBack();
+            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(1).perform(click());
             onView(withText(R.string.no_results)).perform(scrollTo());
 
             // assert
-            onView(allOf(withText(LONG_EVENT), isDescendantOfA(withId(R.id.event_filter))))
-                    .check(matches(isDisplayed()));
+            onView(withText(LONG_EVENT)).check(matches(isDisplayed()));
             onView(withText(R.string.no_results)).check(matches(isDisplayed()));
             capture("empty-results");
 
             // act
-            onView(withId(R.id.clear_results_filters)).perform(scrollTo(), click());
+            pressBack();
             onView(withId(R.id.open_menu)).perform(click());
             onView(withId(R.id.destination_rankings)).perform(click());
             rankings.recreate();
@@ -274,12 +276,8 @@ public class NativeAcceptanceDeviceTest {
         if (!portraits.isDirectory() && !portraits.mkdirs()) throw new IllegalStateException("Cannot prepare portraits");
         MatchSummary singles = new MatchSummary(3201, asList(ILQAR), asList("Məryəm İmanova"),
                 "16 Nov. 2026", "3-1", 901, EVENT, false);
-        MatchSummary duel = new MatchSummary(3202, asList("Xaliq Becanov"), asList("Elşad Vahidov"),
-                "16 Nov. 2026", "2-3", 0, "Duel", true);
         MatchSummary doubles = new MatchSummary(3203, asList("Erhan Əliyev", "Elçin Mustafayev"), asList(ELIXAN, XEYAL),
                 "15 Nov. 2026", "3-2", 901, EVENT, false);
-        MatchSummary autumn = new MatchSummary(3204, asList("Sergey Vedmid"), asList("Erhan Əliyev"),
-                "15 Nov. 2026", "3-0", 903, "Payız liqası", false);
         for (int i = 0; i < identities.length(); i++) {
             JSONObject person = identities.getJSONObject(i);
             long id = person.getLong("id");
@@ -331,14 +329,20 @@ public class NativeAcceptanceDeviceTest {
         new SavedDataStore<>(context, "match-3203", MatchDetails.class).write(new SavedData<>(new MatchDetails(3203,
                 asList(player(people, "14"), player(people, "22")), asList(player(people, "7"), player(people, "70")),
                 doubles.date, "", doubles.score, EVENT), now));
+        TournamentCatalogue tournaments = TournamentCatalogue.parse("""
+                {"version":1,"tournaments":[
+                  {"id":901,"name":"%s","format":"singles","start":"2026-11-16","end":"2026-11-16"},
+                  {"id":902,"name":"%s","format":"singles","start":"2026-11-15","end":"2026-11-15"}
+                ]}
+                """.formatted(EVENT, LONG_EVENT));
+        new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
+                .write(new SavedData<>(tournaments, now));
         EventCatalog catalog = new EventCatalog(asList(new EventCatalog.Event(901, EVENT),
-                new EventCatalog.Event(902, LONG_EVENT), new EventCatalog.Event(903, "Payız liqası")));
-        new SavedDataStore<>(context, "events", EventCatalog.class).write(new SavedData<>(catalog, now));
-        new SavedDataStore<>(context, "results-all-0", ResultsFeed.class).write(new SavedData<>(
-                new ResultsFeed(asList(singles, duel, doubles, autumn), catalog, asList(), asList(), null), now));
+                new EventCatalog.Event(902, LONG_EVENT)));
+        new SavedDataStore<>(context, "results-events-901", ResultsFeed.class).write(new SavedData<>(
+                new ResultsFeed(asList(singles), catalog, asList(), asList(), null), now));
         new SavedDataStore<>(context, "results-events-902", ResultsFeed.class).write(new SavedData<>(
                 new ResultsFeed(asList(), catalog, asList(), asList(), null), now));
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
     }
 
     private MatchDetails.PlayerLink player(JSONObject people, String id) throws Exception {
