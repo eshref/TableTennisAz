@@ -1,6 +1,7 @@
 package az.tabletennis;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -59,11 +60,14 @@ final class TournamentPodiumView extends LinearLayout {
 
     private void addStep(Step style, List<Medalist> medalists, RankingsApplication application) {
         Context context = getContext();
+        Configuration configuration = getResources().getConfiguration();
+        boolean compactLargeText = configuration.screenWidthDp <= 360 && configuration.fontScale >= 1.3f;
         boolean center = style == Step.GOLD;
         LinearLayout step = new LinearLayout(context);
         step.setOrientation(VERTICAL);
-        LayoutParams column = new LayoutParams(0, LayoutParams.WRAP_CONTENT, center ? 1.06f : 1f);
+        LayoutParams column = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
         if (center) {
+            column.weight = compactLargeText ? 1.75f : 1.06f;
             column.setMarginStart(dp(4));
             column.setMarginEnd(dp(4));
         }
@@ -86,7 +90,7 @@ final class TournamentPodiumView extends LinearLayout {
             application.photos().bind(portrait, medalist.id, medalist.photo, online);
         }
         for (Medalist medalist : medalists) {
-            TextView name = Presentation.label(context, medalist.name, 12);
+            TextView name = Presentation.label(context, medalist.name, compactLargeText ? 11 : 12);
             name.setGravity(Gravity.CENTER);
             name.setTextDirection(TEXT_DIRECTION_FIRST_STRONG);
             name.setPadding(dp(2), dp(2), dp(2), dp(2));

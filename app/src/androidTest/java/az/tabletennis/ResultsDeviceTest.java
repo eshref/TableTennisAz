@@ -13,6 +13,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
+import static androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -447,6 +448,9 @@ public class ResultsDeviceTest {
         onView(allOf(withId(R.id.tournament_podium), hasDescendant(withContentDescription(R.string.medal_gold))))
                 .check((view, missing) -> {
                     if (missing != null) throw missing;
+                    if ("narrow-large".equals(InstrumentationRegistry.getArguments().getString("capturePrefix"))) {
+                        matches(isCompletelyDisplayed()).check(view, null);
+                    }
                     View silver = medalBase(view, R.string.medal_silver);
                     View gold = medalBase(view, R.string.medal_gold);
                     View bronze = medalBase(view, R.string.medal_bronze);
