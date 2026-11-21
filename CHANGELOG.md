@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.1 - 2026-11-21
+
+- Singles and doubles tournament cards show dates in Azerbaijani and use icons
+  for the date, entrant count, and prize. The layout wraps these details on
+  smaller screens, and the podium shows framed portraits and bolder names.
+- Qoşa turnirlər and Duellər have distinct icons in the app menu.
+- The privacy policy lists the new support address,
+  `tabletennisaz.support@gmail.com`.
+
 ## 0.6.0 - 2026-11-21
 
 - Search completed doubles tournaments in Qoşa turnirlər, see pair counts where
