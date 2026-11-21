@@ -13,8 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.robolectric.Robolectric;
@@ -23,22 +25,32 @@ import org.robolectric.android.controller.ActivityController;
 
 public abstract class RankingsUiScenario {
     protected MockWebServer server;
+    protected MockWebServer catalogueServer;
     protected ActivityController<RankingsActivity> screen;
 
     public static class FixtureApplication extends RankingsApplication {
         static HttpUrl url;
+        static HttpUrl catalogueUrl;
         static volatile java.time.Clock time;
         static volatile boolean online;
         @Override protected java.time.Clock clock() { return time; }
         @Override protected HttpUrl websiteUrl() { return url; }
-        @Override protected HttpUrl tournamentCatalogueUrl() { return url.resolve("/tournaments-v1.json"); }
+        @Override protected HttpUrl tournamentCatalogueUrl() { return catalogueUrl; }
         @Override protected boolean isOnline() { return online; }
     }
 
     @Before public void prepareWebsite() throws Exception {
         server = new MockWebServer();
         server.start();
+        catalogueServer = new MockWebServer();
+        catalogueServer.start();
+        catalogueServer.setDispatcher(new Dispatcher() {
+            @Override public MockResponse dispatch(RecordedRequest request) {
+                return new MockResponse().setResponseCode(404);
+            }
+        });
         FixtureApplication.url = server.url("/");
+        FixtureApplication.catalogueUrl = catalogueServer.url("/tournaments-v1.json");
         FixtureApplication.online = true;
         FixtureApplication.time = java.time.Clock.fixed(java.time.Instant.parse("2026-11-15T12:00:00Z"), java.time.ZoneOffset.UTC);
         RuntimeEnvironment.getApplication().deleteFile("rankings.json");
@@ -48,7 +60,9 @@ public abstract class RankingsUiScenario {
     @After public void closeScreenAndWebsite() throws Exception {
         if (screen != null) screen.pause().stop().destroy();
         server.shutdown();
+        catalogueServer.shutdown();
         RankingsApplication application = (RankingsApplication) RuntimeEnvironment.getApplication();
+        application.onTerminate();
         application.rankingsWorker.shutdown();
         application.doublesWorker.shutdown();
         application.rankingsWorker.awaitTermination(5, TimeUnit.SECONDS);

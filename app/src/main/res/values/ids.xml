@@ -32,6 +32,8 @@
     <item name="status" type="id" />
     <item name="updated" type="id" />
     <item name="open_menu" type="id" />
+    <item name="menu_new_tournaments_dot" type="id" />
+    <item name="new_tournaments_dot" type="id" />
     <item name="close_menu" type="id" />
     <item name="drawer" type="id" />
     <item name="destination_rankings" type="id" />

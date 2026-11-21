@@ -3,7 +3,11 @@ package az.tabletennis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import android.widget.EditText;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import okhttp3.mockwebserver.MockResponse;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,6 +29,153 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES + " · Qoşalar · Turnir · Final";
     private static final String OLDER_DOUBLES_MATCH = "12 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-1 · " + DOUBLES + " · Qoşalar · Turnir";
+    private static final String MENU_DOT = "Əsas menyunu aç, yeni turnirlər var";
+    private static final String SINGLES_DOT = "Şəxsi turnirlər, yeni turnirlər var";
+    private static final String DOUBLES_DOT = "Qoşa turnirlər, yeni turnirlər var";
+
+    @Test public void launchChecksAfter48HoursAndOnlyNewIndexEntriesKeepDotsUntilTheirListOpens() throws Exception {
+        // arrange
+        String existing = tournament(901, NEWER, "singles");
+        String late = tournament(906, "Gec təsnif edilmiş kubok", "singles");
+        String newSingles = tournament(908, "Yeni şəxsi kubok", "singles");
+        String newDoubles = tournament(909, "Yeni qoşa kubok", "doubles");
+        String renamedDoubles = tournament(909, "Yenilənmiş qoşa kubok", "doubles");
+        String anotherSingles = tournament(910, "Sonrakı şəxsi kubok", "singles");
+        String historicalDoubles = tournament(907, OLDER_DOUBLES, "doubles");
+        String baseline = "\"901\":100,\"906\":100,\"907\":100";
+        String updated = baseline + ",\"908\":200,\"909\":200";
+        publishCatalogue(baseline, existing, historicalDoubles);
+
+        // act
+        openScreen();
+
+        // assert
+        assertCatalogueRequest();
+
+        // act
+        openSingles();
+
+        // assert
+        awaitText(NEWER);
+        assertThat(visibleText()).doesNotContain(MENU_DOT);
+
+        // arrange
+        publishCatalogue(updated, existing, historicalDoubles, newSingles, newDoubles);
+        var freshnessBoundary = FixtureApplication.time.instant().plus(Duration.ofHours(48));
+        FixtureApplication.time = Clock.fixed(freshnessBoundary, ZoneOffset.UTC);
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertThat(catalogueServer.takeRequest(400, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(visibleText()).doesNotContain(MENU_DOT, SINGLES_DOT, DOUBLES_DOT);
+
+        // arrange
+        FixtureApplication.time = Clock.fixed(freshnessBoundary.plusMillis(1), ZoneOffset.UTC);
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText(SINGLES_DOT);
+        assertThat(visibleText()).contains(MENU_DOT, DOUBLES_DOT);
+
+        // act
+        clickText("Şəxsi turnirlər");
+        followNavigation();
+        clickText("☰");
+
+        // assert
+        assertThat(visibleText()).contains(MENU_DOT, DOUBLES_DOT).doesNotContain(SINGLES_DOT);
+
+        // arrange
+        FixtureApplication.online = false;
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertThat(visibleText()).contains(MENU_DOT, DOUBLES_DOT).doesNotContain(SINGLES_DOT);
+
+        // act
+        clickText("Qoşa turnirlər");
+        followNavigation();
+        clickText("☰");
+
+        // assert
+        assertThat(visibleText()).doesNotContain(MENU_DOT, SINGLES_DOT, DOUBLES_DOT);
+        assertThat(catalogueServer.takeRequest(400, TimeUnit.MILLISECONDS)).isNull();
+
+        // arrange
+        FixtureApplication.online = true;
+        FixtureApplication.time = Clock.fixed(freshnessBoundary.plus(Duration.ofHours(49)), ZoneOffset.UTC);
+        publishCatalogue(updated, existing, late, newSingles, renamedDoubles);
+
+        // act
+        restart();
+        openTournamentList("Qoşa turnirlər");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText("Yenilənmiş qoşa kubok");
+        clickText("☰");
+        assertThat(visibleText()).doesNotContain(MENU_DOT, SINGLES_DOT);
+
+        // act
+        clickText("Şəxsi turnirlər");
+        followNavigation();
+
+        // assert
+        awaitText("Gec təsnif edilmiş kubok");
+        assertThat(visibleText()).doesNotContain(MENU_DOT);
+
+        // arrange
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofHours(49));
+        publishCatalogue(updated + ",\"910\":300", existing, late, newSingles, renamedDoubles, anotherSingles);
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText(SINGLES_DOT);
+        assertThat(visibleText()).contains(MENU_DOT).doesNotContain(DOUBLES_DOT);
+
+        // arrange
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofHours(49));
+        responses.put(CATALOGUE, () -> new MockResponse().setResponseCode(503));
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertCatalogueRequest();
+        assertThat(visibleText()).contains(MENU_DOT, SINGLES_DOT).doesNotContain(DOUBLES_DOT);
+
+        // act
+        clickText("Qoşa turnirlər");
+        followNavigation();
+
+        // assert
+        awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
+        assertThat(visibleText()).contains("Yenilənmiş qoşa kubok", MENU_DOT);
+
+        // act
+        clickText("☰");
+        clickText("Şəxsi turnirlər");
+        followNavigation();
+
+        // assert
+        awaitText("Sonrakı şəxsi kubok");
+        assertThat(visibleText()).doesNotContain(MENU_DOT);
+    }
 
     @Test public void catalogueMedalistsStayVisibleWhenThePortraitRequestFails() throws Exception {
         // arrange
@@ -79,7 +230,8 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         awaitText(NEWER);
         assertThat(tournamentNames()).containsExactly(NEWER, OTHER, OLDER);
         assertThat(visibleText()).doesNotContain("Komanda Liqası", "Qoşa Kuboku", "Naməlum Kubok");
-        assertThat(requestedPaths()).containsExactly(CATALOGUE);
+        assertCatalogueRequest();
+        assertThat(requestedPaths()).isEmpty();
 
         // act
         searchFor("bAKI");
@@ -138,7 +290,8 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         awaitText(DOUBLES);
         assertThat(tournamentNames()).containsExactly(DOUBLES, OLDER_DOUBLES);
         assertThat(visibleText()).doesNotContain("Komanda Liqası", "Naməlum Kubok");
-        assertThat(requestedPaths()).containsExactly(CATALOGUE);
+        assertCatalogueRequest();
+        assertThat(requestedPaths()).isEmpty();
 
         // act
         searchFor("bAKI qosa");
@@ -189,6 +342,7 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         awaitText("1. İlqar Həsənov — 800 xal");
         openSingles();
         awaitText(NEWER);
+        assertCatalogueRequest();
         clickText(NEWER);
         followNavigation();
         awaitText(MATCH);
@@ -205,7 +359,8 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         // assert
         awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
         assertThat(tournamentNames()).containsExactly(NEWER, OTHER, OLDER);
-        assertThat(requestedPaths()).containsExactly(CATALOGUE);
+        assertCatalogueRequest();
+        assertThat(requestedPaths()).isEmpty();
 
         // arrange
         FixtureApplication.online = false;
@@ -263,6 +418,23 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
                   {"id":901,"name":"Bakı Şəxsi Kuboku 2026","format":"singles","start":"2026-11-14","end":"2026-11-16","players":24,"prize":"0 AZN"}
                 ]}
                 """);
+    }
+
+    private void publishCatalogue(String index, String... tournaments) {
+        website.put(CATALOGUE, "{\"version\":1,\"firstListed\":{" + index + "},\"tournaments\":["
+                + String.join(",", tournaments) + "]}");
+    }
+
+    private String tournament(long id, String name, String format) {
+        return """
+                {"id":%d,"name":"%s","format":"%s","start":"2026-11-15","end":"2026-11-15"}
+                """.formatted(id, name, format);
+    }
+
+    private void assertCatalogueRequest() throws InterruptedException {
+        var request = catalogueServer.takeRequest(3, TimeUnit.SECONDS);
+        assertThat(request).isNotNull();
+        assertThat(request.getPath()).isEqualTo(CATALOGUE);
     }
 
     private void openSingles() throws Exception {

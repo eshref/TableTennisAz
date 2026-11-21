@@ -9,6 +9,13 @@ import okhttp3.HttpUrl;
 
 public class RankingsApplication extends Application {
     private PlayerPhotos photos;
+    private TournamentCatalogueRepository tournamentCatalogues;
+    private final ExecutorService tournamentWorker = Executors.newSingleThreadExecutor();
+
+    TournamentCatalogueRepository tournamentCatalogues() {
+        if (tournamentCatalogues == null) tournamentCatalogues = new TournamentCatalogueRepository(this, tournamentWorker);
+        return tournamentCatalogues;
+    }
 
     PlayerPhotos photos() {
         if (photos == null) photos = new PlayerPhotos(this, websiteUrl());
@@ -22,6 +29,7 @@ public class RankingsApplication extends Application {
 
     @Override public void onTerminate() {
         if (photos != null) photos.close();
+        tournamentWorker.shutdown();
         super.onTerminate();
     }
     // Serialize storage writes, including work spanning Activity recreation.

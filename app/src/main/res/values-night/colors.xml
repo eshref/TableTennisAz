@@ -10,4 +10,5 @@
     <color name="line">#354C3E</color>
     <color name="movement_up">#8BD8B4</color>
     <color name="movement_down">#FFC1B9</color>
+    <color name="new_tournament_dot">#FF625B</color>
 </resources>

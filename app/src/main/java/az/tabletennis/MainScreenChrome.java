@@ -19,6 +19,7 @@ import android.widget.RadioButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.util.function.Consumer;
 
 /** Main destinations share a compact bar and a modal, accessible navigation drawer. */
 final class MainScreenChrome {
@@ -52,11 +53,16 @@ final class MainScreenChrome {
     private final FrameLayout frame;
     private final LinearLayout page;
     private final Button menu;
+    private final View menuDot;
+    private final TournamentCatalogueRepository catalogues;
+    private final Consumer<SavedData<TournamentCatalogue>> tournamentDots = this::updateTournamentDots;
+    private SavedData<TournamentCatalogue> catalogue;
     private View drawer;
     private android.window.OnBackInvokedCallback backCallback;
 
     MainScreenChrome(Activity activity, Destination currentDestination, Runnable refreshAction) {
         this.activity = activity;
+        catalogues = ((RankingsApplication) activity.getApplication()).tournamentCatalogues();
         Presentation.systemBars(activity);
         this.currentDestination = currentDestination;
         frame = new FrameLayout(activity);
@@ -75,7 +81,14 @@ final class MainScreenChrome {
         bar.setPadding(dp(8), dp(4), dp(8), dp(4));
         menu = action("☰", R.string.open_menu, this::openDrawer);
         menu.setId(R.id.open_menu);
-        bar.addView(menu, new LinearLayout.LayoutParams(dp(48), -2));
+        FrameLayout menuControl = new FrameLayout(activity);
+        menuControl.addView(menu, new FrameLayout.LayoutParams(-1, -2));
+        menuDot = redDot(R.id.menu_new_tournaments_dot);
+        FrameLayout.LayoutParams menuDotPosition = new FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP | Gravity.END);
+        menuDotPosition.topMargin = dp(9);
+        menuDotPosition.setMarginEnd(dp(9));
+        menuControl.addView(menuDot, menuDotPosition);
+        bar.addView(menuControl, new LinearLayout.LayoutParams(dp(48), -2));
         TextView title = Presentation.label(activity, activity.getString(currentDestination.title), 22);
         if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
@@ -112,6 +125,47 @@ final class MainScreenChrome {
     }
 
     boolean isDrawerOpen() { return drawer != null; }
+
+    void observeTournamentDots() { catalogues.observe(tournamentDots); }
+
+    void stopObservingTournamentDots() { catalogues.removeObserver(tournamentDots); }
+
+    private void updateTournamentDots(SavedData<TournamentCatalogue> snapshot) {
+        catalogue = snapshot;
+        boolean singles = catalogues.hasNew(snapshot, TournamentCatalogue.Format.SINGLES);
+        boolean doubles = catalogues.hasNew(snapshot, TournamentCatalogue.Format.DOUBLES);
+        boolean hasNewTournaments = singles || doubles;
+        menuDot.setVisibility(hasNewTournaments ? View.VISIBLE : View.GONE);
+        menu.setContentDescription(hasNewTournaments ? newTournamentsDescription(R.string.open_menu)
+                : activity.getString(R.string.open_menu));
+        if (drawer != null) {
+            updateDestinationDot(Destination.SINGLES_TOURNAMENTS, singles);
+            updateDestinationDot(Destination.DOUBLES_TOURNAMENTS, doubles);
+        }
+    }
+
+    private void updateDestinationDot(Destination target, boolean visible) {
+        RadioButton choice = drawer.findViewById(target.id);
+        View dot = ((View) choice.getParent()).findViewById(R.id.new_tournaments_dot);
+        dot.setVisibility(visible ? View.VISIBLE : View.GONE);
+        choice.setContentDescription(visible ? newTournamentsDescription(target.title) : null);
+    }
+
+    private String newTournamentsDescription(int label) {
+        return activity.getString(R.string.new_tournaments_description, activity.getString(label));
+    }
+
+    private View redDot(int id) {
+        View dot = new View(activity);
+        dot.setId(id);
+        dot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(activity.getColor(R.color.new_tournament_dot));
+        dot.setBackground(circle);
+        dot.setVisibility(View.GONE);
+        return dot;
+    }
 
     void openDrawer() {
         if (drawer != null) return;
@@ -158,7 +212,7 @@ final class MainScreenChrome {
         for (Destination target : Destination.values()) {
             LinearLayout.LayoutParams destinationSize = new LinearLayout.LayoutParams(-1, -2);
             destinationSize.bottomMargin = dp(6);
-            panel.addView(destination(target), destinationSize);
+            panel.addView(destinationRow(target), destinationSize);
         }
         panel.addView(privacyPolicyLink());
         panel.addView(new View(activity), new LinearLayout.LayoutParams(1, 0, 1));
@@ -167,6 +221,7 @@ final class MainScreenChrome {
         footer.setPadding(dp(12), dp(20), dp(12), dp(6));
         panel.addView(footer);
         drawer = overlay;
+        updateTournamentDots(catalogue);
         page.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         page.setDescendantFocusability(android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         frame.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
@@ -178,6 +233,18 @@ final class MainScreenChrome {
             activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
         }
+    }
+
+    private View destinationRow(Destination target) {
+        RadioButton choice = destination(target);
+        if (target != Destination.SINGLES_TOURNAMENTS && target != Destination.DOUBLES_TOURNAMENTS) return choice;
+        choice.setPaddingRelative(dp(16), dp(13), dp(32), dp(13));
+        FrameLayout row = new FrameLayout(activity);
+        row.addView(choice, new FrameLayout.LayoutParams(-1, -2));
+        FrameLayout.LayoutParams position = new FrameLayout.LayoutParams(dp(8), dp(8), Gravity.CENTER_VERTICAL | Gravity.END);
+        position.setMarginEnd(dp(16));
+        row.addView(redDot(R.id.new_tournaments_dot), position);
+        return row;
     }
 
     private Button privacyPolicyLink() {

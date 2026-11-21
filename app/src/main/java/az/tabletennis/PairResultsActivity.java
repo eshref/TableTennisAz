@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -26,15 +27,15 @@ public class PairResultsActivity extends SavedScreen<PairHistory> {
         select("duo-results-" + pairId, PairHistory.class);
     }
 
-    @Override protected Fetch<PairHistory> request(PairHistory previous, boolean more) {
+    @Override protected CompletableFuture<SavedData<PairHistory>> request(PairHistory previous, boolean more) {
         if (!more) application.photos().refreshed();
-        return () -> {
+        return fetch(() -> {
             DoublesRepository repository = new DoublesRepository(this, application.websiteUrl());
             DoublesPair pair = previous == null ? repository.pair(pairId) : previous.pair;
             PairMedals medals = more && previous != null ? previous.medals : repository.medals(pair);
             PairHistory history = new WebsiteSource(application.websiteUrl()).pairHistory(pair, previous, more);
             return new PairHistory(pair, history.matches, history.pages, history.nextPage, medals);
-        };
+        }, more);
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {

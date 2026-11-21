@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -36,10 +37,10 @@ public class ResultsActivity extends MatchFeedActivity {
 
     @Override protected MainScreenChrome.Destination mainDestination() { return MainScreenChrome.Destination.RESULTS; }
 
-    @Override protected Fetch<ResultsFeed> request(ResultsFeed previous, boolean more) {
+    @Override protected CompletableFuture<SavedData<ResultsFeed>> request(ResultsFeed previous, boolean more) {
         ResultsSelection requested = selection;
         SavedData<EventCatalog> cachedCatalog = catalogStore.read();
-        return () -> {
+        return fetch(() -> {
             WebsiteSource source = new WebsiteSource(application.websiteUrl());
             EventCatalog available = cachedCatalog == null ? new EventCatalog(new ArrayList<>()) : cachedCatalog.value;
             if (more && previous != null) available = previous.catalog;
@@ -49,7 +50,7 @@ public class ResultsActivity extends MatchFeedActivity {
                 catalogStore.write(new SavedData<>(available, application.clock().millis()));
             }
             return source.feed(previous, more, available, requested);
-        };
+        }, more);
     }
 
     private void createFilters() {

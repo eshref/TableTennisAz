@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.os.Bundle;
 import android.content.Intent;
 import android.graphics.Typeface;
@@ -21,16 +22,16 @@ public class ProfileActivity extends SavedScreen<PlayerProfile> {
         select("profile-" + playerId, PlayerProfile.class);
     }
 
-    @Override protected Fetch<PlayerProfile> request(PlayerProfile previous, boolean more) {
+    @Override protected CompletableFuture<SavedData<PlayerProfile>> request(PlayerProfile previous, boolean more) {
         if (!more) application.photos().refreshed();
-        return () -> {
+        return fetch(() -> {
             WebsiteSource.ProfileLoad load = new WebsiteSource(application.websiteUrl()).profile(playerId, previous, more);
             for (MatchDetails details : load.verifiedMatches) {
                 new SavedDataStore<>(this, "match-" + details.id, MatchDetails.class)
                         .write(new SavedData<>(details, application.clock().millis()));
             }
             return load.profile;
-        };
+        }, more);
     }
 
     @Override protected void render(PlayerProfile profile) {

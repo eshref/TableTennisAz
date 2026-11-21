@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -25,9 +26,9 @@ public class MatchActivity extends SavedScreen<MatchDetails> {
         select("match-" + matchId, MatchDetails.class);
     }
 
-    @Override protected Fetch<MatchDetails> request(MatchDetails previous, boolean more) {
+    @Override protected CompletableFuture<SavedData<MatchDetails>> request(MatchDetails previous, boolean more) {
         application.photos().refreshed();
-        return () -> new WebsiteSource(application.websiteUrl()).match(matchId);
+        return fetch(() -> new WebsiteSource(application.websiteUrl()).match(matchId), more);
     }
 
     @Override protected void render(MatchDetails match) {

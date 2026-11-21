@@ -27,6 +27,14 @@ For doubles events that publish only a player count, it counts distinct pairs
 by player profile identity across the published results. A failed crawl
 leaves the deployed site available.
 
+The `firstListed` object maps every observed Results index ID to the Unix
+timestamp in milliseconds of its first successful observation. It records
+unverified events, team tournaments, and IDs that later leave the index. The
+Pages job carries this history forward from the live catalogue. The first
+publication with this field seeds it from the current index and any IDs in the
+legacy catalogue. Android establishes its baseline on the first refresh that
+includes this history, then persists acknowledgements by category and event ID.
+
 An optional `podium` object records published `gold`, `silver`, and `bronze`
 placements. Each placement lists its medalists by player ID and full name,
 with a website-relative `photo` reference when available. Singles placements

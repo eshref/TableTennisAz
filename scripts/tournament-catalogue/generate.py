@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import sys
 from tempfile import NamedTemporaryFile
-from time import sleep
+from time import sleep, time_ns
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urljoin, urlsplit
 from urllib.request import Request, urlopen
@@ -386,8 +386,35 @@ def verified_tournament(source, event_id, event):
     return tournament
 
 
-def build_catalogue(source):
+def previous_index(previous):
+    if previous is None:
+        return {}
+    catalogue = json.loads(previous.read_text(encoding="utf-8"))
+    if not isinstance(catalogue, dict) or catalogue.get("version") != 1:
+        raise ValueError("Unsupported previous catalogue")
+    tournaments = catalogue.get("tournaments")
+    if not isinstance(tournaments, list) or any(
+        not isinstance(row, dict) or type(row.get("id")) is not int or row["id"] <= 0 for row in tournaments
+    ):
+        raise ValueError("Invalid tournaments in previous catalogue")
+    if "firstListed" not in catalogue:
+        # The first tracked publication establishes one observation for the legacy IDs and current index.
+        return {str(row["id"]): 0 for row in tournaments}
+    observations = catalogue["firstListed"]
+    if not isinstance(observations, dict) or any(
+        not re.fullmatch(r"[1-9][0-9]*", key) or type(value) is not int or value <= 0
+        for key, value in observations.items()
+    ) or any(str(row["id"]) not in observations for row in tournaments):
+        raise ValueError("Invalid first observations in previous catalogue")
+    return observations
+
+
+def build_catalogue(source, first_listed):
     events = published_events(source)
+    observed_at = max(time_ns() // 1_000_000, max(first_listed.values(), default=0) + 1)
+    first_listed = {key: value or observed_at for key, value in first_listed.items()}
+    for event_id in events:
+        first_listed.setdefault(str(event_id), observed_at)
     with ThreadPoolExecutor(max_workers=4) as fetchers:
         verified = fetchers.map(lambda item: verified_tournament(source, *item), events.items())
         tournaments = [tournament for tournament in verified if tournament is not None]
@@ -395,7 +422,7 @@ def build_catalogue(source):
         raise ValueError("No verified tournaments in the Results index")
     tournaments.sort(key=lambda tournament: tournament["end"], reverse=True)
     print(f"Verified {len(tournaments)} singles and doubles tournaments from {len(events)} completed event entries")
-    return {"version": 1, "tournaments": tournaments}
+    return {"version": 1, "firstListed": first_listed, "tournaments": tournaments}
 
 
 def publish(output, catalogue):
@@ -415,9 +442,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--source", default=SITE, help="tabletennis.az or a source fixture server")
+    parser.add_argument("--previous", type=Path, help="previously published catalogue, including first observations")
     arguments = parser.parse_args()
     try:
-        publish(arguments.output, build_catalogue(arguments.source.rstrip("/")))
+        publish(arguments.output, build_catalogue(arguments.source.rstrip("/"), previous_index(arguments.previous)))
     except (OSError, ValueError) as error:
         sys.exit(f"Catalogue generation failed: {error}")
 
