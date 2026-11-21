@@ -76,8 +76,7 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         FixtureApplication.time = Clock.fixed(freshnessBoundary.plusMillis(1), ZoneOffset.UTC);
 
         // act
-        restart();
-        clickText("☰");
+        screen.pause().stop().start().resume().visible();
 
         // assert
         assertCatalogueRequest();
@@ -123,7 +122,11 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         // assert
         assertCatalogueRequest();
         awaitText("Yenilənmiş qoşa kubok");
+
+        // act
         clickText("☰");
+
+        // assert
         assertThat(visibleText()).doesNotContain(MENU_DOT, SINGLES_DOT);
 
         // act
@@ -175,6 +178,73 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
         // assert
         awaitText("Sonrakı şəxsi kubok");
         assertThat(visibleText()).doesNotContain(MENU_DOT);
+    }
+
+    @Test public void pendingDotSurvivesAnOmittedCardAndARejectedHistoryUpdate() throws Exception {
+        // arrange
+        String oldDoubles = tournament(901, "Tarixi qoşa kubok", "doubles");
+        String updatedDoubles = tournament(901, "Yenilənmiş tarixi qoşa kubok", "doubles");
+        String newSingles = tournament(902, "Yeni şəxsi kubok", "singles");
+        String baseline = "\"901\":100";
+        String updated = baseline + ",\"902\":200";
+        publishCatalogue(baseline, oldDoubles);
+
+        // act
+        openScreen();
+        openTournamentList("Qoşa turnirlər");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText("Tarixi qoşa kubok");
+
+        // arrange
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofHours(49));
+        publishCatalogue(updated, oldDoubles, newSingles);
+
+        // act
+        restart();
+        clickText("☰");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText(SINGLES_DOT);
+
+        // arrange
+        FixtureApplication.time = Clock.offset(FixtureApplication.time, Duration.ofHours(49));
+        publishCatalogue(updated, updatedDoubles);
+
+        // act
+        restart();
+        openTournamentList("Qoşa turnirlər");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText("Yenilənmiş tarixi qoşa kubok");
+        assertThat(visibleText()).contains(MENU_DOT);
+
+        // arrange
+        publishCatalogue(baseline, oldDoubles);
+
+        // act
+        clickText("↻");
+
+        // assert
+        assertCatalogueRequest();
+        awaitText("Yeniləmək mümkün olmadı. Saxlanmış məlumat göstərilir.");
+        assertThat(visibleText()).contains("Yenilənmiş tarixi qoşa kubok", MENU_DOT);
+
+        // act
+        clickText("☰");
+
+        // assert
+        assertThat(visibleText()).contains(SINGLES_DOT).doesNotContain(DOUBLES_DOT);
+
+        // act
+        clickText("Şəxsi turnirlər");
+        followNavigation();
+
+        // assert
+        assertThat(visibleText()).doesNotContain("Yeni şəxsi kubok", MENU_DOT);
     }
 
     @Test public void catalogueMedalistsStayVisibleWhenThePortraitRequestFails() throws Exception {

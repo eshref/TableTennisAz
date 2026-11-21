@@ -149,7 +149,9 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     }
 
     protected final void reloadSaved() {
-        if (!loading) saved = store.read();
+        if (loading) return;
+        SavedData<T> latest = store.read();
+        if (latest != null && (saved == null || latest.updatedAt != saved.updatedAt)) saved = latest;
     }
 
     protected final void refresh(boolean more) {

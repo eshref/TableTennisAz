@@ -46,13 +46,16 @@ final class TournamentCatalogue implements Serializable {
     private final List<Tournament> doubles;
     private final Map<Long, Long> firstListed;
     private final long baseline;
+    private final Map<Format, Set<String>> newSinceBaseline;
 
     private TournamentCatalogue(List<Tournament> singles, List<Tournament> doubles,
-                                Map<Long, Long> firstListed, long baseline) {
+                                Map<Long, Long> firstListed, long baseline,
+                                Map<Format, Set<String>> newSinceBaseline) {
         this.singles = singles;
         this.doubles = doubles;
         this.firstListed = firstListed;
         this.baseline = baseline;
+        this.newSinceBaseline = newSinceBaseline;
     }
 
     static TournamentCatalogue parse(String body) throws IOException {
@@ -83,30 +86,38 @@ final class TournamentCatalogue implements Serializable {
             Comparator<Tournament> newestFirst = Comparator.comparing((Tournament tournament) -> tournament.end).reversed();
             singles.sort(newestFirst);
             doubles.sort(newestFirst);
-            return new TournamentCatalogue(singles, doubles, firstListed, 0);
+            return new TournamentCatalogue(singles, doubles, firstListed, 0, null);
         } catch (JSONException | DateTimeParseException failure) {
             throw new IOException("Invalid tournament catalogue", failure);
         }
     }
 
-    TournamentCatalogue after(TournamentCatalogue previous) throws IOException {
+    TournamentCatalogue withDeviceHistory(TournamentCatalogue previous) throws IOException {
         if (previous != null && previous.firstListed != null
                 && (firstListed == null || !firstListed.entrySet().containsAll(previous.firstListed.entrySet())))
             throw new IOException("Tournament catalogue lost Results index history");
         if (firstListed == null) return this;
         long cutoff = previous != null && previous.baseline > 0
                 ? previous.baseline : Collections.max(firstListed.values());
-        return new TournamentCatalogue(singles, doubles, firstListed, cutoff);
+        Map<Format, Set<String>> candidates = new EnumMap<>(Format.class);
+        for (Format format : Format.values()) {
+            candidates.put(format, previous == null ? new HashSet<>() : new HashSet<>(previous.newIds(format)));
+        }
+        // A temporary omission preserves a pending ID. A verified format change moves it to its current category.
+        for (Format format : Format.values()) {
+            Format other = format == Format.SINGLES ? Format.DOUBLES : Format.SINGLES;
+            for (Tournament tournament : entries(format)) {
+                if (firstListed.get(tournament.id) <= cutoff) continue;
+                String id = Long.toString(tournament.id);
+                candidates.get(format).add(id);
+                candidates.get(other).remove(id);
+            }
+        }
+        return new TournamentCatalogue(singles, doubles, firstListed, cutoff, candidates);
     }
 
     Set<String> newIds(Format format) {
-        Set<String> ids = new HashSet<>();
-        if (baseline > 0) {
-            for (Tournament tournament : entries(format)) {
-                if (firstListed.get(tournament.id) > baseline) ids.add(Long.toString(tournament.id));
-            }
-        }
-        return ids;
+        return newSinceBaseline == null ? Collections.emptySet() : Collections.unmodifiableSet(newSinceBaseline.get(format));
     }
 
     List<Tournament> find(Format format, String query) {

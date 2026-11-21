@@ -1,7 +1,11 @@
 package az.tabletennis;
 
+import android.app.Activity;
 import android.app.Application;
+import android.os.Bundle;
 import java.time.Clock;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -11,6 +15,25 @@ public class RankingsApplication extends Application {
     private PlayerPhotos photos;
     private TournamentCatalogueRepository tournamentCatalogues;
     private final ExecutorService tournamentWorker = Executors.newSingleThreadExecutor();
+
+    @Override public void onCreate() {
+        super.onCreate();
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            private final Set<Activity> startedActivities = new HashSet<>();
+
+            @Override public void onActivityStarted(Activity activity) {
+                if (startedActivities.add(activity) && startedActivities.size() == 1)
+                    tournamentCatalogues().refreshIfStale();
+            }
+
+            @Override public void onActivityStopped(Activity activity) { startedActivities.remove(activity); }
+            @Override public void onActivityCreated(Activity activity, Bundle state) { }
+            @Override public void onActivityResumed(Activity activity) { }
+            @Override public void onActivityPaused(Activity activity) { }
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) { }
+            @Override public void onActivityDestroyed(Activity activity) { startedActivities.remove(activity); }
+        });
+    }
 
     TournamentCatalogueRepository tournamentCatalogues() {
         if (tournamentCatalogues == null) tournamentCatalogues = new TournamentCatalogueRepository(this, tournamentWorker);

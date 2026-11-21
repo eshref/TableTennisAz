@@ -95,15 +95,21 @@ class CatalogueTest(unittest.TestCase):
 
             # act
             initial = self.generate(fixtures, output)
+
+            # assert
+            self.assertEqual(initial.returncode, 0, initial.stderr)
             baseline = json.loads(output.read_text(encoding="utf-8"))
+
+            # arrange
             next_index = BeautifulSoup(complete_index, "html.parser")
             next_index.select_one('a[href="/matches/results/event/805"]').decompose()
             index.write_text(str(next_index), encoding="utf-8")
             event.write_bytes(published_detail)
+
+            # act
             updated = self.generate(fixtures, output, previous=output)
 
             # assert
-            self.assertEqual(initial.returncode, 0, initial.stderr)
             self.assertEqual(updated.returncode, 0, updated.stderr)
             self.assertNotIn(944, [entry["id"] for entry in baseline["tournaments"]])
             self.assertIn("944", baseline["firstListed"])
@@ -113,8 +119,10 @@ class CatalogueTest(unittest.TestCase):
                              baseline["firstListed"])
             self.assertGreater(catalogue["firstListed"]["7"], max(baseline["firstListed"].values()))
 
-            # act
+            # arrange
             index.write_text(complete_index, encoding="utf-8")
+
+            # act
             reappeared = self.generate(fixtures, output, previous=output)
 
             # assert

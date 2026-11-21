@@ -45,7 +45,7 @@ final class TournamentCatalogueRepository {
                 HttpUrl url = application.tournamentCatalogueUrl();
                 SavedData<TournamentCatalogue> previous = store.read();
                 TournamentCatalogue next = TournamentCatalogue.parse(new WebsiteClient(url).get(url.encodedPath()))
-                        .after(previous == null ? null : previous.value);
+                        .withDeviceHistory(previous == null ? null : previous.value);
                 var fresh = new SavedData<>(next, application.clock().millis());
                 store.write(fresh);
                 main.post(() -> {

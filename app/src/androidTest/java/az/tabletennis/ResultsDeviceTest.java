@@ -449,13 +449,13 @@ public class ResultsDeviceTest {
             throw new IllegalStateException("Cannot reset tournament acknowledgement");
         TournamentCatalogue baseline = TournamentCatalogue.parse("""
                 {"version":1,"firstListed":{"901":100},"tournaments":[]}
-                """).after(null);
+                """).withDeviceHistory(null);
         TournamentCatalogue updated = TournamentCatalogue.parse("""
                 {"version":1,"firstListed":{"901":100,"902":200,"905":200},"tournaments":[
                   {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-17","end":"2026-11-17"},
                   {"id":905,"name":"Bakı Qoşa Kuboku 2026","format":"doubles","start":"2026-11-18","end":"2026-11-18"}
                 ]}
-                """).after(baseline);
+                """).withDeviceHistory(baseline);
         new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
                 .write(new SavedData<>(updated, now));
     }

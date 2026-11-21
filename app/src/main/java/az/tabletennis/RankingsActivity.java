@@ -80,7 +80,6 @@ public class RankingsActivity extends Activity {
         restorePosition();
         if (state != null && state.getBoolean("drawer")) chrome.openDrawer();
         if (application.doublesRefresh != null) followDoublesRefresh(application.doublesRefresh);
-        application.tournamentCatalogues().refreshIfStale();
     }
 
     @Override protected void onResume() {
