@@ -51,11 +51,22 @@ public class ResultsWorkflowTest extends ProductUiScenario {
              var output = context.openFileOutput("saved-results-events-901", Context.MODE_PRIVATE)) {
             input.transferTo(output);
         }
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit()
-                .putString("type", "EVENTS").putLong("event", 901).commit();
+        website.put("/tournaments-v1.json", """
+                {"version":1,"tournaments":[
+                  {"id":901,"name":"Payız Kuboku","format":"singles","start":"2026-11-14","end":"2026-11-16"}
+                ]}
+                """);
+        openScreen();
+        awaitText("1. İlqar Həsənov — 800 xal");
+        requestedPaths();
 
         // act
-        openDirect(ResultsActivity.class, "", 0);
+        clickText("☰");
+        clickText("Şəxsi turnirlər");
+        followNavigation();
+        awaitText("Payız Kuboku");
+        clickText("Payız Kuboku");
+        followNavigation();
 
         // assert
         assertThat(visibleText()).contains("14 Nov. 2026 · Kubok A — Kubok B · 3-0 · Payız Kuboku · Tək · Turnir")
@@ -81,7 +92,6 @@ public class ResultsWorkflowTest extends ProductUiScenario {
         rematchDay.selectFirst(".center").text("1-3");
         singlesDay.after(rematchDay);
         website.put("/matches/duellos", duels.outerHtml());
-        website.put("/matches/results", "<div id='center'><div class='tournament-list'></div></div>");
         website.put("/matches/502", html("singles-detail.html").getBody().readUtf8());
         prepareProfile(11, "Şəms Quliyeva");
         openScreen();
@@ -91,7 +101,7 @@ public class ResultsWorkflowTest extends ProductUiScenario {
 
         // act
         activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
+        clickText("Duellər");
         followNavigation();
 
         // assert
@@ -132,7 +142,7 @@ public class ResultsWorkflowTest extends ProductUiScenario {
         // act
         restart();
         activity().findViewById(R.id.open_menu).performClick();
-        clickText("Nəticələr");
+        clickText("Duellər");
         followNavigation();
 
         // assert

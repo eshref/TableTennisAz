@@ -35,7 +35,7 @@ public class ResultsActivity extends MatchFeedActivity {
         select(selection.key(), ResultsFeed.class);
     }
 
-    @Override protected MainScreenChrome.Destination mainDestination() { return MainScreenChrome.Destination.RESULTS; }
+    @Override protected int detailTitle() { return R.string.results_title; }
 
     @Override protected CompletableFuture<SavedData<ResultsFeed>> request(ResultsFeed previous, boolean more) {
         ResultsSelection requested = selection;

@@ -36,7 +36,7 @@ import org.junit.runner.RunWith;
 /** Opt-in, read-only journeys against the live website using the installed APK. */
 @RunWith(AndroidJUnit4.class)
 public class LiveExperienceTest {
-    @Test public void rankingsProfileChartAndResultsMatchParticipantUseTheLiveAndroidClient() {
+    @Test public void rankingsProfileChartAndDuelMatchParticipantUseTheLiveAndroidClient() {
         // arrange
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         for (java.io.File file : context.getFilesDir().listFiles()) {
@@ -44,7 +44,6 @@ public class LiveExperienceTest {
                 throw new IllegalStateException("Could not prepare a fresh live visit");
             }
         }
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
 
         // act
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
@@ -73,7 +72,7 @@ public class LiveExperienceTest {
             pressBack();
             pressBack();
             onView(withId(R.id.open_menu)).perform(click());
-            onView(withText(R.string.results_title)).perform(click());
+            onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
 
             // assert
             awaitSuccessfulData();

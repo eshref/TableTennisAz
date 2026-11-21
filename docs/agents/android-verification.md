@@ -12,7 +12,7 @@ have their own check. [Android Actions](https://github.com/eshref/TableTennisAz/
 Confirm the selected journeys reach the changed screens. The selector uses a
 focused journey for each affected screen it recognizes. Shared code and rankings
 also select the combined journey. Shared string resources select all journeys
-to reach screen-specific states such as the Duels filter. Each journey publishes
+to reach screen-specific states such as the empty duel list. Each journey publishes
 its own evidence.
 [Changed-file selector](../../scripts/android/pr-journey)
 
@@ -21,7 +21,7 @@ its own evidence.
 | Singles and doubles match details | `match` | `MatchDeviceTest` |
 | Player profile and links to history and matches | `profile` | `ProfileDeviceTest` |
 | Dedicated singles rating history | `rating-history` | `RatingHistoryDeviceTest` |
-| Results, event selection, Şəxsi turnirlər, Qoşa turnirlər, and Duellər | `results` | `ResultsDeviceTest` |
+| Şəxsi turnirlər, Qoşa turnirlər, tournament results, and Duellər | `results` | `ResultsDeviceTest` |
 | Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 

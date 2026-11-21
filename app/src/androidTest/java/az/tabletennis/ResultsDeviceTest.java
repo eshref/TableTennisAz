@@ -19,7 +19,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
-import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
@@ -168,6 +167,11 @@ public class ResultsDeviceTest {
 
             // act
             pressBack();
+
+            // assert
+            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText(STAGE))));
+
+            // act
             pressBack();
 
             // assert
@@ -249,15 +253,33 @@ public class ResultsDeviceTest {
             onView(withContentDescription("12 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
                     + "Şəms Quliyeva / Işıl Əliyeva · 3-1 · Gəncə Qoşa Kuboku · Qoşalar · Turnir"))
                     .check(matches(isDisplayed()));
+
+            // act
+            pressBack();
+
+            // assert
+            onView(withId(R.id.search)).check(matches(withText("gence")));
+
+            // act
+            pressBack();
+
+            // assert
+            onView(withId(R.id.players_mode)).check(matches(isChecked()));
         }
     }
 
-    @Test public void resultsCardsFiltersAndBackRetainTheSelectedFeed() throws Exception {
+    @Test public void tournamentResultsAndDuelsLayOutStageAndLongNames() throws Exception {
         // arrange
         givenSavedResults();
+        givenSavedTournaments();
+        givenSavedDuelFeed(new MatchSummary(501, asList("İlqar Həsənov", FIRST), asList("Şəms Quliyeva", SECOND),
+                "15 Nov. 2026", "1-3", 0, "Duello", true));
 
-        // act
-        try (ActivityScenario<ResultsActivity> scenario = ActivityScenario.launch(ResultsActivity.class)) {
+        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // act
+            onView(withId(R.id.open_menu)).perform(click());
+            onView(withId(R.id.destination_singles_tournaments)).perform(scrollTo(), click());
+            onView(withText(EVENT)).perform(click());
             onView(withId(R.id.match_stage_badge)).perform(scrollTo());
 
             // assert
@@ -287,66 +309,46 @@ public class ResultsDeviceTest {
             capture("results");
 
             // act
-            onView(withText("Turnirlər")).perform(scrollTo(), click());
-            scenario.onActivity(activity -> ((android.widget.Spinner) activity.findViewById(R.id.event_filter)).setSelection(1));
-            onView(withContentDescription(CARD)).perform(scrollTo(), click());
-
-            // assert
-            onView(withId(R.id.match_score_left)).check(matches(withText("3")));
-            onView(withId(R.id.match_score_right)).check(matches(withText("1")));
-
-            // act
             pressBack();
-
-            // assert
-            onView(withText("Turnirlər")).check(matches(isChecked()));
-            onView(withId(R.id.event_filter)).check(matches(withSpinnerText(EVENT)));
-            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText(EVENT))));
-
-            // act
-            onView(withText("Hamısı")).perform(scrollTo(), click());
+            pressBack();
+            onView(withId(R.id.open_menu)).perform(click());
+            onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
             onView(withText("İlqar Həsənov\n" + FIRST)).perform(scrollTo());
 
             // assert
-            onView(withText("İlqar Həsənov\n" + FIRST)).check(matches(withText("İlqar Həsənov\n" + FIRST)));
+            onView(withText("İlqar Həsənov\n" + FIRST)).check(matches(isDisplayed()));
             capture("long-names");
 
             // act
             onView(withText("Şəms Quliyeva\n" + SECOND)).perform(scrollTo());
 
             // assert
-            onView(withText("Şəms Quliyeva\n" + SECOND)).check(matches(withText("Şəms Quliyeva\n" + SECOND)));
+            onView(withText("Şəms Quliyeva\n" + SECOND)).check(matches(isDisplayed()));
             capture("long-names-second-side");
-
-            // act
-            onView(withText("Duellər")).perform(scrollTo(), click());
-
-            // assert
-            onView(withText(R.string.no_results)).check(matches(withText(R.string.no_results)));
-            // act
-            onView(withText(R.string.no_results)).perform(scrollTo());
-
-            // assert
-            capture("empty");
-
-            // act
-            onView(withId(R.id.clear_results_filters)).perform(scrollTo(), click());
-            scenario.recreate();
-
-            // assert
-            onView(withText("Hamısı")).check(matches(isChecked()));
-            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText("1"))));
         }
     }
 
-    @Test public void switchingFromResultsToDuelsKeepsRankingsAsTheBackDestination() throws Exception {
+    @Test public void menuShowsTheEmptyDuelFeed() throws Exception {
+        // arrange
+        givenSavedDuelFeed();
+
+        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // act
+            onView(withId(R.id.open_menu)).perform(click());
+            onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
+
+            // assert
+            onView(withText(R.string.no_duels)).check(matches(isDisplayed()));
+            capture("empty");
+        }
+    }
+
+    @Test public void menuOpensDuelsAndBackReturnsThroughItsMatchToRankings() throws Exception {
         // arrange
         givenSavedDuels();
 
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
             // act
-            onView(withId(R.id.open_menu)).perform(click());
-            onView(withId(R.id.destination_results)).perform(scrollTo(), click());
             onView(withId(R.id.open_menu)).perform(click());
             onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
 
@@ -364,11 +366,12 @@ public class ResultsDeviceTest {
             // act
             pressBack();
             onView(withText("İlqar Həsənov\nƏli Məmmədov")).perform(scrollTo(), click());
+            onView(withText("Işıl Əliyeva")).perform(scrollTo());
 
             // assert
             onView(withId(R.id.match_score_left)).check(matches(withText("3")));
             onView(withId(R.id.match_score_right)).check(matches(withText("2")));
-            onView(withText("Işıl Əliyeva")).check(matches(withText("Işıl Əliyeva")));
+            onView(withText("Işıl Əliyeva")).check(matches(isDisplayed()));
             capture("duel-match");
 
             // act
@@ -389,20 +392,24 @@ public class ResultsDeviceTest {
     private void givenSavedDuels() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         long now = System.currentTimeMillis();
-        new RankingsStore(context).write(new RankingSnapshot(asList(new RankingSnapshot.Player(12, "İlqar Həsənov", 800)), now));
         MatchSummary singles = new MatchSummary(502, asList("İlqar Həsənov"), asList("Şəms Quliyeva"),
                 "16 Nov. 2026", "3-1", 0, "Duello", true);
         MatchSummary doubles = new MatchSummary(501, asList("İlqar Həsənov", "Əli Məmmədov"), asList("Şəms Quliyeva", "Işıl Əliyeva"),
                 "15 Nov. 2026", "3-2", 0, "Duello", true);
-        ResultsFeed duels = new ResultsFeed(asList(singles, doubles), new EventCatalog(asList()), asList(), asList(), null);
-        new SavedDataStore<>(context, "results-all-0", ResultsFeed.class).write(new SavedData<>(duels, now));
-        new SavedDataStore<>(context, "results-duels-0", ResultsFeed.class).write(new SavedData<>(duels, now));
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
+        givenSavedDuelFeed(singles, doubles);
         MatchDetails details = new MatchDetails(501,
                 asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov"), new MatchDetails.PlayerLink(13, "Əli Məmmədov")),
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva"), new MatchDetails.PlayerLink(14, "Işıl Əliyeva")),
                 "15 Nov. 2026", "18:00", "3-2", "Duello");
         new SavedDataStore<>(context, "match-501", MatchDetails.class).write(new SavedData<>(details, now));
+    }
+
+    private void givenSavedDuelFeed(MatchSummary... matches) throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        long now = System.currentTimeMillis();
+        new RankingsStore(context).write(new RankingSnapshot(asList(new RankingSnapshot.Player(12, "İlqar Həsənov", 800)), now));
+        ResultsFeed duels = new ResultsFeed(asList(matches), new EventCatalog(asList()), asList(), asList(), null);
+        new SavedDataStore<>(context, "results-duels-0", ResultsFeed.class).write(new SavedData<>(duels, now));
     }
 
     private void givenSavedTournaments() throws Exception {
@@ -495,20 +502,11 @@ public class ResultsDeviceTest {
         EventCatalog catalog = new EventCatalog(asList(new EventCatalog.Event(901, EVENT)));
         MatchSummary singles = new MatchSummary(502, asList("İlqar Həsənov"), asList("Şəms Quliyeva"),
                 "16 Nov. 2026", "3-1", 901, EVENT, false, false, TournamentStage.THIRD_PLACE);
-        MatchSummary doubles = new MatchSummary(501, asList("İlqar Həsənov", FIRST), asList("Şəms Quliyeva", SECOND),
-                "15 Nov. 2026", "1-3", 0, "Duello", true);
-        ResultsFeed all = new ResultsFeed(asList(singles, doubles), catalog, asList(), asList(), null);
         ResultsFeed events = new ResultsFeed(asList(singles), catalog, asList(), asList(), null);
-        ResultsFeed empty = new ResultsFeed(asList(), catalog, asList(), asList(), null);
-        new SavedDataStore<>(context, "events", EventCatalog.class).write(new SavedData<>(catalog, now));
-        new SavedDataStore<>(context, "results-all-0", ResultsFeed.class).write(new SavedData<>(all, now));
-        new SavedDataStore<>(context, "results-events-0", ResultsFeed.class).write(new SavedData<>(events, now));
         new SavedDataStore<>(context, "results-events-901", ResultsFeed.class).write(new SavedData<>(events, now));
-        new SavedDataStore<>(context, "results-duels-0", ResultsFeed.class).write(new SavedData<>(empty, now));
         MatchDetails details = new MatchDetails(502, asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov")),
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva")), "16 Nov. 2026", "", "3-1", EVENT);
         new SavedDataStore<>(context, "match-502", MatchDetails.class).write(new SavedData<>(details, now));
-        context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
     }
 
     private void framePodium() {
