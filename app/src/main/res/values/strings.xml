@@ -56,13 +56,16 @@
     <string name="no_rating_history">Xal tarixçəsi mövcud deyil.</string>
     <string name="results_title">Nəticələr</string>
     <string name="singles_tournaments">Şəxsi turnirlər</string>
+    <string name="doubles_tournaments">Qoşa turnirlər</string>
     <string name="tournament_search_hint">Turnirin adı ilə axtar</string>
     <string name="tournament_match_results">Matç nəticələri</string>
     <string name="tournament_date_range">%1$s – %2$s</string>
     <string name="tournament_players">Oyunçu sayı: %1$s</string>
+    <string name="tournament_pairs">%1$s qoşa</string>
     <string name="tournament_prize">Priz: %1$s</string>
     <string name="tournament_unknown_value">—</string>
     <string name="no_singles_tournaments">Şəxsi turnir tapılmadı.</string>
+    <string name="no_doubles_tournaments">Qoşa turnir tapılmadı.</string>
     <string name="no_matching_tournaments">Axtarışa uyğun turnir tapılmadı.</string>
     <string name="load_more">Daha çox yüklə</string>
     <string name="all_results">Hamısı</string>

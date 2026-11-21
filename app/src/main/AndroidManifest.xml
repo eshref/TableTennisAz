@@ -10,6 +10,7 @@
         <activity android:name=".ChartActivity" android:exported="false" />
         <activity android:name=".ResultsActivity" android:exported="false" />
         <activity android:name=".SinglesTournamentsActivity" android:exported="false" />
+        <activity android:name=".DoublesTournamentsActivity" android:exported="false" />
         <activity android:name=".TournamentResultsActivity" android:exported="false" />
         <activity android:name=".DuelsActivity" android:exported="false" />
         <activity android:name=".PairResultsActivity" android:exported="false" />

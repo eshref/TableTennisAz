@@ -18,8 +18,11 @@ Pages → Source** to **GitHub Actions** and dispatch **Tournament catalogue**
 on `main` for the first publication. The site URL and the privacy policy URL
 are preserved. Later updates run daily and on changes to the site or generator.
 
-The version 1 document contains a `tournaments` array. Each singles entry
-includes the numeric Results index ID, published name, `singles` format and
-ISO start and end dates. The published player count and total prize are
-optional. The generator verifies individual competition using the event page
-and published match pages. A failed crawl leaves the deployed site available.
+The version 1 document contains a `tournaments` array. Each entry includes the
+numeric Results index ID, published name, `singles` or `doubles` format and ISO
+start and end dates. The total prize and entrant count are optional. The count
+is stored as `players` for singles and `pairs` for doubles. The generator
+verifies competition format using the event page and published match pages.
+For doubles events that publish only a player count, it counts distinct pairs
+by player profile identity across the published results. A failed crawl
+leaves the deployed site available.
