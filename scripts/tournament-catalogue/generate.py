@@ -101,6 +101,7 @@ def published_results(source, event_id, side_size):
     number = 1
     results = {}
     later_pages = set()
+    complete = True
     while True:
         page_path = path if number == 1 else f"{path}?page={number}"
         page = fetch(source, page_path)
@@ -114,9 +115,18 @@ def published_results(source, event_id, side_size):
             if number > 1:
                 raise ValueError(f"Advertised result page has no match rows: {page_path}")
             return None
-        page_matches = matches_on_page(page, side_size)
-        if not page_matches or not results.keys().isdisjoint(page_matches):
+        parsed = matches_on_page(page, side_size)
+        if parsed is None:
             return None
+        page_matches, page_complete = parsed
+        overlap = results.keys() & page_matches.keys()
+        if side_size == 1 and overlap:
+            return None
+        page_complete = (page_complete and bool(page_matches.keys() - overlap)
+                         and all(results[identity] == page_matches[identity] for identity in overlap))
+        if not page_complete and (number == 1 or side_size == 1):
+            return None
+        complete = complete and page_complete
         results.update(page_matches)
 
         for link in page.select(".pagination li:not(.disabled) a[href]"):
@@ -127,7 +137,7 @@ def published_results(source, event_id, side_size):
             if value.isdecimal() and int(value) > number:
                 later_pages.add(int(value))
         if not later_pages:
-            return results
+            return results, complete
         # Check every advertised page, including those linked only from earlier pages.
         number += 1
         if number not in later_pages:
@@ -137,32 +147,39 @@ def published_results(source, event_id, side_size):
 
 def matches_on_page(page, side_size):
     matches = {}
+    expected_sizes = (side_size, side_size)
+    row_count = 0
+    complete = True
     for day in page.select(".matches-box > *"):
         rows = day.select("a[href] > .match-box")
         if not rows:
             continue
         date = day.select_one(".divs-header")
-        if date is None:
-            return None
+        dated = date is not None
         try:
-            datetime.strptime(date.get_text(" ", strip=True).replace(".", ""), "%d %b %Y")
+            if dated:
+                datetime.strptime(date.get_text(" ", strip=True).replace(".", ""), "%d %b %Y")
         except ValueError:
-            return None
+            dated = False
         for row in rows:
+            row_count += 1
             identity = row.parent["href"].rstrip("/")
-            sides = row.select(":scope > .col-3")
             score = row.select_one(":scope > .col-2 .center")
-            if (not MATCH_LINK.fullmatch(identity) or identity in matches or not score
-                    or not re.fullmatch(r"[0-9]+\s*-\s*[0-9]+", score.get_text(strip=True))
-                    or len(sides) != 2):
-                return None
             names = [[player.get_text(" ", strip=True) for player in side.find_all(recursive=False)]
-                     for side in sides]
-            sides = [[name for name in side if name] for side in names]
-            if any(len(side) != side_size for side in sides):
+                     for side in row.select(":scope > .col-3")]
+            sides = sorted(tuple(sorted(name for name in side if name)) for side in names)
+            sizes = tuple(map(len, sides))
+            if sizes in ((1, 1), (2, 2)) and sizes != expected_sizes:
                 return None
+            if (not dated or not MATCH_LINK.fullmatch(identity) or not score
+                    or not re.fullmatch(r"[0-9]+\s*-\s*[0-9]+", score.get_text(strip=True))
+                    or sizes != expected_sizes):
+                complete = False
+                continue
+            if identity in matches and (side_size == 1 or matches[identity] != sides):
+                complete = False
             matches[identity] = sides
-    return matches if len(matches) == len(page.select(".matches-box .match-box")) else None
+    return matches, complete and row_count == len(page.select(".matches-box .match-box"))
 
 
 def published_count(event_fields, index_fields, event_labels, index_labels):
@@ -188,23 +205,25 @@ def match_detail_pairs(source, path, match):
                         for name in side.select("a[href] > .match-player-name")]
         if len(participants) != 2 or any(not PLAYER_LINK.fullmatch(identity) for _, identity in participants):
             return None
-        names.append(sorted(name for name, _ in participants))
+        names.append(tuple(sorted(name for name, _ in participants)))
         pairs.append(frozenset(identity for _, identity in participants))
-    return pairs if sorted(names) == sorted(sorted(side) for side in match) else None
+    return pairs if sorted(names) == match else None
 
 
-def distinct_pairs(source, detail, results):
+def distinct_pairs(source, detail, results, player_count):
     # The result rows show names. The tournament roster links those names to
-    # profiles. When the roster is partial or ambiguous, visit the match details.
+    # profiles. A partial roster could omit a player with the same name as
+    # someone it lists, so verify each match directly in that case.
     roster = defaultdict(set)
     for player in detail.select(".tournament-players a[href]"):
         identity = player["href"].rstrip("/")
         if PLAYER_LINK.fullmatch(identity):
             roster[player.get_text(" ", strip=True)].add(identity)
+    roster_complete = len({identity for identities in roster.values() for identity in identities}) == player_count
     pairs = set()
     for path, match in results.items():
         sides = [[roster[name] for name in side] for side in match]
-        if all(len(identities) == 1 for side in sides for identities in side):
+        if roster_complete and all(len(identities) == 1 for side in sides for identities in side):
             entrants = [frozenset(next(iter(identities)) for identities in side) for side in sides]
         else:
             entrants = match_detail_pairs(source, path, match)
@@ -243,12 +262,13 @@ def verified_tournament(source, event_id, event):
     doubles = (pairs is not None or DOUBLES_NAME.search(name) or DOUBLES_NAME.search(detail_name)
                or detail.select_one(f"{DOUBLES_PODIUM} .duo-id"))
     if doubles:
-        results = published_results(source, event_id, side_size=2)
-        if results is None:
+        published = published_results(source, event_id, side_size=2)
+        if published is None:
             return None
+        results, complete = published
         tournament = {"id": event_id, "name": name, "format": "doubles", "start": start, "end": end}
-        if pairs is None and players is not None:
-            pairs = distinct_pairs(source, detail, results)
+        if pairs is None and players is not None and complete:
+            pairs = distinct_pairs(source, detail, results, players)
         if pairs is not None:
             tournament["pairs"] = pairs
     else:

@@ -52,9 +52,7 @@ class CatalogueTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             fixtures = copytree(ROOT / "fixtures", root / "fixtures")
-            roster = fixtures / "events/941.html"
-            roster.write_text(roster.read_text(encoding="utf-8").replace(
-                '<a href="/players/40">Çingiz Nadirov</a>', '<a href="/players/40">Çingiz</a>'), encoding="utf-8")
+            (fixtures / "matches/30912.html").unlink()
             output = root / "tournaments-v1.json"
 
             # act
@@ -67,6 +65,45 @@ class CatalogueTest(unittest.TestCase):
             self.assertEqual(tournament["format"], "doubles")
             self.assertNotIn("pairs", tournament)
             self.assertNotIn("players", tournament)
+
+    def test_partial_roster_can_distinguish_partners_who_share_a_published_name(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            event = fixtures / "events/941.html"
+            event.write_text(event.read_text(encoding="utf-8").replace(">6<", ">7<"), encoding="utf-8")
+            match = fixtures / "matches/30912.html"
+            match.write_text(match.read_text(encoding="utf-8").replace("/players/40", "/players/41"), encoding="utf-8")
+            output = root / "tournaments-v1.json"
+
+            # act
+            result = self.generate(fixtures, output)
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
+            tournament = next(entry for entry in entries if entry["id"] == 941)
+            self.assertEqual(tournament["pairs"], 5)
+
+    def test_verified_doubles_with_an_unusable_later_match_keeps_the_card_without_a_count(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            page = fixtures / "matches/results/event/941-page-2.html"
+            page.write_text(page.read_text(encoding="utf-8").replace(">3-1<", ">—<"), encoding="utf-8")
+            output = root / "tournaments-v1.json"
+
+            # act
+            result = self.generate(fixtures, output)
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
+            tournament = next(entry for entry in entries if entry["id"] == 941)
+            self.assertEqual(tournament["format"], "doubles")
+            self.assertNotIn("pairs", tournament)
 
     def test_a_broken_index_leaves_the_previous_output_in_place(self):
         # arrange
