@@ -1,11 +1,15 @@
 package az.tabletennis;
 
+import static androidx.test.espresso.Espresso.onData;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.Espresso.pressBack;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
+import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
+import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
@@ -13,6 +17,8 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anything;
 
 import android.content.Context;
 import android.graphics.Rect;
@@ -36,6 +42,55 @@ public class ResultsDeviceTest {
             + EVENT + " · Tək · Turnir · " + STAGE;
     private static final String DOUBLES_DUEL = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel";
+
+    @Test public void singlesMenuSearchOpensTheTournamentAndItsSavedMatch() throws Exception {
+        // arrange
+        givenSavedResults();
+        givenSavedTournaments();
+
+        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // act
+            onView(withId(R.id.open_menu)).perform(click());
+            onView(withId(R.id.destination_singles_tournaments)).perform(click());
+            onView(withId(R.id.search)).perform(replaceText("baki"), closeSoftKeyboard());
+
+            // assert
+            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
+                    .check(matches(hasDescendant(withText(EVENT))));
+            onView(withText("14.11.2026 – 16.11.2026")).check(matches(isDisplayed()));
+            onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+            capture("singles-tournaments");
+
+            // act
+            onView(withText(EVENT)).perform(click());
+            onView(withId(R.id.match_stage_badge)).perform(scrollTo());
+
+            // assert
+            onView(withContentDescription(CARD)).check(matches(hasDescendant(withText(STAGE))));
+            capture("tournament-results");
+
+            // act
+            onView(allOf(withText("İlqar Həsənov"), isDescendantOfA(withContentDescription(CARD))))
+                    .perform(scrollTo(), click());
+
+            // assert
+            onView(withId(R.id.match_score_left)).check(matches(withText("3")));
+            onView(withId(R.id.match_score_right)).check(matches(withText("1")));
+
+            // act
+            pressBack();
+            pressBack();
+
+            // assert
+            onView(withId(R.id.search)).check(matches(withText("baki")));
+
+            // act
+            pressBack();
+
+            // assert
+            onView(withId(R.id.players_mode)).check(matches(isChecked()));
+        }
+    }
 
     @Test public void resultsCardsFiltersAndBackRetainTheSelectedFeed() throws Exception {
         // arrange
@@ -188,6 +243,22 @@ public class ResultsDeviceTest {
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva"), new MatchDetails.PlayerLink(14, "Işıl Əliyeva")),
                 "15 Nov. 2026", "18:00", "3-2", "Duello");
         new SavedDataStore<>(context, "match-501", MatchDetails.class).write(new SavedData<>(details, now));
+    }
+
+    private void givenSavedTournaments() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        long now = System.currentTimeMillis();
+        new RankingsStore(context).write(new RankingSnapshot(
+                asList(new RankingSnapshot.Player(12, "İlqar Həsənov", 800)), now));
+        TournamentCatalogue catalogue = TournamentCatalogue.parse("""
+                {"version":1,"tournaments":[
+                  {"id":901,"name":"Bakı həvəskarlar kuboku 2026","format":"singles",
+                   "start":"2026-11-14","end":"2026-11-16","players":24,"prize":"0 AZN"},
+                  {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-12","end":"2026-11-12"}
+                ]}
+                """);
+        new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
+                .write(new SavedData<>(catalogue, now));
     }
 
     private void givenSavedResults() throws Exception {

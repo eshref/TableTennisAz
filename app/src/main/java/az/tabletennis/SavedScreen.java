@@ -64,7 +64,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
                 back.setTextSize(28);
                 back.setPadding(0, 0, 0, 0);
                 bar.addView(back, new LinearLayout.LayoutParams(dp(48), -2));
-                TextView title = label(getString(detailTitle()), 22);
+                TextView title = label(detailHeading(), 22);
                 if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
                 bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
                 refresh = button("↻", () -> refresh(false));
@@ -98,19 +98,29 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
         root.addView(retry);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        scroll = new ScrollView(this);
-        scroll.setId(R.id.main_scroll);
         if (chrome != null) {
-            root.addView(content);
-            scroll.addView(root);
-            chrome.body.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
+            if (usesScrollView()) {
+                scroll = createScrollView();
+                root.addView(content);
+                scroll.addView(root);
+                chrome.body.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
+            } else {
+                root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
+                chrome.body.addView(root, new LinearLayout.LayoutParams(-1, -1));
+            }
             if (state != null && state.getBoolean("drawer")) chrome.openDrawer();
         } else {
+            scroll = createScrollView();
             scroll.addView(content);
             root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
             setContentView(root);
         }
+    }
 
+    private ScrollView createScrollView() {
+        ScrollView view = new ScrollView(this);
+        view.setId(R.id.main_scroll);
+        return view;
     }
 
     protected final void select(String key, Class<T> type) {
@@ -182,6 +192,8 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
 
     protected MainScreenChrome.Destination mainDestination() { return null; }
     protected int detailTitle() { return 0; }
+    protected String detailHeading() { return getString(detailTitle()); }
+    protected boolean usesScrollView() { return true; }
 
     protected interface Fetch<V> { V load() throws IOException; }
     protected abstract Fetch<T> request(T previous, boolean more);
@@ -209,7 +221,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
             updated.setText(getString(R.string.updated_at, format.format(new Date(dataUpdatedAt()))));
             render(saved.value);
         }
-        if (chrome != null || detailTitle() != 0) {
+        if (scroll != null && (chrome != null || detailTitle() != 0)) {
             int position = scrollPositions.getInt(selectionKey, 0);
             int version = selectionVersion;
             restoringScroll = true;
@@ -253,7 +265,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     }
 
     private void rememberScroll() {
-        if (!restoringScroll && (chrome != null || detailTitle() != 0) && selectionKey != null)
+        if (scroll != null && !restoringScroll && (chrome != null || detailTitle() != 0) && selectionKey != null)
             scrollPositions.putInt(selectionKey, scroll.getScrollY());
     }
 

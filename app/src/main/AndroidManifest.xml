@@ -9,6 +9,8 @@
         <activity android:name=".MatchActivity" android:exported="false" />
         <activity android:name=".ChartActivity" android:exported="false" />
         <activity android:name=".ResultsActivity" android:exported="false" />
+        <activity android:name=".SinglesTournamentsActivity" android:exported="false" />
+        <activity android:name=".TournamentResultsActivity" android:exported="false" />
         <activity android:name=".DuelsActivity" android:exported="false" />
         <activity android:name=".PairResultsActivity" android:exported="false" />
         <activity android:name=".RankingsActivity" android:exported="true">

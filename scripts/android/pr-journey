@@ -16,6 +16,8 @@ while IFS= read -r -d '' path; do
             screens=(rating-history) ;;
         app/src/main/java/az/tabletennis/ResultsActivity.java|app/src/main/java/az/tabletennis/ResultsSelection.java|\
         app/src/main/java/az/tabletennis/DuelsActivity.java|app/src/main/java/az/tabletennis/MatchFeedActivity.java|\
+        app/src/main/java/az/tabletennis/SinglesTournamentsActivity.java|app/src/main/java/az/tabletennis/TournamentCatalogue.java|\
+        app/src/main/java/az/tabletennis/TournamentResultsActivity.java|\
         app/src/androidTest/java/az/tabletennis/ResultsDeviceTest.java)
             screens=(results) ;;
         app/src/main/java/az/tabletennis/PairResultsActivity.java|app/src/main/java/az/tabletennis/DoublesHistoryView.java|app/src/androidTest/java/az/tabletennis/DoublesProfileDeviceTest.java)

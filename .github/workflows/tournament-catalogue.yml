@@ -1,0 +1,72 @@
+name: Tournament catalogue
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'scripts/tournament-catalogue/**'
+      - '.github/workflows/tournament-catalogue.yml'
+  pull_request:
+    paths:
+      - 'scripts/tournament-catalogue/**'
+      - '.github/workflows/tournament-catalogue.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tournament-catalogue-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt
+      - run: python -m unittest discover -s scripts/tournament-catalogue -v
+
+  build:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt
+      - name: Generate the catalogue for the existing site
+        run: |
+          cp -a docs pages-source
+          python scripts/tournament-catalogue/generate.py pages-source/tournaments-v1.json
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./pages-source
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v3
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
