@@ -23,7 +23,7 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
     @Before public void prepareProductWebsite() throws Exception {
         website.put("/players?level=amateur", html("amateur.html").getBody().readUtf8());
         website.put("/players?level=pro", html("pro.html").getBody().readUtf8());
-        server.setDispatcher(new Dispatcher() {
+        Dispatcher fixtures = new Dispatcher() {
             @Override public MockResponse dispatch(RecordedRequest request) {
                 java.util.function.Supplier<MockResponse> response = responses.get(request.getPath());
                 if (response != null) return response.get();
@@ -31,7 +31,9 @@ public abstract class ProductUiScenario extends RankingsUiScenario {
                 return body == null ? new MockResponse().setResponseCode(404)
                         : new MockResponse().setHeader("Content-Type", "text/html; charset=utf-8").setBody(body);
             }
-        });
+        };
+        server.setDispatcher(fixtures);
+        catalogueServer.setDispatcher(fixtures);
         for (java.io.File file : org.robolectric.RuntimeEnvironment.getApplication().getFilesDir().listFiles()) {
             if (file.getName().startsWith("saved-")) file.delete();
         }

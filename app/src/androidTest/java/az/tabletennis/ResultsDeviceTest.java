@@ -10,6 +10,7 @@ import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
+import static androidx.test.espresso.matcher.ViewMatchers.hasSibling;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
@@ -22,6 +23,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
+import static org.hamcrest.Matchers.not;
 
 import android.content.Context;
 import android.graphics.Rect;
@@ -60,6 +62,67 @@ public class ResultsDeviceTest {
     private static final String OLDER_DOUBLES_EVENT = "Gəncə Qoşa Kuboku";
     private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
+
+    @Test public void menuAndCategoryDotsClearIndependentlyWhenTheirListsOpen() throws Exception {
+        // arrange
+        givenNewTournaments();
+        Matcher<View> singlesDot = allOf(withId(R.id.new_tournaments_dot),
+                hasSibling(withId(R.id.destination_singles_tournaments)));
+        Matcher<View> doublesDot = allOf(withId(R.id.new_tournaments_dot),
+                hasSibling(withId(R.id.destination_doubles_tournaments)));
+
+        // act
+        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // assert
+            onView(withId(R.id.menu_new_tournaments_dot)).check(matches(isDisplayed()));
+            capture("tournament-menu-dot");
+
+            // act
+            onView(withId(R.id.open_menu)).perform(click());
+
+            // assert
+            onView(singlesDot).check(matches(isDisplayed()));
+
+            // act
+            onView(withId(R.id.destination_doubles_tournaments)).perform(scrollTo());
+
+            // assert
+            onView(doublesDot).check(matches(isDisplayed()));
+            capture("tournament-category-dots");
+
+            // act
+            onView(withId(R.id.destination_singles_tournaments)).perform(scrollTo(), click());
+
+            // assert
+            onView(withId(R.id.tournament_cards)).check(matches(isDisplayed()));
+            onView(withId(R.id.menu_new_tournaments_dot)).check(matches(isDisplayed()));
+
+            // act
+            pressBack();
+            scenario.recreate();
+            onView(withId(R.id.open_menu)).perform(click());
+
+            // assert
+            onView(singlesDot).check(matches(not(isDisplayed())));
+
+            // act
+            onView(withId(R.id.destination_doubles_tournaments)).perform(scrollTo());
+
+            // assert
+            onView(doublesDot).check(matches(isDisplayed()));
+            capture("tournament-doubles-dot");
+
+            // act
+            onView(withId(R.id.destination_doubles_tournaments)).perform(scrollTo(), click());
+
+            // assert
+            onView(withId(R.id.tournament_cards)).check(matches(isDisplayed()));
+            onView(withId(R.id.menu_new_tournaments_dot)).check(matches(not(isDisplayed())));
+
+            // act
+            pressBack();
+        }
+    }
 
     @Test public void singlesMenuSearchOpensTheTournamentAndItsSavedMatch() throws Exception {
         // arrange
@@ -375,6 +438,26 @@ public class ResultsDeviceTest {
         givenPortrait(portraits, 70, "xeyal.png");
         givenPortrait(portraits, 74, "maryam.png");
         givenPortrait(portraits, 13, "ilqar.png");
+    }
+
+    private void givenNewTournaments() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        long now = System.currentTimeMillis();
+        new RankingsStore(context).write(new RankingSnapshot(
+                asList(new RankingSnapshot.Player(12, "İlqar Həsənov", 800)), now));
+        if (!context.getSharedPreferences("tournament-acknowledgements", Context.MODE_PRIVATE).edit().clear().commit())
+            throw new IllegalStateException("Cannot reset tournament acknowledgement");
+        TournamentCatalogue baseline = TournamentCatalogue.parse("""
+                {"version":1,"firstListed":{"901":100},"tournaments":[]}
+                """).withDeviceHistory(null);
+        TournamentCatalogue updated = TournamentCatalogue.parse("""
+                {"version":1,"firstListed":{"901":100,"902":200,"905":200},"tournaments":[
+                  {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-17","end":"2026-11-17"},
+                  {"id":905,"name":"Bakı Qoşa Kuboku 2026","format":"doubles","start":"2026-11-18","end":"2026-11-18"}
+                ]}
+                """).withDeviceHistory(baseline);
+        new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
+                .write(new SavedData<>(updated, now));
     }
 
     private void givenPortrait(File directory, long playerId, String asset) throws Exception {

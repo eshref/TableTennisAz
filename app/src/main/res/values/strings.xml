@@ -116,6 +116,7 @@
         <item quantity="other">%1$d. %2$s — %3$d xal</item>
     </plurals>
     <string name="open_menu">Əsas menyunu aç</string>
+    <string name="new_tournaments_description">%1$s, yeni turnirlər var</string>
     <string name="close_menu">Menyunu bağla</string>
     <string name="drawer_caption">Azərbaycan stolüstü tennis</string>
     <string name="offline_saved">İnternet bağlantısı yoxdur. Saxlanmış məlumat göstərilir.</string>

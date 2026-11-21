@@ -9,6 +9,8 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
 
+from bs4 import BeautifulSoup
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -46,7 +48,11 @@ class CatalogueTest(unittest.TestCase):
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), {
+            catalogue = json.loads(output.read_text(encoding="utf-8"))
+            first_listed = catalogue.pop("firstListed")
+            self.assertEqual(set(first_listed), {"7", "805", "941", "944", "990", "991", "992", "993"})
+            self.assertEqual(len(set(first_listed.values())), 1)
+            self.assertEqual(catalogue, {
                 "version": 1,
                 "tournaments": [
                     {"id": 944, "name": "BTTC Şəxsi Reytinq Turniri", "format": "singles",
@@ -70,6 +76,72 @@ class CatalogueTest(unittest.TestCase):
                      "start": "2021-10-11", "end": "2021-10-11"},
                 ],
             })
+
+    def test_publication_preserves_first_index_observations_across_late_classification_and_reappearance(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            index = fixtures / "matches/results.html"
+            complete_index = index.read_text(encoding="utf-8")
+            # Event 7 is absent in the first crawl. Event 944 is listed but has no event page yet.
+            initial_index = BeautifulSoup(complete_index, "html.parser")
+            initial_index.select_one('a[href="/matches/results/event/7"]').decompose()
+            index.write_text(str(initial_index), encoding="utf-8")
+            event = fixtures / "events/944.html"
+            published_detail = event.read_bytes()
+            event.unlink()
+            output = root / "tournaments-v1.json"
+
+            # act
+            initial = self.generate(fixtures, output)
+
+            # assert
+            self.assertEqual(initial.returncode, 0, initial.stderr)
+            baseline = json.loads(output.read_text(encoding="utf-8"))
+
+            # arrange
+            next_index = BeautifulSoup(complete_index, "html.parser")
+            next_index.select_one('a[href="/matches/results/event/805"]').decompose()
+            index.write_text(str(next_index), encoding="utf-8")
+            event.write_bytes(published_detail)
+
+            # act
+            updated = self.generate(fixtures, output, previous=output)
+
+            # assert
+            self.assertEqual(updated.returncode, 0, updated.stderr)
+            self.assertNotIn(944, [entry["id"] for entry in baseline["tournaments"]])
+            self.assertIn("944", baseline["firstListed"])
+            catalogue = json.loads(output.read_text(encoding="utf-8"))
+            self.assertIn(944, [entry["id"] for entry in catalogue["tournaments"]])
+            self.assertEqual({key: catalogue["firstListed"][key] for key in baseline["firstListed"]},
+                             baseline["firstListed"])
+            self.assertGreater(catalogue["firstListed"]["7"], max(baseline["firstListed"].values()))
+
+            # arrange
+            index.write_text(complete_index, encoding="utf-8")
+
+            # act
+            reappeared = self.generate(fixtures, output, previous=output)
+
+            # assert
+            self.assertEqual(reappeared.returncode, 0, reappeared.stderr)
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["firstListed"], catalogue["firstListed"])
+
+    def test_migrates_a_legacy_publication_with_an_id_that_left_the_results_index(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "tournaments-v1.json"
+            output.write_text('{"version":1,"tournaments":[{"id":123}]}', encoding="utf-8")
+
+            # act
+            result = self.generate(ROOT / "fixtures", output, previous=output)
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            first_listed = json.loads(output.read_text(encoding="utf-8"))["firstListed"]
+            self.assertEqual(first_listed["123"], first_listed["944"])
 
     def test_verified_doubles_with_unresolved_partners_keeps_the_card_without_a_count(self):
         # arrange
@@ -196,7 +268,7 @@ class CatalogueTest(unittest.TestCase):
             entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
             self.assertEqual([entry["id"] for entry in entries], [944, 941, 993])
 
-    def generate(self, fixtures, output, *, unavailable=()):
+    def generate(self, fixtures, output, *, unavailable=(), previous=None):
         handler = functools.partial(FixtureHandler, directory=fixtures, unavailable=unavailable)
         with ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
             thread = Thread(target=server.serve_forever, daemon=True)
@@ -204,7 +276,8 @@ class CatalogueTest(unittest.TestCase):
             try:
                 return subprocess.run(
                     [sys.executable, str(ROOT / "generate.py"),
-                     "--source", f"http://127.0.0.1:{server.server_port}", str(output)],
+                     "--source", f"http://127.0.0.1:{server.server_port}",
+                     *(["--previous", str(previous)] if previous else []), str(output)],
                     capture_output=True, text=True, timeout=15,
                 )
             finally:

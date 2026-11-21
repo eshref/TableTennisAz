@@ -84,8 +84,14 @@ public class RankingsActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        chrome.observeTournamentDots();
         render();
         refreshIfStale();
+    }
+
+    @Override protected void onPause() {
+        chrome.stopObservingTournamentDots();
+        super.onPause();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {

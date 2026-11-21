@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.os.Bundle;
 import java.util.Collections;
 
@@ -13,9 +14,9 @@ public class DuelsActivity extends MatchFeedActivity {
 
     @Override protected MainScreenChrome.Destination mainDestination() { return MainScreenChrome.Destination.DUELS; }
 
-    @Override protected Fetch<ResultsFeed> request(ResultsFeed previous, boolean more) {
-        return () -> new WebsiteSource(application.websiteUrl())
-                .feed(previous, more, new EventCatalog(Collections.emptyList()), DUELS);
+    @Override protected CompletableFuture<SavedData<ResultsFeed>> request(ResultsFeed previous, boolean more) {
+        return fetch(() -> new WebsiteSource(application.websiteUrl())
+                .feed(previous, more, new EventCatalog(Collections.emptyList()), DUELS), more);
     }
 
     @Override protected void render(ResultsFeed feed) {

@@ -19,7 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import okhttp3.HttpUrl;
+import java.util.concurrent.CompletableFuture;
 
 abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.uuuu", Locale.ROOT);
@@ -27,6 +27,7 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
     private EditText search;
     private ListView list;
     private TextView empty;
+    private boolean viewingList;
     private final TournamentCards cards = new TournamentCards();
 
     @Override public void onCreate(Bundle state) {
@@ -70,27 +71,42 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
 
     @Override protected boolean usesScrollView() { return false; }
 
-    @Override protected Fetch<TournamentCatalogue> request(TournamentCatalogue previous, boolean more) {
-        HttpUrl url = application.tournamentCatalogueUrl();
-        return () -> TournamentCatalogue.parse(new WebsiteClient(url).get(url.encodedPath()));
+    @Override protected void onResume() {
+        viewingList = true;
+        // A catalogue may have refreshed while this activity was behind a match screen.
+        reloadSaved();
+        super.onResume();
+    }
+
+    @Override protected void onPause() {
+        viewingList = false;
+        super.onPause();
+    }
+
+    @Override protected CompletableFuture<SavedData<TournamentCatalogue>> request(TournamentCatalogue previous, boolean more) {
+        return application.tournamentCatalogues().refresh();
     }
 
     @Override protected void render(TournamentCatalogue catalogue) {
         content.addView(empty);
         content.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         updateCards(catalogue);
+        if (viewingList) application.tournamentCatalogues().acknowledge(catalogue, format());
     }
 
     private void updateCards(TournamentCatalogue catalogue) {
         String query = search.getText().toString();
         int noTournaments = showsDoubles() ? R.string.no_doubles_tournaments : R.string.no_singles_tournaments;
         empty.setText(query.trim().isEmpty() ? noTournaments : R.string.no_matching_tournaments);
-        List<TournamentCatalogue.Tournament> matches = catalogue.find(
-                showsDoubles() ? TournamentCatalogue.Format.DOUBLES : TournamentCatalogue.Format.SINGLES, query);
+        List<TournamentCatalogue.Tournament> matches = catalogue.find(format(), query);
         if (!cards.tournaments.equals(matches)) {
             cards.tournaments = matches;
             cards.notifyDataSetChanged();
         }
+    }
+
+    private TournamentCatalogue.Format format() {
+        return showsDoubles() ? TournamentCatalogue.Format.DOUBLES : TournamentCatalogue.Format.SINGLES;
     }
 
     private boolean showsDoubles() {

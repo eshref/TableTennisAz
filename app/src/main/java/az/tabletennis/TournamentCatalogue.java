@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,10 +44,18 @@ final class TournamentCatalogue implements Serializable {
 
     private final List<Tournament> singles;
     private final List<Tournament> doubles;
+    private final Map<Long, Long> firstListed;
+    private final long baseline;
+    private final Map<Format, Set<String>> newSinceBaseline;
 
-    private TournamentCatalogue(List<Tournament> singles, List<Tournament> doubles) {
+    private TournamentCatalogue(List<Tournament> singles, List<Tournament> doubles,
+                                Map<Long, Long> firstListed, long baseline,
+                                Map<Format, Set<String>> newSinceBaseline) {
         this.singles = singles;
         this.doubles = doubles;
+        this.firstListed = firstListed;
+        this.baseline = baseline;
+        this.newSinceBaseline = newSinceBaseline;
     }
 
     static TournamentCatalogue parse(String body) throws IOException {
@@ -54,6 +64,8 @@ final class TournamentCatalogue implements Serializable {
             Object value = input.nextValue();
             if (!(value instanceof JSONObject catalogue) || input.nextClean() != 0
                     || integer(catalogue, "version") != 1) throw new IOException("Unsupported tournament catalogue");
+            Map<Long, Long> firstListed = catalogue.has("firstListed")
+                    ? firstObservations(catalogue.getJSONObject("firstListed")) : null;
             JSONArray rows = catalogue.getJSONArray("tournaments");
             List<Tournament> singles = new ArrayList<>();
             List<Tournament> doubles = new ArrayList<>();
@@ -62,6 +74,8 @@ final class TournamentCatalogue implements Serializable {
                 JSONObject row = rows.getJSONObject(i);
                 long id = integer(row, "id");
                 if (id <= 0 || !identities.add(id)) throw new IOException("Invalid tournament identity");
+                if (firstListed != null && !firstListed.containsKey(id))
+                    throw new IOException("Missing first observation for tournament " + id);
                 switch (text(row, "format")) {
                     case "singles" -> singles.add(tournament(row, id, Format.SINGLES));
                     case "doubles" -> doubles.add(tournament(row, id, Format.DOUBLES));
@@ -72,21 +86,72 @@ final class TournamentCatalogue implements Serializable {
             Comparator<Tournament> newestFirst = Comparator.comparing((Tournament tournament) -> tournament.end).reversed();
             singles.sort(newestFirst);
             doubles.sort(newestFirst);
-            return new TournamentCatalogue(singles, doubles);
+            return new TournamentCatalogue(singles, doubles, firstListed, 0, null);
         } catch (JSONException | DateTimeParseException failure) {
             throw new IOException("Invalid tournament catalogue", failure);
         }
     }
 
+    TournamentCatalogue withDeviceHistory(TournamentCatalogue previous) throws IOException {
+        if (previous != null && previous.firstListed != null
+                && (firstListed == null || !firstListed.entrySet().containsAll(previous.firstListed.entrySet())))
+            throw new IOException("Tournament catalogue lost Results index history");
+        if (firstListed == null) return this;
+        long cutoff = previous != null && previous.baseline > 0
+                ? previous.baseline : Collections.max(firstListed.values());
+        Map<Format, Set<String>> candidates = new EnumMap<>(Format.class);
+        for (Format format : Format.values()) {
+            candidates.put(format, previous == null ? new HashSet<>() : new HashSet<>(previous.newIds(format)));
+        }
+        // A temporary omission preserves a pending ID. A verified format change moves it to its current category.
+        for (Format format : Format.values()) {
+            Format other = format == Format.SINGLES ? Format.DOUBLES : Format.SINGLES;
+            for (Tournament tournament : entries(format)) {
+                if (firstListed.get(tournament.id) <= cutoff) continue;
+                String id = Long.toString(tournament.id);
+                candidates.get(format).add(id);
+                candidates.get(other).remove(id);
+            }
+        }
+        return new TournamentCatalogue(singles, doubles, firstListed, cutoff, candidates);
+    }
+
+    Set<String> newIds(Format format) {
+        return newSinceBaseline == null ? Collections.emptySet() : Collections.unmodifiableSet(newSinceBaseline.get(format));
+    }
+
     List<Tournament> find(Format format, String query) {
-        List<Tournament> entries = format == Format.DOUBLES ? doubles : singles;
-        if (entries == null) return Collections.emptyList(); // A snapshot saved before doubles.
         String term = searchable(query.trim());
         List<Tournament> matches = new ArrayList<>();
-        for (Tournament tournament : entries) {
+        for (Tournament tournament : entries(format)) {
             if (tournament.searchName.contains(term)) matches.add(tournament);
         }
         return matches;
+    }
+
+    private List<Tournament> entries(Format format) {
+        List<Tournament> entries = format == Format.DOUBLES ? doubles : singles;
+        return entries == null ? Collections.emptyList() : entries; // A snapshot saved before doubles.
+    }
+
+    private static Map<Long, Long> firstObservations(JSONObject observations) throws JSONException, IOException {
+        Map<Long, Long> firstListed = new HashMap<>();
+        Iterator<String> keys = observations.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            long id;
+            try {
+                id = Long.parseLong(key);
+            } catch (NumberFormatException invalid) {
+                throw new IOException("Invalid Results index identity", invalid);
+            }
+            long observedAt = integer(observations, key);
+            if (id <= 0 || !key.equals(Long.toString(id)) || observedAt <= 0)
+                throw new IOException("Invalid Results index observation");
+            firstListed.put(id, observedAt);
+        }
+        if (firstListed.isEmpty()) throw new IOException("Missing Results index history");
+        return firstListed;
     }
 
     private static Tournament tournament(JSONObject row, long id, Format format) throws JSONException, IOException {

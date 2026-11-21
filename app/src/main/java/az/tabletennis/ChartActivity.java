@@ -1,5 +1,6 @@
 package az.tabletennis;
 
+import java.util.concurrent.CompletableFuture;
 import android.os.Bundle;
 import android.graphics.Typeface;
 import android.view.View;
@@ -33,8 +34,8 @@ public class ChartActivity extends SavedScreen<RatingHistory> {
         super.onSaveInstanceState(state);
     }
 
-    @Override protected Fetch<RatingHistory> request(RatingHistory previous, boolean more) {
-        return () -> new WebsiteSource(application.websiteUrl()).ratingHistory(playerId);
+    @Override protected CompletableFuture<SavedData<RatingHistory>> request(RatingHistory previous, boolean more) {
+        return fetch(() -> new WebsiteSource(application.websiteUrl()).ratingHistory(playerId), more);
     }
 
     @Override protected void render(RatingHistory history) {

@@ -12,6 +12,7 @@ import java.io.Serializable;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 abstract class SavedScreen<T extends Serializable> extends Activity {
     protected RankingsApplication application;
@@ -136,6 +137,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (chrome != null) chrome.observeTournamentDots();
         if (store == null) return;
         showSaved();
         if (saved == null || SavedData.needsRefresh(dataUpdatedAt(), application.clock().millis())) refresh(false);
@@ -144,6 +146,12 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     protected final void openSelection(String key, Class<T> type) {
         select(key, type);
         if (saved == null || SavedData.needsRefresh(dataUpdatedAt(), application.clock().millis())) refresh(false);
+    }
+
+    protected final void reloadSaved() {
+        if (loading) return;
+        SavedData<T> latest = store.read();
+        if (latest != null && (saved == null || latest.updatedAt != saved.updatedAt)) saved = latest;
     }
 
     protected final void refresh(boolean more) {
@@ -161,33 +169,19 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
         retry.setVisibility(View.GONE);
         progress.setVisibility(View.VISIBLE);
         int version = selectionVersion;
-        SavedDataStore<T> targetStore = store;
         T previous = saved == null ? null : saved.value;
-        long previousUpdate = saved == null ? 0 : dataUpdatedAt();
-        Fetch<T> request = request(previous, more);
-        application.rankingsWorker.execute(() -> {
-            try {
-                T fetched = request.load();
-                SavedData<T> next = new SavedData<>(fetched, retrievalTime(previousUpdate, more));
-                targetStore.write(next);
-                runOnUiThread(() -> {
-                    if (isDestroyed() || version != selectionVersion) return;
-                    loading = false;
-                    saved = next;
-                    showSaved();
-                    if (chrome != null || detailTitle() != 0) status.setText(R.string.refresh_success);
-                    status.setVisibility(View.VISIBLE);
-                });
-            } catch (IOException failure) {
-                runOnUiThread(() -> {
-                    if (isDestroyed() || version != selectionVersion) return;
-                    loading = false;
-                    showSaved();
-                    status.setText(saved == null ? R.string.data_unavailable : R.string.data_saved_failure);
-                    status.setVisibility(View.VISIBLE);
-                });
+        request(previous, more).whenComplete((next, failure) -> runOnUiThread(() -> {
+            if (isDestroyed() || version != selectionVersion) return;
+            loading = false;
+            if (failure == null) saved = next;
+            showSaved();
+            if (failure != null) {
+                status.setText(saved == null ? R.string.data_unavailable : R.string.data_saved_failure);
+            } else if (chrome != null || detailTitle() != 0) {
+                status.setText(R.string.refresh_success);
             }
-        });
+            status.setVisibility(View.VISIBLE);
+        }));
     }
 
     protected MainScreenChrome.Destination mainDestination() { return null; }
@@ -196,8 +190,25 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
     protected boolean usesScrollView() { return true; }
 
     protected interface Fetch<V> { V load() throws IOException; }
-    protected abstract Fetch<T> request(T previous, boolean more);
+    protected abstract CompletableFuture<SavedData<T>> request(T previous, boolean more);
     protected abstract void render(T value);
+
+    protected final CompletableFuture<SavedData<T>> fetch(Fetch<T> request, boolean more) {
+        SavedDataStore<T> targetStore = store;
+        long previousUpdate = saved == null ? 0 : dataUpdatedAt();
+        var pending = new CompletableFuture<SavedData<T>>();
+        application.rankingsWorker.execute(() -> {
+            try {
+                T fetched = request.load();
+                SavedData<T> next = new SavedData<>(fetched, retrievalTime(previousUpdate, more));
+                targetStore.write(next);
+                pending.complete(next);
+            } catch (IOException failure) {
+                pending.completeExceptionally(failure);
+            }
+        });
+        return pending;
+    }
 
     protected long dataUpdatedAt() { return saved.updatedAt; }
     private long retrievalTime(long previousUpdate, boolean more) {
@@ -247,7 +258,10 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
 
     @Override protected void onPause() {
         rememberScroll();
-        if (chrome != null) application.resultsScrollPositions = new Bundle(scrollPositions);
+        if (chrome != null) {
+            chrome.stopObservingTournamentDots();
+            application.resultsScrollPositions = new Bundle(scrollPositions);
+        }
         super.onPause();
     }
 
