@@ -130,9 +130,21 @@ public class SinglesTournamentsActivity extends SavedScreen<TournamentCatalogue>
             name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             name.setPadding(0, 0, 0, dp(4));
             surface.addView(name);
-            dates = fact(surface);
-            players = fact(surface);
-            prize = fact(surface);
+            dates = fact();
+            players = fact();
+            prize = fact();
+            if (getResources().getConfiguration().screenWidthDp >= 600) {
+                LinearLayout facts = new LinearLayout(getContext());
+                facts.setOrientation(HORIZONTAL);
+                facts.addView(dates, new LayoutParams(0, -2, 2));
+                facts.addView(players, new LayoutParams(0, -2, 1));
+                facts.addView(prize, new LayoutParams(0, -2, 1));
+                surface.addView(facts, new LayoutParams(-1, -2));
+            } else {
+                surface.addView(dates);
+                surface.addView(players);
+                surface.addView(prize);
+            }
         }
 
         void bind(TournamentCatalogue.Tournament tournament) {
@@ -146,11 +158,10 @@ public class SinglesTournamentsActivity extends SavedScreen<TournamentCatalogue>
             prize.setText(getString(R.string.tournament_prize, tournament.prize == null ? unknown : tournament.prize));
         }
 
-        private TextView fact(LinearLayout surface) {
+        private TextView fact() {
             TextView view = label("", 14);
             view.setTextColor(getColor(R.color.secondary));
             view.setPadding(0, dp(2), 0, dp(2));
-            surface.addView(view);
             return view;
         }
     }

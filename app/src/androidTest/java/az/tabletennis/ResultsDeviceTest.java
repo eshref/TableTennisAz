@@ -9,6 +9,7 @@ import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
+import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
@@ -16,6 +17,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
 
 import android.content.Context;
@@ -56,11 +58,11 @@ public class ResultsDeviceTest {
             onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
                     .check(matches(hasDescendant(withText(EVENT))));
             onView(withText("14.11.2026 – 16.11.2026")).check(matches(isDisplayed()));
-            onView(withText("Priz: 0 AZN")).check(matches(withText("Priz: 0 AZN")));
+            onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
             capture("singles-tournaments");
 
             // act
-            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0).perform(click());
+            onView(withText(EVENT)).perform(click());
             onView(withId(R.id.match_stage_badge)).perform(scrollTo());
 
             // assert
@@ -68,7 +70,8 @@ public class ResultsDeviceTest {
             capture("tournament-results");
 
             // act
-            onView(withContentDescription(CARD)).perform(scrollTo(), click());
+            onView(allOf(withText("İlqar Həsənov"), isDescendantOfA(withContentDescription(CARD))))
+                    .perform(scrollTo(), click());
 
             // assert
             onView(withId(R.id.match_score_left)).check(matches(withText("3")));
