@@ -37,6 +37,10 @@ public class RankingsApplication extends Application {
         return HttpUrl.get("https://tabletennis.az/");
     }
 
+    protected HttpUrl tournamentCatalogueUrl() {
+        return HttpUrl.get("https://eshref.github.io/TableTennisAz/tournaments-v1.json");
+    }
+
     protected Clock clock() { return Clock.systemUTC(); }
 
     protected boolean isOnline() {

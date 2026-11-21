@@ -21,7 +21,7 @@ its own evidence.
 | Singles and doubles match details | `match` | `MatchDeviceTest` |
 | Player profile and links to history and matches | `profile` | `ProfileDeviceTest` |
 | Dedicated singles rating history | `rating-history` | `RatingHistoryDeviceTest` |
-| Results, event selection, and Duellər | `results` | `ResultsDeviceTest` |
+| Results, event selection, Şəxsi turnirlər, and Duellər | `results` | `ResultsDeviceTest` |
 | Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 

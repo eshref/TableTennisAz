@@ -31,6 +31,7 @@ public abstract class RankingsUiScenario {
         static volatile boolean online;
         @Override protected java.time.Clock clock() { return time; }
         @Override protected HttpUrl websiteUrl() { return url; }
+        @Override protected HttpUrl tournamentCatalogueUrl() { return url.resolve("/tournaments-v1.json"); }
         @Override protected boolean isOnline() { return online; }
     }
 

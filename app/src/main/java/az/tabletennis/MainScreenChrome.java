@@ -24,6 +24,8 @@ import android.widget.Toast;
 final class MainScreenChrome {
     enum Destination {
         RANKINGS(R.string.rankings_title, R.id.destination_rankings, R.drawable.ic_list, RankingsActivity.class),
+        SINGLES_TOURNAMENTS(R.string.singles_tournaments, R.id.destination_singles_tournaments,
+                R.drawable.ic_trophy, SinglesTournamentsActivity.class),
         RESULTS(R.string.results_title, R.id.destination_results, R.drawable.ic_trophy, ResultsActivity.class),
         DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_trophy, DuelsActivity.class);
 

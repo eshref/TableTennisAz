@@ -10,3 +10,16 @@ This extends the [first-release data access decision](0002-direct-website-data-a
 A scheduled job centralizes the source requests and parsing needed to build the
 catalogue. Android fetches the selected tournament's match results and the duel
 feed directly from tabletennis.az.
+
+The [Pages workflow](../../.github/workflows/tournament-catalogue.yml) builds
+the existing site from `docs/`, adds `tournaments-v1.json`, and deploys the
+whole site. After merging the workflow, set the repository's **Settings →
+Pages → Source** to **GitHub Actions** and dispatch **Tournament catalogue**
+on `main` for the first publication. The site URL and the privacy policy URL
+are preserved. Later updates run daily and on changes to the site or generator.
+
+The version 1 document contains a `tournaments` array. Each singles entry
+includes the numeric Results index ID, published name, `singles` format and
+ISO start and end dates. The published player count and total prize are
+optional. The generator verifies individual competition using the event page
+and published match pages. A failed crawl leaves the deployed site available.

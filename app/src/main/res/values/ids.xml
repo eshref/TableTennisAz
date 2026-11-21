@@ -36,6 +36,8 @@
     <item name="drawer" type="id" />
     <item name="destination_rankings" type="id" />
     <item name="destination_results" type="id" />
+    <item name="destination_singles_tournaments" type="id" />
+    <item name="tournament_cards" type="id" />
     <item name="destination_duels" type="id" />
     <item name="privacy_policy" type="id" />
     <item name="main_body" type="id" />
