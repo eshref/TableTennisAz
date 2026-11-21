@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.6.0 - 2026-11-21
+
+- Search completed doubles tournaments in Qoşa turnirlər, see pair counts where
+  available, and open a tournament's match results.
+- See published medalists on the podium for singles and doubles tournaments.
+- Spot new tournaments by the red dots in the menu. Opening a tournament list
+  clears its own dot.
+- Open Reytinq, Şəxsi turnirlər, Qoşa turnirlər, and Duellər directly from the
+  menu.
+
 ## 0.5.0 - 2026-11-21
 
 - Search completed singles tournaments from the Şəxsi turnirlər menu. Open a
