@@ -34,8 +34,11 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Local-only agent docs and skills
-/.agents/
+# Local agent files, with an exception for the shared release skill
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/create-release/
 
 # Visual Studio temp something
 .vs/
