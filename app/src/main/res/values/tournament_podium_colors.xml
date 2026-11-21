@@ -1,0 +1,8 @@
+<resources>
+    <color name="podium_gold">#F4E3AE</color>
+    <color name="podium_on_gold">#6D4B04</color>
+    <color name="podium_silver">#E0E8EC</color>
+    <color name="podium_on_silver">#42566D</color>
+    <color name="podium_bronze">#F1DFD3</color>
+    <color name="podium_on_bronze">#764529</color>
+</resources>

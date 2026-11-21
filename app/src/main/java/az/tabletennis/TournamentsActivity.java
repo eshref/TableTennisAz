@@ -117,6 +117,7 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
         private final TextView dates;
         private final TextView entrants;
         private final TextView prize;
+        private final TournamentPodiumView podium;
 
         TournamentCard() {
             super(TournamentsActivity.this);
@@ -149,6 +150,10 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
                 surface.addView(entrants);
                 surface.addView(prize);
             }
+            podium = new TournamentPodiumView(getContext());
+            LayoutParams podiumSize = new LayoutParams(-1, -2);
+            podiumSize.topMargin = dp(8);
+            surface.addView(podium, podiumSize);
         }
 
         void bind(TournamentCatalogue.Tournament tournament) {
@@ -161,6 +166,7 @@ abstract class TournamentsActivity extends SavedScreen<TournamentCatalogue> {
             entrants.setText(getString(showsDoubles() ? R.string.tournament_pairs : R.string.tournament_players,
                     count == null ? unknown : count.toString()));
             prize.setText(getString(R.string.tournament_prize, tournament.prize == null ? unknown : tournament.prize));
+            podium.bind(tournament.podium(), application);
         }
 
         private TextView fact() {

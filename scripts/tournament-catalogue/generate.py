@@ -10,7 +10,7 @@ import sys
 from tempfile import NamedTemporaryFile
 from time import sleep
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 from urllib.request import Request, urlopen
 
 from bs4 import BeautifulSoup, SoupStrainer
@@ -18,34 +18,45 @@ from bs4 import BeautifulSoup, SoupStrainer
 SITE = "https://tabletennis.az"
 INDEX = "/matches/results"
 EVENT_LINK = re.compile(r"/matches/results/event/([1-9][0-9]*)/?")
-PLAYER_LINK = re.compile(r"/players/[1-9][0-9]*/?")
+PLAYER_LINK = re.compile(r"/players/([1-9][0-9]*)/?")
 MATCH_LINK = re.compile(r"/matches/[1-9][0-9]*/?")
 TEAM_NAME = re.compile(r"\b(?:komanda(?:lar)?|teams?)\b", re.IGNORECASE)
 TEAM_MARKUP = ".team-ranking-list, .team-match-box, .team-matches-match"
 DOUBLES_NAME = re.compile(r"\b(?:qoşa(?:lar)?|doubles|cüt(?:lər|lük|lüklər)?)\b", re.IGNORECASE)
 DOUBLES_PODIUM = ".winners-div .rank-duo-box"
+MEDALS = ("gold", "silver", "bronze")
+SINGLES_PLACES = (".first-place", ".second-place", ".third-place")
 PAIR_COUNT_LABELS = ("Qoşa sayı", "Qoşalar", "Cüt sayı", "Cütlük sayı", "Cütlüklər")
 
 
-def fetch(source, path):
+def fetch(source, path, *, optional=False):
+    body = fetch_body(source, path, "text/html", optional=optional)
+    if body is not None:
+        return BeautifulSoup(body, "html.parser", from_encoding="utf-8", parse_only=SoupStrainer(id="center"))
+    return None
+
+
+def fetch_body(source, path, accept, *, optional=False):
     request = Request(source + path, headers={
         "User-Agent": "TableTennisAz tournament catalogue",
         "Accept-Language": "az-AZ,az;q=0.9",
+        "Accept": accept,
     })
     for attempt in range(3):
         try:
             with urlopen(request, timeout=25) as response:
-                return BeautifulSoup(response.read(), "html.parser", from_encoding="utf-8",
-                                     parse_only=SoupStrainer(id="center"))
+                return response.read()
         except HTTPError as error:
             if error.code in (404, 410):
                 return None
-            if error.code not in (408, 429) and error.code < 500:
-                raise
-            if attempt == 2:
+            if attempt == 2 or (error.code not in (408, 429) and error.code < 500):
+                if optional:
+                    return None
                 raise
         except (URLError, TimeoutError):
             if attempt == 2:
+                if optional:
+                    return None
                 raise
         sleep(2 ** attempt)
 
@@ -90,10 +101,11 @@ def individual_entrants(detail):
     # it with the tournament standings and every published result page.
     players = {link["href"].rstrip("/") for link in detail.select(".tournament-players a[href]")
                if PLAYER_LINK.fullmatch(link["href"])}
-    return len(players) >= 2 or detail.select_one(
-        ".winners-div .first-place a[href^='/players/'], .winners-div .second-place a[href^='/players/'], "
-        ".winners-div .third-place a[href^='/players/']"
-    ) is not None
+    return len(players) >= 2 or any(singles_place_links(detail, selector) for selector in SINGLES_PLACES)
+
+
+def singles_place_links(detail, selector):
+    return detail.select(f".winners-div {selector} a[href^='/players/']")
 
 
 def published_results(source, event_id, side_size):
@@ -233,6 +245,91 @@ def distinct_pairs(source, detail, results, player_count):
     return len(pairs)
 
 
+def portrait_path(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        url = urlsplit(urljoin(SITE, value.strip()))
+        if (url.scheme not in ("https", "http") or url.netloc not in ("tabletennis.az", "www.tabletennis.az")
+                or url.path.startswith("//") or url.path in ("", "/")
+                or url.path.lower() == "/assets/img/person.png"):
+            return None
+    except ValueError:
+        return None
+    return url.path + ("?" + url.query if url.query else "")
+
+
+def medalist(player_id, name, picture):
+    if type(player_id) is not int or player_id <= 0 or not isinstance(name, str) or not name.strip():
+        return None
+    player = {"id": player_id, "name": " ".join(name.split())}
+    if photo := portrait_path(picture):
+        player["photo"] = photo
+    return player
+
+
+def singles_podium(source, detail):
+    roster = {link["href"].rstrip("/"): link.get_text(" ", strip=True)
+              for link in detail.select(".tournament-players a[href]")}
+    podium = {}
+    for medal, selector in zip(MEDALS, SINGLES_PLACES):
+        links = singles_place_links(detail, selector)
+        if len(links) != 1:
+            continue
+        link = links[0]
+        path = link["href"].rstrip("/")
+        identity = PLAYER_LINK.fullmatch(path)
+        if not identity:
+            continue
+        place = link.find_parent(class_=selector[1:])
+        picture = place.select_one("img[src]")
+        name = roster.get(path)
+        if not name:
+            profile = fetch(source, path, optional=True)
+            if profile is None:
+                continue
+            profile_name = profile.select_one(".player-block .name-div")
+            profile_id = profile.select_one("#chart-user-id")
+            if not profile_name or not profile_id or profile_id.get_text(strip=True) != identity[1]:
+                continue
+            name = profile_name.get_text(" ", strip=True)
+        player = medalist(int(identity[1]), name, picture["src"] if picture else None)
+        if player:
+            podium[medal] = [player]
+    return podium
+
+
+def published_pair(source, pair_id):
+    body = fetch_body(source, f"/api/getDuoInfo?id={pair_id}", "application/json", optional=True)
+    if body is None:
+        return None
+    try:
+        pair = json.loads(body)
+        if urlsplit(pair["resultsUrl"]).path.rstrip("/") != f"/matches/results/duo/{pair_id}":
+            return None
+        players = [medalist(pair[f"player{number}Id"], pair[f"player{number}FullName"],
+                            pair.get(f"player{number}PictureUrl")) for number in (1, 2)]
+    except (KeyError, TypeError, AttributeError, ValueError):
+        return None
+    return players if all(players) and players[0]["id"] != players[1]["id"] else None
+
+
+def doubles_podium(source, detail):
+    # The winners section lists gold, silver and bronze in order. The displayed
+    # doubles ranking positions and career medal counts are unrelated to the event.
+    rows = detail.select(DOUBLES_PODIUM)
+    if len(rows) != len(MEDALS):
+        return {}
+    ids = [row.select_one(".duo-id") for row in rows]
+    ids = [identity.get_text(strip=True) if identity else "" for identity in ids]
+    known_ids = [identity for identity in ids if re.fullmatch(r"[1-9][0-9]*", identity)]
+    podium = {}
+    for medal, pair_id in zip(MEDALS, ids):
+        if known_ids.count(pair_id) == 1 and (players := published_pair(source, pair_id)):
+            podium[medal] = players
+    return podium
+
+
 def verified_tournament(source, event_id, event):
     name, index_fields = event
     if TEAM_NAME.search(name):
@@ -271,6 +368,7 @@ def verified_tournament(source, event_id, event):
             pairs = distinct_pairs(source, detail, results, players)
         if pairs is not None:
             tournament["pairs"] = pairs
+        podium = doubles_podium(source, detail)
     else:
         if (detail.select_one(DOUBLES_PODIUM) or not individual_entrants(detail)
                 or published_results(source, event_id, side_size=1) is None):
@@ -278,6 +376,9 @@ def verified_tournament(source, event_id, event):
         tournament = {"id": event_id, "name": name, "format": "singles", "start": start, "end": end}
         if players is not None:
             tournament["players"] = players
+        podium = singles_podium(source, detail)
+    if podium:
+        tournament["podium"] = podium
     for prize in (event_fields.get("Priz", ""), index_fields.get("Priz", "")):
         if re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?\s+AZN", prize):
             tournament["prize"] = prize

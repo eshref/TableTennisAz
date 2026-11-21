@@ -13,7 +13,20 @@ ROOT = Path(__file__).resolve().parent
 
 
 class FixtureHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, unavailable, **kwargs):
+        self.unavailable = unavailable
+        super().__init__(*args, **kwargs)
+
+    def do_GET(self):
+        if self.path in self.unavailable:
+            self.send_error(503)
+        else:
+            super().do_GET()
+
     def translate_path(self, path):
+        if path.startswith("/api/getDuoInfo?id="):
+            pair_id = path.partition("=")[2]
+            return super().translate_path(f"/api/getDuoInfo-{pair_id}.json")
         route, _, query = path.partition("?page=")
         suffix = f"-page-{query}" if query else ""
         return super().translate_path(f"{route}{suffix}.html")
@@ -37,9 +50,20 @@ class CatalogueTest(unittest.TestCase):
                 "version": 1,
                 "tournaments": [
                     {"id": 944, "name": "BTTC Şəxsi Reytinq Turniri", "format": "singles",
-                     "start": "2026-11-19", "end": "2026-11-20", "players": 9, "prize": "0 AZN"},
+                     "start": "2026-11-19", "end": "2026-11-20", "players": 9, "prize": "0 AZN",
+                     "podium": {
+                         "gold": [{"id": 4, "name": "Məzahir Həsənov", "photo": "/uploads/players-4.png"}],
+                         "silver": [{"id": 20, "name": "Etibar Yunusov"}],
+                         "bronze": [{"id": 877, "name": "Səid Quluzadə", "photo": "/uploads/players-877.png"}],
+                     }},
                     {"id": 941, "name": "BTTC Qoşa Reytinq Turniri #120", "format": "doubles",
-                     "start": "2026-11-18", "end": "2026-11-18", "pairs": 4, "prize": "100 AZN"},
+                     "start": "2026-11-18", "end": "2026-11-18", "pairs": 4, "prize": "100 AZN",
+                     "podium": {
+                         "gold": [{"id": 13, "name": "İlqar Həsənov", "photo": "/uploads/players-13.png"},
+                                  {"id": 37, "name": "Məmmədağa Rüstəmov", "photo": "/uploads/players-37.png"}],
+                         "silver": [{"id": 99, "name": "Əli Heydərli"}, {"id": 636, "name": "Tatiana Aliulina"}],
+                         "bronze": [{"id": 457, "name": "Xaliq Becanov"}, {"id": 144, "name": "Oskar Məhərrəmov"}],
+                     }},
                     {"id": 993, "name": "Bakı Kuboku #993", "format": "doubles",
                      "start": "2026-11-15", "end": "2026-11-16", "pairs": 8, "prize": "0 AZN"},
                     {"id": 7, "name": "Table Tennis Baku Cup #3", "format": "singles",
@@ -65,6 +89,22 @@ class CatalogueTest(unittest.TestCase):
             self.assertEqual(tournament["format"], "doubles")
             self.assertNotIn("pairs", tournament)
             self.assertNotIn("players", tournament)
+
+    def test_unavailable_pair_metadata_does_not_hide_other_published_placements(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "tournaments-v1.json"
+
+            # act
+            result = self.generate(ROOT / "fixtures", output, unavailable=("/api/getDuoInfo?id=413",))
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
+            podium = next(entry for entry in entries if entry["id"] == 941)["podium"]
+            self.assertEqual(set(podium), {"gold", "bronze"})
+            self.assertEqual([player["id"] for player in podium["bronze"]], [457, 144])
 
     def test_partial_roster_can_distinguish_partners_who_share_a_published_name(self):
         # arrange
@@ -156,8 +196,8 @@ class CatalogueTest(unittest.TestCase):
             entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
             self.assertEqual([entry["id"] for entry in entries], [944, 941, 993])
 
-    def generate(self, fixtures, output):
-        handler = functools.partial(FixtureHandler, directory=fixtures)
+    def generate(self, fixtures, output, *, unavailable=()):
+        handler = functools.partial(FixtureHandler, directory=fixtures, unavailable=unavailable)
         with ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
