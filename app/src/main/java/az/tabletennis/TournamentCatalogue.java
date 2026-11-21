@@ -8,9 +8,11 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.json.JSONArray;
@@ -20,6 +22,18 @@ import org.json.JSONTokener;
 
 final class TournamentCatalogue implements Serializable {
     enum Format { SINGLES, DOUBLES }
+
+    enum Medal {
+        GOLD("gold", 1), SILVER("silver", 2), BRONZE("bronze", 3);
+
+        final String key;
+        final int place;
+
+        Medal(String key, int place) {
+            this.key = key;
+            this.place = place;
+        }
+    }
 
     static final String STORE_KEY = "tournaments";
     private static final long serialVersionUID = 1L;
@@ -86,7 +100,33 @@ final class TournamentCatalogue implements Serializable {
         String prize = row.isNull("prize") ? null : text(row, "prize");
         if (prize != null && !PRIZE.matcher(prize).matches()) throw new IOException("Invalid tournament prize");
         return new Tournament(id, name, start, end,
-                format == Format.SINGLES ? count : null, format == Format.DOUBLES ? count : null, prize);
+                format == Format.SINGLES ? count : null, format == Format.DOUBLES ? count : null, prize,
+                podium(row.optJSONObject("podium"), format == Format.DOUBLES ? 2 : 1));
+    }
+
+    private static Map<Medal, List<Medalist>> podium(JSONObject podium, int entrantsPerPlace) {
+        Map<Medal, List<Medalist>> placements = new EnumMap<>(Medal.class);
+        if (podium == null) return placements;
+        for (Medal medal : Medal.values()) {
+            JSONArray entrants = podium.optJSONArray(medal.key);
+            if (entrants == null || entrants.length() != entrantsPerPlace) continue;
+            List<Medalist> medalists = new ArrayList<>(entrantsPerPlace);
+            Set<Long> identities = new HashSet<>();
+            for (int i = 0; i < entrants.length(); i++) {
+                JSONObject entrant = entrants.optJSONObject(i);
+                if (entrant == null) break;
+                try {
+                    long id = integer(entrant, "id");
+                    if (id <= 0 || !identities.add(id)) break;
+                    Object photo = entrant.opt("photo");
+                    medalists.add(new Medalist(id, text(entrant, "name"), photo instanceof String path ? path : null));
+                } catch (JSONException | IOException invalidEntrant) {
+                    break;
+                }
+            }
+            if (medalists.size() == entrantsPerPlace) placements.put(medal, medalists);
+        }
+        return placements;
     }
 
     private static String text(JSONObject row, String key) throws JSONException, IOException {
@@ -105,6 +145,19 @@ final class TournamentCatalogue implements Serializable {
         return ACCENTS.matcher(Normalizer.normalize(lower, Normalizer.Form.NFD)).replaceAll("");
     }
 
+    static final class Medalist implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final long id;
+        final String name;
+        final String photo;
+
+        Medalist(long id, String name, String photo) {
+            this.id = id;
+            this.name = name;
+            this.photo = photo;
+        }
+    }
+
     static final class Tournament implements Serializable {
         private static final long serialVersionUID = 1L;
         final long id;
@@ -115,8 +168,10 @@ final class TournamentCatalogue implements Serializable {
         final Long pairs;
         final String prize;
         private final String searchName;
+        private final Map<Medal, List<Medalist>> podium;
 
-        Tournament(long id, String name, LocalDate start, LocalDate end, Long players, Long pairs, String prize) {
+        Tournament(long id, String name, LocalDate start, LocalDate end, Long players, Long pairs, String prize,
+                   Map<Medal, List<Medalist>> podium) {
             this.id = id;
             this.name = name;
             this.start = start;
@@ -125,6 +180,11 @@ final class TournamentCatalogue implements Serializable {
             this.pairs = pairs;
             this.prize = prize;
             this.searchName = searchable(name);
+            this.podium = podium;
+        }
+
+        Map<Medal, List<Medalist>> podium() {
+            return podium == null ? Collections.emptyMap() : podium;
         }
     }
 }

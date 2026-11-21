@@ -26,3 +26,11 @@ verifies competition format using the event page and published match pages.
 For doubles events that publish only a player count, it counts distinct pairs
 by player profile identity across the published results. A failed crawl
 leaves the deployed site available.
+
+An optional `podium` object records published `gold`, `silver`, and `bronze`
+placements. Each placement lists its medalists by player ID and full name,
+with a website-relative `photo` reference when available. Singles placements
+come from the labeled event-page podium. Doubles placements come from the
+order of pairs in the event's winners section, with partner names and portraits
+resolved through the website's pair metadata. Older catalogue entries without
+a podium still provide the tournament facts and match results.

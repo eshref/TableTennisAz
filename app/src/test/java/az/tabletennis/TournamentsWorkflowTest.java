@@ -26,6 +26,45 @@ public class TournamentsWorkflowTest extends ProductUiScenario {
     private static final String OLDER_DOUBLES_MATCH = "12 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-1 · " + DOUBLES + " · Qoşalar · Turnir";
 
+    @Test public void catalogueMedalistsStayVisibleWhenThePortraitRequestFails() throws Exception {
+        // arrange
+        givenPublishedTournaments();
+        website.compute(CATALOGUE, (path, body) -> body.replace("\"players\":24,\"prize\":\"0 AZN\"",
+                """
+                "players":24,"prize":"0 AZN","podium":{
+                  "gold":[{"id":4,"name":"Məzahir Həsənov","photo":"/uploads/podium-portrait.png"}],
+                  "silver":[{"id":20,"name":"Etibar Yunusov"}],
+                  "bronze":[{"id":877,"name":"Səid Quluzadə"}]
+                }"""));
+        responses.put("/uploads/podium-portrait.png", () -> new MockResponse().setResponseCode(404));
+        openScreen();
+        awaitText("1. İlqar Həsənov — 800 xal");
+
+        // act
+        openSingles();
+
+        // assert
+        awaitText(NEWER);
+        layoutTournamentList();
+        assertThat(requestTo("/uploads/podium-portrait.png")).isEqualTo("/uploads/podium-portrait.png");
+        assertThat(visibleText()).contains("Məzahir Həsənov", "Etibar Yunusov", "Səid Quluzadə", "Priz: 0 AZN");
+
+        // act
+        searchFor("baki sexsi kuboku 2025");
+
+        // assert
+        assertThat(visibleText()).contains(OLDER, "08.11.2025", "Priz: —")
+                .doesNotContain("Məzahir Həsənov", "Etibar Yunusov", "Səid Quluzadə");
+
+        // act
+        clickText(OLDER);
+        followNavigation();
+
+        // assert
+        awaitText("Liqa A");
+        assertThat(requestedPaths()).containsExactly("/matches/results/event/902");
+    }
+
     @Test public void menuSearchAndCardsOpenOnlyTheSelectedTournamentsPublishedResults() throws Exception {
         // arrange
         givenPublishedTournaments();

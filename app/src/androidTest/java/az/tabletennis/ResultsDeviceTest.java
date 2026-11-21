@@ -11,7 +11,9 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
+import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
+import static androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -23,12 +25,23 @@ import static org.hamcrest.Matchers.anything;
 
 import android.content.Context;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.VectorDrawable;
+import android.os.SystemClock;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import androidx.test.espresso.NoMatchingViewException;
+import androidx.test.espresso.UiController;
+import androidx.test.espresso.ViewAction;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -64,10 +77,18 @@ public class ResultsDeviceTest {
                     .check(matches(hasDescendant(withText(EVENT))));
             onView(withText("14.11.2026 – 16.11.2026")).check(matches(isDisplayed()));
             onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+
+            // act
+            framePodium();
+
+            // assert
+            assertPodiumLayout();
+            onView(withContentDescription(R.string.medal_gold))
+                    .check((base, missing) -> assertStep(base, missing, "1", FIRST));
             capture("singles-tournaments");
 
             // act
-            onView(withText(EVENT)).perform(click());
+            onView(withContentDescription(R.string.medal_gold)).perform(click());
             onView(withId(R.id.match_stage_badge)).perform(scrollTo());
 
             // assert
@@ -122,10 +143,19 @@ public class ResultsDeviceTest {
             onView(withText(OLDER_DOUBLES_EVENT)).check(doesNotExist());
             onView(withText("8 qoşa")).check(matches(isDisplayed()));
             onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+
+            // act
+            framePodium();
+
+            // assert
+            assertPodiumLayout();
+            onView(withContentDescription(R.string.medal_gold))
+                    .check((base, missing) -> assertStep(base, missing, "1", FIRST, SECOND));
+            awaitDoublesPortraits();
             capture("doubles-tournaments");
 
             // act
-            onView(withText(DOUBLES_EVENT)).perform(click());
+            onView(withContentDescription(R.string.medal_gold)).perform(click());
             onView(withId(R.id.match_stage_badge)).perform(scrollTo());
 
             // assert
@@ -139,6 +169,23 @@ public class ResultsDeviceTest {
             // assert
             onView(withId(R.id.match_score_left)).check(matches(withText("3")));
             onView(withId(R.id.match_score_right)).check(matches(withText("2")));
+
+            // act
+            pressBack();
+            pressBack();
+            onView(withId(R.id.search)).perform(replaceText("gence"), closeSoftKeyboard());
+
+            // assert
+            onView(withText("— qoşa")).check(matches(isDisplayed()));
+            onView(withContentDescription(R.string.medal_gold)).check(doesNotExist());
+
+            // act
+            onView(withText(OLDER_DOUBLES_EVENT)).perform(click());
+
+            // assert
+            onView(withContentDescription("12 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
+                    + "Şəms Quliyeva / Işıl Əliyeva · 3-1 · Gəncə Qoşa Kuboku · Qoşalar · Turnir"))
+                    .check(matches(isDisplayed()));
         }
     }
 
@@ -303,15 +350,39 @@ public class ResultsDeviceTest {
         TournamentCatalogue catalogue = TournamentCatalogue.parse("""
                 {"version":1,"tournaments":[
                   {"id":901,"name":"Bakı həvəskarlar kuboku 2026","format":"singles",
-                   "start":"2026-11-14","end":"2026-11-16","players":24,"prize":"0 AZN"},
+                   "start":"2026-11-14","end":"2026-11-16","players":24,"prize":"0 AZN",
+                   "podium":{
+                     "gold":[{"id":10001,"name":"%1$s"}],
+                     "silver":[{"id":74,"name":"Məryəm İmanova","photo":"/uploads/maryam.png"}],
+                     "bronze":[{"id":13,"name":"İlqar Həsənov","photo":"/uploads/players-13.png"}]}},
                   {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-12","end":"2026-11-12"},
                   {"id":907,"name":"Gəncə Qoşa Kuboku","format":"doubles","start":"2026-11-12","end":"2026-11-12"},
                   {"id":905,"name":"Bakı Qoşa Kuboku 2026","format":"doubles",
-                   "start":"2026-11-15","end":"2026-11-18","pairs":8,"prize":"0 AZN"}
+                   "start":"2026-11-15","end":"2026-11-18","pairs":8,"prize":"0 AZN",
+                   "podium":{
+                     "gold":[{"id":10001,"name":"%1$s"},{"id":10002,"name":"%2$s"}],
+                     "silver":[{"id":7,"name":"Əlixan Əlizadə","photo":"/uploads/players-7.png"},
+                               {"id":70,"name":"Xəyal Həşimli","photo":"/uploads/players-70.png"}],
+                     "bronze":[{"id":74,"name":"Məryəm İmanova","photo":"/uploads/maryam.png"},
+                               {"id":13,"name":"İlqar Həsənov","photo":"/uploads/players-13.png"}]}}
                 ]}
-                """);
+                """.formatted(FIRST, SECOND));
         new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
                 .write(new SavedData<>(catalogue, now));
+        File portraits = new File(context.getFilesDir(), "player-portraits");
+        if (!portraits.isDirectory() && !portraits.mkdirs()) throw new IllegalStateException("Cannot prepare portraits");
+        givenPortrait(portraits, 7, "elixan.png");
+        givenPortrait(portraits, 70, "xeyal.png");
+        givenPortrait(portraits, 74, "maryam.png");
+        givenPortrait(portraits, 13, "ilqar.png");
+    }
+
+    private void givenPortrait(File directory, long playerId, String asset) throws Exception {
+        Context tests = InstrumentationRegistry.getInstrumentation().getContext();
+        try (var input = tests.getAssets().open("portraits/" + asset);
+             var output = new FileOutputStream(new File(directory, playerId + ".png"))) {
+            input.transferTo(output);
+        }
     }
 
     private void givenSavedDoublesTournamentResults() throws Exception {
@@ -323,6 +394,11 @@ public class ResultsDeviceTest {
                 false, false, TournamentStage.FINAL);
         ResultsFeed results = new ResultsFeed(asList(match), catalog, asList(), asList(), null);
         new SavedDataStore<>(context, "results-events-905", ResultsFeed.class).write(new SavedData<>(results, now));
+        EventCatalog olderCatalogue = new EventCatalog(asList(new EventCatalog.Event(907, OLDER_DOUBLES_EVENT)));
+        MatchSummary olderMatch = new MatchSummary(507, asList("İlqar Həsənov", "Əli Məmmədov"),
+                asList("Şəms Quliyeva", "Işıl Əliyeva"), "12 Nov. 2026", "3-1", 907, OLDER_DOUBLES_EVENT, false);
+        ResultsFeed olderResults = new ResultsFeed(asList(olderMatch), olderCatalogue, asList(), asList(), null);
+        new SavedDataStore<>(context, "results-events-907", ResultsFeed.class).write(new SavedData<>(olderResults, now));
         MatchDetails details = new MatchDetails(501,
                 asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov"), new MatchDetails.PlayerLink(13, "Əli Məmmədov")),
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva"), new MatchDetails.PlayerLink(14, "Işıl Əliyeva")),
@@ -350,6 +426,85 @@ public class ResultsDeviceTest {
                 asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva")), "16 Nov. 2026", "", "3-1", EVENT);
         new SavedDataStore<>(context, "match-502", MatchDetails.class).write(new SavedData<>(details, now));
         context.getSharedPreferences("results-selection", Context.MODE_PRIVATE).edit().clear().commit();
+    }
+
+    private void framePodium() {
+        onView(allOf(withId(R.id.tournament_podium), hasDescendant(withContentDescription(R.string.medal_gold))))
+                .perform(new ViewAction() {
+                    @Override public Matcher<View> getConstraints() { return isAssignableFrom(ViewGroup.class); }
+                    @Override public String getDescription() { return "bring the podium into view"; }
+                    @Override public void perform(UiController ui, View podium) {
+                        Rect bounds = new Rect();
+                        podium.getDrawingRect(bounds);
+                        View list = podium.getRootView().findViewById(R.id.tournament_cards);
+                        bounds.top = Math.max(bounds.top, bounds.bottom - list.getHeight());
+                        podium.requestRectangleOnScreen(bounds, true);
+                        ui.loopMainThreadUntilIdle();
+                    }
+                });
+    }
+
+    private void assertPodiumLayout() {
+        onView(allOf(withId(R.id.tournament_podium), hasDescendant(withContentDescription(R.string.medal_gold))))
+                .check((view, missing) -> {
+                    if (missing != null) throw missing;
+                    if ("narrow-large".equals(InstrumentationRegistry.getArguments().getString("capturePrefix"))) {
+                        matches(isCompletelyDisplayed()).check(view, null);
+                    }
+                    View silver = medalBase(view, R.string.medal_silver);
+                    View gold = medalBase(view, R.string.medal_gold);
+                    View bronze = medalBase(view, R.string.medal_bronze);
+                    View silverStep = (View) silver.getParent();
+                    View goldStep = (View) gold.getParent();
+                    View bronzeStep = (View) bronze.getParent();
+                    if (silverStep.getRight() > goldStep.getLeft() || goldStep.getRight() > bronzeStep.getLeft()
+                            || gold.getHeight() <= silver.getHeight() || silver.getHeight() <= bronze.getHeight()
+                            || goldStep.getBottom() != silverStep.getBottom() || goldStep.getBottom() != bronzeStep.getBottom()) {
+                        throw new AssertionError("Expected aligned silver, gold and bronze steps from left to right");
+                    }
+                });
+    }
+
+    private View medalBase(View podium, int medal) {
+        ArrayList<View> bases = new ArrayList<>();
+        podium.findViewsWithText(bases, podium.getContext().getString(medal), View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION);
+        if (bases.size() != 1) throw new AssertionError("Expected one base for " + podium.getContext().getString(medal));
+        return bases.get(0);
+    }
+
+    private void assertStep(View base, NoMatchingViewException missing, String place, String... names) {
+        if (missing != null) throw missing;
+        matches(allOf(withText(place), isDisplayed())).check(base, null);
+        View step = (View) base.getParent();
+        for (String name : names) {
+            matches(hasDescendant(withText(name))).check(step, null);
+        }
+    }
+
+    private void awaitDoublesPortraits() {
+        AtomicBoolean portraitsReady = new AtomicBoolean();
+        long deadline = SystemClock.elapsedRealtime() + 10_000;
+        do {
+            onView(withContentDescription(R.string.medal_silver)).check((base, missing) -> {
+                if (missing != null) throw missing;
+                ViewGroup portraits = (ViewGroup) ((ViewGroup) base.getParent()).getChildAt(0);
+                portraitsReady.set(portraits.getChildCount() == 2
+                        && ((PlayerPortraitView) portraits.getChildAt(0)).getDrawable() instanceof BitmapDrawable
+                        && ((PlayerPortraitView) portraits.getChildAt(1)).getDrawable() instanceof BitmapDrawable);
+            });
+            if (portraitsReady.get()) break;
+            SystemClock.sleep(50);
+        } while (SystemClock.elapsedRealtime() < deadline);
+        if (!portraitsReady.get()) throw new AssertionError("Expected two available portraits on the silver step");
+        onView(withContentDescription(R.string.medal_gold)).check((base, missing) -> {
+            if (missing != null) throw missing;
+            ViewGroup portraits = (ViewGroup) ((ViewGroup) base.getParent()).getChildAt(0);
+            if (portraits.getChildCount() != 2
+                    || !(((PlayerPortraitView) portraits.getChildAt(0)).getDrawable() instanceof VectorDrawable)
+                    || !(((PlayerPortraitView) portraits.getChildAt(1)).getDrawable() instanceof VectorDrawable)) {
+                throw new AssertionError("Expected both unavailable portraits to show silhouettes on the gold step");
+            }
+        });
     }
 
     private void capture(String name) throws Exception {

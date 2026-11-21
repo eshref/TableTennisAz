@@ -39,6 +39,7 @@
     <item name="destination_singles_tournaments" type="id" />
     <item name="destination_doubles_tournaments" type="id" />
     <item name="tournament_cards" type="id" />
+    <item name="tournament_podium" type="id" />
     <item name="destination_duels" type="id" />
     <item name="privacy_policy" type="id" />
     <item name="main_body" type="id" />
