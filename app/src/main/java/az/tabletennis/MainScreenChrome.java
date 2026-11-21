@@ -26,8 +26,10 @@ final class MainScreenChrome {
         RANKINGS(R.string.rankings_title, R.id.destination_rankings, R.drawable.ic_list, RankingsActivity.class),
         SINGLES_TOURNAMENTS(R.string.singles_tournaments, R.id.destination_singles_tournaments,
                 R.drawable.ic_trophy, SinglesTournamentsActivity.class),
-        RESULTS(R.string.results_title, R.id.destination_results, R.drawable.ic_trophy, ResultsActivity.class),
-        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_trophy, DuelsActivity.class);
+        DOUBLES_TOURNAMENTS(R.string.doubles_tournaments, R.id.destination_doubles_tournaments,
+                R.drawable.ic_trophy, DoublesTournamentsActivity.class),
+        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_trophy, DuelsActivity.class),
+        RESULTS(R.string.results_title, R.id.destination_results, R.drawable.ic_trophy, ResultsActivity.class);
 
         final int title;
         final int id;

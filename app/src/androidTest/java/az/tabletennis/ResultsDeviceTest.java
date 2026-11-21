@@ -8,6 +8,7 @@ import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
@@ -42,6 +43,10 @@ public class ResultsDeviceTest {
             + EVENT + " · Tək · Turnir · " + STAGE;
     private static final String DOUBLES_DUEL = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · Duello · Qoşalar · Duel";
+    private static final String DOUBLES_EVENT = "Bakı Qoşa Kuboku 2026";
+    private static final String OLDER_DOUBLES_EVENT = "Gəncə Qoşa Kuboku";
+    private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
+            + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
 
     @Test public void singlesMenuSearchOpensTheTournamentAndItsSavedMatch() throws Exception {
         // arrange
@@ -89,6 +94,51 @@ public class ResultsDeviceTest {
 
             // assert
             onView(withId(R.id.players_mode)).check(matches(isChecked()));
+        }
+    }
+
+    @Test public void doublesMenuSearchShowsPairsAndOpensTheSelectedTournament() throws Exception {
+        // arrange
+        givenSavedTournaments();
+        givenSavedDoublesTournamentResults();
+
+        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+            // act
+            onView(withId(R.id.open_menu)).perform(click());
+            onView(withId(R.id.destination_doubles_tournaments)).perform(scrollTo(), click());
+
+            // assert
+            onView(withText(R.string.doubles_tournaments)).check(matches(isDisplayed()));
+            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
+                    .check(matches(hasDescendant(withText(DOUBLES_EVENT))));
+            onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(1)
+                    .check(matches(allOf(hasDescendant(withText(OLDER_DOUBLES_EVENT)), hasDescendant(withText("— qoşa")))));
+
+            // act
+            onView(withId(R.id.search)).perform(replaceText("baki qosa"), closeSoftKeyboard());
+
+            // assert
+            onView(withText(EVENT)).check(doesNotExist());
+            onView(withText(OLDER_DOUBLES_EVENT)).check(doesNotExist());
+            onView(withText("8 qoşa")).check(matches(isDisplayed()));
+            onView(withText("Priz: 0 AZN")).check(matches(isDisplayed()));
+            capture("doubles-tournaments");
+
+            // act
+            onView(withText(DOUBLES_EVENT)).perform(click());
+            onView(withId(R.id.match_stage_badge)).perform(scrollTo());
+
+            // assert
+            onView(withContentDescription(DOUBLES_CARD)).check(matches(hasDescendant(withText("Final"))));
+            capture("doubles-tournament-results");
+
+            // act
+            onView(allOf(withText("İlqar Həsənov\nƏli Məmmədov"), isDescendantOfA(withContentDescription(DOUBLES_CARD))))
+                    .perform(scrollTo(), click());
+
+            // assert
+            onView(withId(R.id.match_score_left)).check(matches(withText("3")));
+            onView(withId(R.id.match_score_right)).check(matches(withText("2")));
         }
     }
 
@@ -186,7 +236,7 @@ public class ResultsDeviceTest {
         try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
             // act
             onView(withId(R.id.open_menu)).perform(click());
-            onView(withId(R.id.destination_results)).perform(click());
+            onView(withId(R.id.destination_results)).perform(scrollTo(), click());
             onView(withId(R.id.open_menu)).perform(click());
             onView(withId(R.id.destination_duels)).perform(scrollTo(), click());
 
@@ -254,11 +304,30 @@ public class ResultsDeviceTest {
                 {"version":1,"tournaments":[
                   {"id":901,"name":"Bakı həvəskarlar kuboku 2026","format":"singles",
                    "start":"2026-11-14","end":"2026-11-16","players":24,"prize":"0 AZN"},
-                  {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-12","end":"2026-11-12"}
+                  {"id":902,"name":"Gəncə Şəxsi Kuboku","format":"singles","start":"2026-11-12","end":"2026-11-12"},
+                  {"id":907,"name":"Gəncə Qoşa Kuboku","format":"doubles","start":"2026-11-12","end":"2026-11-12"},
+                  {"id":905,"name":"Bakı Qoşa Kuboku 2026","format":"doubles",
+                   "start":"2026-11-15","end":"2026-11-18","pairs":8,"prize":"0 AZN"}
                 ]}
                 """);
         new SavedDataStore<>(context, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
                 .write(new SavedData<>(catalogue, now));
+    }
+
+    private void givenSavedDoublesTournamentResults() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        long now = System.currentTimeMillis();
+        EventCatalog catalog = new EventCatalog(asList(new EventCatalog.Event(905, DOUBLES_EVENT)));
+        MatchSummary match = new MatchSummary(501, asList("İlqar Həsənov", "Əli Məmmədov"),
+                asList("Şəms Quliyeva", "Işıl Əliyeva"), "15 Nov. 2026", "3-2", 905, DOUBLES_EVENT,
+                false, false, TournamentStage.FINAL);
+        ResultsFeed results = new ResultsFeed(asList(match), catalog, asList(), asList(), null);
+        new SavedDataStore<>(context, "results-events-905", ResultsFeed.class).write(new SavedData<>(results, now));
+        MatchDetails details = new MatchDetails(501,
+                asList(new MatchDetails.PlayerLink(12, "İlqar Həsənov"), new MatchDetails.PlayerLink(13, "Əli Məmmədov")),
+                asList(new MatchDetails.PlayerLink(11, "Şəms Quliyeva"), new MatchDetails.PlayerLink(14, "Işıl Əliyeva")),
+                "15 Nov. 2026", "18:00", "3-2", DOUBLES_EVENT);
+        new SavedDataStore<>(context, "match-501", MatchDetails.class).write(new SavedData<>(details, now));
     }
 
     private void givenSavedResults() throws Exception {
