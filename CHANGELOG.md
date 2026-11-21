@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-21
+
+- Search completed singles tournaments from the Şəxsi turnirlər menu. Open a
+  tournament to browse its match results. Previously loaded tournaments and
+  matches are available offline.
+- Open Duellər from the app menu to browse singles and doubles duels together.
 - Results cards show the tournament stage beside the tournament name when
   the website publishes a recognized stage. Saved results keep their stages offline.
 - Open the TableTennisAz privacy policy from the app menu.
