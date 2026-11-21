@@ -2,6 +2,7 @@ import functools
 import json
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from shutil import copytree
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -58,6 +59,40 @@ class CatalogueTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("Results index", result.stderr)
             self.assertEqual(output.read_text(encoding="utf-8"), "previous publication")
+
+    def test_an_unavailable_advertised_page_leaves_the_previous_output_in_place(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            (fixtures / "matches/results/event/991-page-2.html").unlink()
+            output = root / "tournaments-v1.json"
+            output.write_text("previous publication", encoding="utf-8")
+
+            # act
+            result = self.generate(fixtures, output)
+
+            # assert
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("/matches/results/event/991?page=2", result.stderr)
+            self.assertEqual(output.read_text(encoding="utf-8"), "previous publication")
+
+    def test_a_match_row_without_a_usable_source_date_cannot_qualify_a_tournament(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            page = fixtures / "matches/results/event/7.html"
+            page.write_text(page.read_text(encoding="utf-8").replace("divs-header", "no-date"), encoding="utf-8")
+            output = root / "tournaments-v1.json"
+
+            # act
+            result = self.generate(fixtures, output)
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
+            self.assertEqual([entry["id"] for entry in entries], [944])
 
     def generate(self, fixtures, output):
         handler = functools.partial(FixtureHandler, directory=fixtures)

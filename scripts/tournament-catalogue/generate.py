@@ -97,24 +97,22 @@ def published_singles_results(source, event_id):
     number = 1
     match_ids = set()
     while True:
-        page = fetch(source, path if number == 1 else f"{path}?page={number}")
-        if page is None or page.select_one(TEAM_MARKUP):
+        page_path = path if number == 1 else f"{path}?page={number}"
+        page = fetch(source, page_path)
+        if page is None:
+            if number > 1:
+                raise ValueError(f"Advertised result page is unavailable: {page_path}")
             return False
-        rows = page.select(".matches-box .match-box")
-        if not rows:
+        if page.select_one(TEAM_MARKUP):
             return False
-        for row in rows:
-            link = row.find_parent("a", href=True)
-            sides = row.select(":scope > .col-3")
-            score = row.select_one(":scope > .col-2 .center")
-            if (not link or not MATCH_LINK.fullmatch(link["href"]) or not score
-                    or not re.fullmatch(r"[0-9]+\s*-\s*[0-9]+", score.get_text(strip=True))
-                    or len(sides) != 2 or any(not single_player(side) for side in sides)):
-                return False
-            identity = link["href"].rstrip("/")
-            if identity in match_ids:
-                return False
-            match_ids.add(identity)
+        if not page.select_one(".matches-box .match-box"):
+            if number > 1:
+                raise ValueError(f"Advertised result page has no match rows: {page_path}")
+            return False
+        page_matches = singles_match_ids(page)
+        if not page_matches or not match_ids.isdisjoint(page_matches):
+            return False
+        match_ids.update(page_matches)
 
         later_pages = set()
         for link in page.select(".pagination li:not(.disabled) a[href]"):
@@ -126,14 +124,40 @@ def published_singles_results(source, event_id):
                 later_pages.add(int(value))
         if not later_pages:
             return True
+        # Verifying a format requires every advertised page in order.
         number += 1
         if number not in later_pages:
-            return False
+            raise ValueError(f"Missing result page {number} in pagination for {path}")
+
+
+def singles_match_ids(page):
+    match_ids = set()
+    for day in page.select(".matches-box > *"):
+        rows = day.select("a[href] > .match-box")
+        if not rows:
+            continue
+        date = day.select_one(".divs-header")
+        if date is None:
+            return None
+        try:
+            datetime.strptime(date.get_text(" ", strip=True).replace(".", ""), "%d %b %Y")
+        except ValueError:
+            return None
+        for row in rows:
+            identity = row.parent["href"].rstrip("/")
+            sides = row.select(":scope > .col-3")
+            score = row.select_one(":scope > .col-2 .center")
+            if (not MATCH_LINK.fullmatch(identity) or not score
+                    or not re.fullmatch(r"[0-9]+\s*-\s*[0-9]+", score.get_text(strip=True))
+                    or len(sides) != 2 or any(not single_player(side) for side in sides)):
+                return None
+            match_ids.add(identity)
+    return match_ids if len(match_ids) == len(page.select(".matches-box .match-box")) else None
 
 
 def single_player(side):
-    players = side.find_all("div", recursive=False)
-    return len(players) == 1 and bool(players[0].get_text(strip=True))
+    names = [player for player in side.find_all(recursive=False) if player.get_text(strip=True)]
+    return len(names) == 1
 
 
 def singles_tournament(source, event_id, event):

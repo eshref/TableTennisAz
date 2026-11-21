@@ -134,7 +134,7 @@ public class SinglesTournamentsWorkflowTest extends ProductUiScenario {
         website.put(CATALOGUE, """
                 {"version":1,"tournaments":[
                   {"id":902,"name":"Bakı Şəxsi Kuboku 2025","format":"singles","start":"2025-11-08","end":"2025-11-08"},
-                  {"id":903,"name":"Gəncə Kuboku","format":"singles","start":"2026-11-10","end":"2026-11-10"},
+                  {"id":903,"name":"Gəncə Kuboku","format":"singles","start":"2026-11-15","end":"2026-11-15"},
                   {"id":906,"name":"Naməlum Kubok","format":"unknown","start":"2026-11-18","end":"2026-11-18"},
                   {"id":904,"name":"Komanda Liqası","format":"team","start":"2026-11-18","end":"2026-11-18"},
                   {"id":905,"name":"Qoşa Kuboku","format":"doubles","start":"2026-11-18","end":"2026-11-18"},
