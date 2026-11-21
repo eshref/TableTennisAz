@@ -42,8 +42,9 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(8), dp(16), dp(16));
         root.setBackgroundColor(getColor(R.color.background));
-        if (isMainDestination()) {
-            chrome = new MainScreenChrome(this, false, () -> refresh(false));
+        MainScreenChrome.Destination destination = mainDestination();
+        if (destination != null) {
+            chrome = new MainScreenChrome(this, destination, () -> refresh(false));
             refresh = chrome.refresh;
             updated = chrome.updated;
             root.setPadding(0, 0, 0, dp(16));
@@ -179,7 +180,7 @@ abstract class SavedScreen<T extends Serializable> extends Activity {
         });
     }
 
-    protected boolean isMainDestination() { return false; }
+    protected MainScreenChrome.Destination mainDestination() { return null; }
     protected int detailTitle() { return 0; }
 
     protected interface Fetch<V> { V load() throws IOException; }

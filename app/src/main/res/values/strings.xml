@@ -59,6 +59,7 @@
     <string name="all_results">Hamısı</string>
     <string name="tournament_results">Turnirlər</string>
     <string name="duel_results">Duellər</string>
+    <string name="no_duels">Mənbədə duel tapılmadı.</string>
     <string name="all_events">Bütün tədbirlər</string>
     <string name="choose_event">Tədbir seç</string>
     <string name="partial_coverage">Yalnız yüklənmiş nəticələr göstərilir. Bu siyahı bütün son matçları əhatə etməyə bilər; eyni gün daxilində dəqiq sıra məlum deyil.</string>

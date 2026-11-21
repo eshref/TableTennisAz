@@ -1,6 +1,5 @@
 package az.tabletennis;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -11,7 +10,7 @@ import android.widget.Spinner;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ResultsActivity extends SavedScreen<ResultsFeed> {
+public class ResultsActivity extends MatchFeedActivity {
     private ResultsSelection selection;
     private SavedDataStore<EventCatalog> catalogStore;
     private EventCatalog catalog;
@@ -35,7 +34,7 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
         select(selection.key(), ResultsFeed.class);
     }
 
-    @Override protected boolean isMainDestination() { return true; }
+    @Override protected MainScreenChrome.Destination mainDestination() { return MainScreenChrome.Destination.RESULTS; }
 
     @Override protected Fetch<ResultsFeed> request(ResultsFeed previous, boolean more) {
         ResultsSelection requested = selection;
@@ -178,34 +177,6 @@ public class ResultsActivity extends SavedScreen<ResultsFeed> {
                 content.addView(clear);
             }
         }
-        android.widget.LinearLayout rows = new android.widget.LinearLayout(this);
-        rows.setId(R.id.result_rows);
-        rows.setOrientation(android.widget.LinearLayout.VERTICAL);
-        String previousDay = null;
-        for (MatchSummary match : feed.matches) {
-            String day = dateGroupKey(match.date);
-            if (!day.isEmpty() && !day.equals(previousDay)) {
-                android.widget.TextView date = label(match.date, 12);
-                date.setTextColor(getColor(R.color.secondary));
-                date.setPadding(dp(2), dp(12), dp(2), dp(8));
-                if (android.os.Build.VERSION.SDK_INT >= 28) date.setAccessibilityHeading(true);
-                rows.addView(date);
-            }
-            previousDay = day;
-            rows.addView(new MatchCard(this, match, () -> startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id))));
-        }
-        content.addView(rows);
-        if (feed.hasMore()) {
-            android.widget.Button more = button(getString(R.string.load_more), () -> refresh(true));
-            more.setEnabled(application.isOnline());
-            content.addView(more);
-        }
+        super.render(feed);
     }
-
-    private String dateGroupKey(String date) {
-        if (date.isEmpty()) return date;
-        try { return MatchSummary.sourceDay(date).toString(); }
-        catch (java.time.format.DateTimeParseException legacyDate) { return date; }
-    }
-
 }
