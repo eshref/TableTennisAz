@@ -162,11 +162,16 @@ public class NativeAcceptanceDeviceTest {
 
             // assert
             onView(withId(R.id.destination_rankings)).check(matches(isDisplayed()));
-            onView(withId(R.id.privacy_policy)).check(matches(allOf(isDisplayed(), withText(R.string.privacy_policy))));
             capture("drawer");
 
             // act
-            onView(withId(R.id.destination_results)).perform(click());
+            onView(withId(R.id.privacy_policy)).perform(scrollTo());
+
+            // assert
+            onView(withId(R.id.privacy_policy)).check(matches(allOf(isDisplayed(), withText(R.string.privacy_policy))));
+
+            // act
+            onView(withId(R.id.destination_results)).perform(scrollTo(), click());
             onView(withText("Hamısı")).perform(scrollTo(), click());
 
             // assert
