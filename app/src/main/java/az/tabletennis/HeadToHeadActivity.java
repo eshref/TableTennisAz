@@ -6,11 +6,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -340,7 +342,9 @@ public final class HeadToHeadActivity extends Activity {
             input.setTextColor(getColor(R.color.text));
             input.setHintTextColor(getColor(R.color.secondary));
             input.setPadding(dp(12), 0, dp(12), 0);
-            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                    | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+            input.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI);
             input.setBackground(Presentation.shape(HeadToHeadActivity.this, R.color.surface));
             group.addView(input);
 
