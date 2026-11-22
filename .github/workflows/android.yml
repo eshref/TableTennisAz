@@ -294,6 +294,4 @@ jobs:
         if: always()
         with:
           name: live-singles-index
-          path: |
-            singles-evidence/
-            app/build/outputs/androidTest-results/connected/
+          path: singles-evidence/
