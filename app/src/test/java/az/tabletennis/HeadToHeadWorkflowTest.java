@@ -159,12 +159,14 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText(ASHRAF);
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(32));
         assertThat(requestTo(portrait)).isNull();
 
         // act
         ScrollView scroll = activity().findViewById(R.id.main_scroll);
         scroll.scrollTo(0, scroll.getChildAt(0).getHeight());
-        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(32));
+        // Robolectric updates the scroll offset without dispatching a new frame.
+        scroll.getViewTreeObserver().dispatchOnPreDraw();
 
         // assert
         assertThat(requestTo(portrait)).isEqualTo(portrait);
