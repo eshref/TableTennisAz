@@ -26,6 +26,12 @@ its own evidence.
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 | Üz-üzə singles and doubles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
 
+The `head-to-head` journey completes comparisons and retries an unavailable
+index in standard light. It then disables networking and force-stops the app
+before a second instrumentation run reopens the saved comparisons through
+the search form. The evidence contains this second run under
+`captures/light-offline/`.
+
 On the run page, open **Run installed preflight and saved-fixture journey** for
 live progress. Download `android-api36-<journey>` from **Artifacts** on the same
 page, including after failure. The archive contains the exact installed
@@ -115,8 +121,9 @@ on a newer commit and skips publication.
 [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
 
 Open **Summarize signed fixture matrix** for the candidate identity and all
-28 configuration outcomes. A complete run reports nonzero passing
-instrumentation and all required PNGs for every configuration. Download
+28 display configurations and the additional head-to-head offline restart.
+A complete run reports nonzero passing instrumentation and all required PNGs
+for each. Download
 `android-signed-fixture-matrix` for `verification.md`, validated screenshots
 by journey and configuration, and the recorded APK checksums.
 

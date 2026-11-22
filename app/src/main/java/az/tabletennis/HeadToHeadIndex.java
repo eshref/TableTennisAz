@@ -1,8 +1,11 @@
 package az.tabletennis;
 
+import static az.tabletennis.HeadToHeadSearch.profileIds;
+
 import az.tabletennis.HeadToHeadSearch.Meeting;
 import az.tabletennis.HeadToHeadSearch.Player;
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -10,7 +13,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +25,9 @@ final class HeadToHeadIndex {
         this.client = client;
     }
 
-    record Comparison(Instant refreshedAt, List<Meeting> meetings) {}
+    record Comparison(Instant refreshedAt, List<Meeting> meetings) implements Serializable {
+        private static final long serialVersionUID = 1L;
+    }
 
     private record Side(List<Long> ids, List<String> names) {}
 
@@ -93,10 +97,6 @@ final class HeadToHeadIndex {
         // Compare teammates by profile ID and display their names in published order.
         Collections.sort(ids);
         return new Side(ids, names);
-    }
-
-    private List<Long> profileIds(List<Player> players) {
-        return players.stream().map(Player::id).sorted().collect(Collectors.toList());
     }
 
     private int bucket(List<Long> firstIds, List<Long> secondIds) {

@@ -4,7 +4,7 @@ from io import BytesIO
 import re
 from zipfile import BadZipFile, Path as ZipPath, ZIP_DEFLATED, ZipFile
 
-from release_matrix import (CONFIGURATIONS, JOURNEYS, SHA256, bundle_pngs, configuration_status, file_digest,
+from release_matrix import (JOURNEYS, SHA256, TOTAL_CONFIGURATIONS, bundle_pngs, configuration_status, file_digest,
                             matches_candidate, matrix_summary, properties, summarize_journey)
 
 
@@ -56,7 +56,7 @@ def verification_archive(fixture, upgrade, version, commit, digest, previous_tag
 
 
 def release_summary(version, commit, digest, journeys, configurations, previous_tag, previous_digest, upgrade_rows):
-    matrix = matrix_summary(version, commit, digest, 'success', len(JOURNEYS) * len(CONFIGURATIONS),
+    matrix = matrix_summary(version, commit, digest, 'success', TOTAL_CONFIGURATIONS,
                             True, journeys, configurations)
     return '\n'.join([
         '# Android release verification', '', matrix, '## In-place Android upgrade', '',

@@ -20,6 +20,10 @@ class AndroidVerify {
     private static final List<String> LIVE_TESTS = List.of("az.tabletennis.LiveRankingsTest",
             "az.tabletennis.LiveExperienceTest", "az.tabletennis.LiveDoublesTest");
     private static final String DOUBLES_PROFILE_TEST = "az.tabletennis.DoublesProfileDeviceTest";
+    private static final String HEAD_TO_HEAD_TEST = "az.tabletennis.HeadToHeadDeviceTest";
+    private static final String HEAD_TO_HEAD_ONLINE_TEST = HEAD_TO_HEAD_TEST + "#menuSearchAndDetailsReturnWorkWithTheInstalledApp";
+    private static final String HEAD_TO_HEAD_OFFLINE_TEST = HEAD_TO_HEAD_TEST + "#reopensSavedComparisonsAfterAnOfflineRestart";
+    private static final String HEAD_TO_HEAD_OFFLINE = "light-offline";
     private static final String UPGRADE_TEST = "az.tabletennis.SavedHistoryUpgradeDeviceTest";
     private static final String APPLICATION_ID = "az.tabletennis";
     private static final String UPGRADE_BEFORE = "upgrade-before", UPGRADE_AFTER = "upgrade-after";
@@ -200,6 +204,11 @@ class AndroidVerify {
                 result.setProperty("light.historyCheckpoint", "not-run");
             }
         }
+        if (!preflightOnly && tests.equals(HEAD_TO_HEAD_TEST)) {
+            initializeConfiguration(HEAD_TO_HEAD_OFFLINE);
+            result.setProperty(HEAD_TO_HEAD_OFFLINE + ".expectedScreenshots",
+                    String.join(",", requiredScreenshots(HEAD_TO_HEAD_OFFLINE, HEAD_TO_HEAD_OFFLINE_TEST)));
+        }
         result.setProperty("started", Instant.now().toString());
         result.setProperty("sdkCache", sdk.toString());
     }
@@ -301,6 +310,10 @@ class AndroidVerify {
             result.setProperty("focused", "running");
             note("Focused installed fixture journey started: " + tests);
             instrument("light", tests, false, false, 412, 891);
+            if (tests.equals(HEAD_TO_HEAD_TEST)) {
+                disconnect();
+                verifyHeadToHeadOffline();
+            }
             result.setProperty("focused", "passed");
             note("Focused installed fixture journey passed");
             return;
@@ -309,6 +322,7 @@ class AndroidVerify {
         note("Installed fixture matrix started: " + tests);
         instrument("light", tests, false, false, 412, 891);
         disconnect();
+        if (tests.equals(HEAD_TO_HEAD_TEST)) verifyHeadToHeadOffline();
         appearance("dark", "412x891", "1.0");
         instrument("dark-offline", tests, false, true, 412, 891);
         appearance("light", "320x568", "1.5");
@@ -646,12 +660,18 @@ class AndroidVerify {
                 + "; settings put system accelerometer_rotation 0; settings put system user_rotation 0; cmd uimode night " + (theme.equals("dark") ? "yes" : "no"));
     }
 
+    private void verifyHeadToHeadOffline() throws Exception {
+        result.setProperty(HEAD_TO_HEAD_OFFLINE + ".offline", "confirmed");
+        instrument(HEAD_TO_HEAD_OFFLINE, HEAD_TO_HEAD_OFFLINE_TEST, false, true, 412, 891);
+    }
+
     private void instrument(String prefix, String classes, boolean smoke, boolean reuse, int width, int height) throws Exception {
         note("Installed configuration started: " + prefix + " (" + width + "x" + height + ")");
         result.setProperty(prefix + ".display", width + "x" + height);
         result.setProperty(prefix + ".instrumentation", "running");
         List<String> screenshots = requiredScreenshots(prefix, classes);
-        runTests(prefix, classes, smoke, reuse, software ? 720 : 240, prefix.equals("light") ? screenshots : List.of());
+        String selection = classes.equals(HEAD_TO_HEAD_TEST) ? HEAD_TO_HEAD_ONLINE_TEST : classes;
+        runTests(prefix, selection, smoke, reuse, software ? 720 : 240, prefix.equals("light") ? screenshots : List.of());
         result.setProperty(prefix + ".screenshotCollection", "running");
         note("Screenshot collection started: " + prefix);
         Path captures = evidence.resolve("captures").resolve(prefix);
@@ -686,7 +706,9 @@ class AndroidVerify {
 
     private List<String> requiredScreenshots(String prefix, String classes) {
         List<String> captures;
-        if (classes.equals(UPGRADE_TEST) || (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null)))
+        if (classes.equals(HEAD_TO_HEAD_OFFLINE_TEST))
+            captures = List.of(fixtureCaptures.getProperty(HEAD_TO_HEAD_TEST + ".offline").split(","));
+        else if (classes.equals(UPGRADE_TEST) || (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null)))
             captures = List.of(fixtureCaptures.getProperty(classes).split(","));
         else
             captures = classes.equals(DOUBLES_PROFILE_TEST) ? DOUBLES_HISTORY_CAPTURES : List.of();

@@ -24,6 +24,8 @@ CONFIGURATIONS = {
     'narrow-large': 'Narrow light offline, 320×568, 150% text',
     'landscape-large': 'Landscape dark offline, 891×320, 150% text',
 }
+HEAD_TO_HEAD_OFFLINE = 'light-offline'
+TOTAL_CONFIGURATIONS = len(JOURNEYS) * len(CONFIGURATIONS) + 1
 SHA256 = re.compile(r'[0-9a-f]{64}')
 
 
@@ -59,7 +61,10 @@ def configuration_status(configuration, paths, result, test, destination=None):
         copy_captures(verified, destination)
 
     collection = result.get(f'{configuration}.screenshotCollection', 'not-run')
-    required = {f'{configuration}-{name}.png' for name in FIXTURE_CAPTURES[f'az.tabletennis.{test}'].split(',')}
+    capture_key = f'az.tabletennis.{test}'
+    if configuration == HEAD_TO_HEAD_OFFLINE:
+        capture_key += '.offline'
+    required = {f'{configuration}-{name}.png' for name in FIXTURE_CAPTURES[capture_key].split(',')}
     recorded = set(result.get(f'{configuration}.expectedScreenshots', '').split(','))
     collected = collection == 'passed' and recorded == required and required.issubset(verified)
     if collected:
@@ -76,6 +81,9 @@ def configuration_status(configuration, paths, result, test, destination=None):
     passed = instrumentation == 'passed' and bool(re.fullmatch(r'OK \([1-9][0-9]* tests?\)', tests))
     if instrumentation == 'passed':
         instrumentation = tests if passed else 'invalid test count'
+    if passed and configuration == HEAD_TO_HEAD_OFFLINE and result.get(f'{configuration}.offline') != 'confirmed':
+        instrumentation = 'offline restart unconfirmed'
+        passed = False
     return instrumentation, collection, passed and collected, verified
 
 
@@ -114,7 +122,8 @@ def summarize_journey(job, result_path, captures, test, journey, commit, digest,
         checkpoints = (result_path.parent / 'checkpoints/light').glob('light-*.png')
         copy_captures(verified_captures(checkpoints, result, 'light.checkpointSha256.'), destination / 'light-checkpoints')
     verified = []
-    for configuration in CONFIGURATIONS:
+    configurations = (*CONFIGURATIONS, HEAD_TO_HEAD_OFFLINE) if journey == 'head-to-head' else tuple(CONFIGURATIONS)
+    for configuration in configurations:
         instrumentation = result.get(f'{configuration}.instrumentation', 'not-run')
         if matches:
             directory = captures / configuration
@@ -128,10 +137,10 @@ def summarize_journey(job, result_path, captures, test, journey, commit, digest,
         rows.append(f'| {journey} | {configuration} | {instrumentation} | {screenshots} |')
     matrix = result.get('matrix', 'not-run')
     preflight = result.get('preflight', 'not-run')
-    coverage = f'{covered}/{len(CONFIGURATIONS)}'
+    coverage = f'{covered}/{len(configurations)}'
     summary = f'| {journey} | {identity} | {installed} | {preflight} | {matrix} | {coverage} |'
     complete = (installed == 'success' and result.get('status') == matrix == preflight == 'passed'
-                and covered == len(CONFIGURATIONS) and SHA256.fullmatch(result.get('testApk.sha256', '')))
+                and covered == len(configurations) and SHA256.fullmatch(result.get('testApk.sha256', '')))
     return summary, rows, covered, bool(complete), verified
 
 
@@ -169,12 +178,13 @@ def matrix_summary(version, commit, digest, job_result, total, complete, journey
         '## Signed Android fixture matrix', '',
         f'Candidate `TableTennisAz-{version}.apk`' if version else 'Candidate unavailable',
         f'Commit `{commit}` · APK SHA-256 `{digest or "unavailable"}` · Android API 36', '',
-        f'**{label}** · {total}/{len(JOURNEYS) * len(CONFIGURATIONS)} configurations verified · Fixture jobs **{job_result}**', '',
+        f'**{label}** · {total}/{TOTAL_CONFIGURATIONS} configurations verified · Fixture jobs **{job_result}**', '',
         f'[Run and artifacts]({run_url}) · Screenshots and summary in `android-signed-fixture-matrix`.',
         'Download `android-signed-api36-<journey>` for APKs, logs, and available failure diagnostics.', '',
         '| Journey | Candidate | Installed step | Preflight | Matrix | Configurations |',
         '| --- | --- | --- | --- | --- | --- |', *journeys, '',
-        *(f'- `{name}` · {description}' for name, description in CONFIGURATIONS.items()), '',
+        *(f'- `{name}` · {description}' for name, description in CONFIGURATIONS.items()),
+        f'- `{HEAD_TO_HEAD_OFFLINE}` · Head-to-head offline restart, 412×891, 100% text', '',
         '| Journey | Configuration | Instrumentation | Screenshots |',
         '| --- | --- | --- | --- |', *configurations, '',
     ]
