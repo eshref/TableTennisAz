@@ -9,6 +9,8 @@ final class HeadToHeadFixtures {
     static final String ILQAR = "İlqar Həsənov";
     static final String OLDER = "10 Aug. 2021 · İlqar Həsənov — Əşrəf Səfərov · 3-2 · Shua Open Cup #1 · Tək · Turnir";
     static final String NEWER = "16 Nov. 2026 · Əşrəf Səfərov — İlqar Həsənov · 1-3 · Duello · Tək · Duel";
+    static final String ARCHIVE_PAGE_TWO_DUEL = "15 Nov. 2026 · Əşrəf Səfərov — İlqar Həsənov · 3-0 · Duello · Tək · Duel";
+    static final String ARCHIVE_FINAL_DUEL = "13 Nov. 2026 · İlqar Həsənov — Əşrəf Səfərov · 3-1 · Duello · Tək · Duel";
 
     static final String MIDDLE = "14 Nov. 2026 · İlqar Həsənov — Əşrəf Səfərov · 3-0 · Liqa · Tək · Turnir";
     static final String ERHAN = "Erhan Əliyev";
@@ -40,13 +42,29 @@ final class HeadToHeadFixtures {
         website.put("/matches/402", details(13, ILQAR, 15, ASHRAF, "14 Nov. 2026", 3, 0, "Liqa"));
         website.put("/matches/503", details(115, ASHRAF, 13, ILQAR, "17 Nov. 2026", 4, 2, "Liqa"));
         website.put("/matches/results/player/13?page=2", laterPage());
+
+        String namesakeDuel = row(505, "15 Nov. 2026", ASHRAF, ILQAR, "4-2", "Duello");
+        String doublesDuel = row(507, "14 Nov. 2026", pair(ASHRAF, "Əli Məmmədov"),
+                pair(ILQAR, "Şəms Quliyeva"), "3-2", "Duello");
+        String archiveOnlyDuel = row(508, "15 Nov. 2026", ASHRAF, ILQAR, "3-0", "Duello");
+        website.put("/matches/duellos", history(overlappingDuelRow()) + duelPagination(2, 3));
+        website.put("/matches/duellos?page=2", history(archiveOnlyDuel + namesakeDuel + doublesDuel) + duelPagination(3));
+        website.put("/matches/duellos?page=3", history(row(506, "13 Nov. 2026", ILQAR, ASHRAF, "3-1", "Duello")));
+        website.put("/matches/505", details(115, ASHRAF, 13, ILQAR, "15 Nov. 2026", 4, 2, "Duello"));
+        website.put("/matches/506", details(13, ILQAR, 15, ASHRAF, "13 Nov. 2026", 3, 1, "Duello"));
+        website.put("/matches/507", details(player(15, ASHRAF) + player(7, "Əli Məmmədov"),
+                player(13, ILQAR) + player(8, "Şəms Quliyeva"), "14 Nov. 2026", 3, 2, "Duello"));
+        website.put("/matches/508", details(15, ASHRAF, 13, ILQAR, "15 Nov. 2026", 3, 0, "Duello"));
     }
 
     static String laterPage() {
-        return history(row(502, "16 Nov. 2026", ASHRAF, ILQAR, "1-3", "Duello"));
+        return history(overlappingDuelRow());
     }
 
+    private static String overlappingDuelRow() { return row(502, "16 Nov. 2026", ASHRAF, ILQAR, "1-3", "Duello"); }
+
     static void publishDoubles(Map<String, String> website) {
+        website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "erh", 14, ERHAN);
         publishPlayer(website, "el%C3%A7", 22, ELCHIN);
         publishPlayer(website, "%C9%99li", 7, ALIKHAN);
@@ -68,6 +86,7 @@ final class HeadToHeadFixtures {
     }
 
     static void publishHistoricalDoubles(Map<String, String> website) {
+        website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "x%C9%99y", 70, KHAYAL);
         publishPlayer(website, "fir", 32, FIRDOVSI);
         publishPlayer(website, "vaq", 126, VAQIF);
@@ -101,6 +120,14 @@ final class HeadToHeadFixtures {
     }
 
     private static String history(String rows) { return "<div id='center'><div class='matches-box'>" + rows + "</div></div>"; }
+
+    private static String duelPagination(int... pages) {
+        StringBuilder links = new StringBuilder("<ul class='pagination'>");
+        for (int page : pages) {
+            links.append("<li><a href='/matches/duellos?page=").append(page).append("'>").append(page).append("</a></li>");
+        }
+        return links.append("</ul>").toString();
+    }
 
     private static String row(int id, String day, String left, String right, String score, String event) {
         return "<div><div class='divs-header'>" + day + "</div><div><a href='/matches/" + id + "'><div class='match-box'>"

@@ -269,7 +269,7 @@ public final class HeadToHeadActivity extends Activity {
                 });
                 main.post(() -> finishSearch(SearchStatus.COMPLETE));
             } catch (IOException failure) {
-                Log.w("HeadToHead", "Could not finish player histories", failure);
+                Log.w("HeadToHead", "Could not finish head-to-head search", failure);
                 main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
             }
         });
