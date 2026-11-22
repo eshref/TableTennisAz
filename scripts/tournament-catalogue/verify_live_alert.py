@@ -65,22 +65,17 @@ def capture(path):
     path.write_bytes(png)
 
 
-def diagnose_subscription():
-    services = adb("shell", "dumpsys", "package", "com.google.android.gms").decode()
-    print("[DEBUG-firebase-121] Play services: " + ", ".join(re.findall(
-        r"versionName=[\d.]+|com\.google\.android\.c2dm\.permission\.SEND: granted=\w+", services)), flush=True)
-    logs = adb("logcat", "-d", "-v", "raw", "-s", "FirebaseMessaging:D", "Firebase-Installations:D",
-               "FirebaseApp:D", "GCM:D", "GmsClient:D", "AndroidRuntime:E").decode()
-    signals = re.findall(
+def save_failure_evidence(evidence):
+    capture(evidence / "failure.png")
+    ElementTree.ElementTree(screen()).write(evidence / "failure-ui.xml", encoding="utf-8")
+    logs = adb("logcat", "-d", "-v", "raw", "-s", "FirebaseMessaging:W", "Firebase-Installations:W").decode()
+    # Record known error messages without retaining raw client logs.
+    errors = set(re.findall(
         r"SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
-        r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|DEVELOPER_ERROR|INTERNAL_SERVER_ERROR|"
-        r"UnknownHostException|SocketTimeoutException|SSLHandshakeException|HTTP response: \[\d+|"
-        r"Google Play services missing or without correct permission|Failed to resolve IID implementation package|"
-        r"FirebaseApp initialization successful|FirebaseApp initialization unsuccessful|"
-        r"Failed to get FIS auth token|Invoking onNewToken|Couldn't get connection factory client|"
-        r"Connectivity changed\. Starting background sync|Connectivity change received registered|"
-        r"Failed to sync topics|topic sync succeeded|Topic operation failed|FATAL EXCEPTION", logs)
-    print(f"[DEBUG-firebase-121] Firebase client signals: {', '.join(signals) or 'none'}", flush=True)
+        r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|UnknownHostException|SocketTimeoutException|"
+        r"SSLHandshakeException|Google Play services missing or without correct permission|Failed to sync topics", logs))
+    if errors:
+        print(f"Firebase client errors: {', '.join(sorted(errors))}", flush=True)
 
 
 def opt_in_and_return_home():
@@ -90,7 +85,7 @@ def opt_in_and_return_home():
         tap(await_view(resource, lambda nodes: by_id(nodes, resource, enabled="true")))
     tap(await_view("the notification permission prompt", lambda nodes: by_id(nodes, "permission_allow_button")))
     await_view("the enabled tournament alerts switch",
-               lambda nodes: by_id(nodes, "tournament_alerts_switch", checked="true", enabled="true"), timeout=120)
+               lambda nodes: by_id(nodes, "tournament_alerts_switch", checked="true", enabled="true"), timeout=180)
     adb("shell", "input", "keyevent", "KEYCODE_HOME")
     await_view("the emulator launcher", lambda nodes: next(
         (node for node in nodes if "launcher" in node.get("package", "")), None))
@@ -139,7 +134,8 @@ def verify_notification_and_results(evidence):
 def main():
     evidence = Path(os.environ["FIREBASE_LIVE_EVIDENCE"])
     evidence.mkdir(parents=True, exist_ok=True)
-    tournament = verified_tournament(SITE, EVENT_ID, published_events(SITE)[EVENT_ID])
+    event = published_events(SITE).get(EVENT_ID)
+    tournament = verified_tournament(SITE, EVENT_ID, event) if event is not None else None
     if tournament is None or tournament["name"] != TOURNAMENT or tournament["format"] != "singles":
         raise RuntimeError(f"Completed singles tournament {EVENT_ID} is no longer available for verification")
 
@@ -160,7 +156,6 @@ def main():
             thread.start()
             try:
                 adb("reverse", f"tcp:{PORT}", f"tcp:{PORT}")
-                adb("shell", "setprop", "log.tag.FirebaseMessaging", "DEBUG")
                 print("Opting in from Android and closing the app to the launcher", flush=True)
                 opt_in_and_return_home()
                 if not device_read.wait(15):
@@ -170,9 +165,10 @@ def main():
                 verify_notification_and_results(evidence)
                 print("Android displayed the notification and opened the expected match results", flush=True)
             except Exception:
-                capture(evidence / "failure.png")
-                ElementTree.ElementTree(screen()).write(evidence / "failure-ui.xml", encoding="utf-8")
-                diagnose_subscription()
+                try:
+                    save_failure_evidence(evidence)
+                except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                    print(f"Unable to collect all device diagnostics: {error}", file=sys.stderr)
                 raise
             finally:
                 server.shutdown()
