@@ -96,6 +96,17 @@ jobs:
           apk="$candidate/TableTennisAz-$RELEASE_VERSION_NAME.apk"
           tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
           scripts/android/build-release-candidate "$candidate" "$tools"
+          firebase_config=app/src/release/google-services.json
+          if [[ -f "$firebase_config" ]]; then
+            firebase_app_id=$(jq -er '.client[] | select(.client_info.android_client_info.package_name == "az.tabletennis") | .client_info.mobilesdk_app_id | strings | select(length > 0)' "$firebase_config")
+            if ! "$tools/aapt2" dump resources "$apk" | awk -v app_id="$firebase_app_id" '
+              / string\/google_app_id$/ { getline; matches = ($1 == "()" && $2 == "\"" app_id "\"") }
+              END { exit !matches }
+            '; then
+              echo 'The signed APK does not contain the configured Firebase Android app ID.' >&2
+              exit 1
+            fi
+          fi
           digest=$(sha256sum "$apk")
           printf 'apk_sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4

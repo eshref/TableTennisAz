@@ -79,17 +79,33 @@ jobs:
       - name: Choose the daily head-to-head refresh date
         id: head-to-head
         run: date -u '+date=%F' >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: head-to-head-cache
         with:
           path: ${{ runner.temp }}/head-to-head-indexes
-          key: head-to-head-indexes-${{ steps.head-to-head.outputs.date }}-${{ hashFiles('scripts/singles-index/generate.py', 'scripts/singles-index/requirements.txt') }}
+          key: head-to-head-indexes-${{ hashFiles('scripts/singles-index/generate.py', 'scripts/singles-index/requirements.txt') }}-${{ steps.head-to-head.outputs.date }}
+          restore-keys: head-to-head-indexes-${{ hashFiles('scripts/singles-index/generate.py', 'scripts/singles-index/requirements.txt') }}-
       - name: Generate the complete head-to-head indexes
+        id: refresh-head-to-head
         if: steps.head-to-head-cache.outputs.cache-hit != 'true'
         run: |
           indexes="$RUNNER_TEMP/head-to-head-indexes"
-          python scripts/singles-index/generate.py "$indexes/singles-index-v1" \
-            --doubles-output "$indexes/doubles-index-v1"
+          refreshed=$(mktemp -d "$RUNNER_TEMP/head-to-head-refresh.XXXXXX")
+          if python scripts/singles-index/generate.py "$refreshed/singles-index-v1" \
+            --doubles-output "$refreshed/doubles-index-v1"; then
+            mkdir -p "$indexes"
+            cp -a "$refreshed/." "$indexes/"
+            echo 'refreshed=true' >> "$GITHUB_OUTPUT"
+          elif [[ -d "$indexes/singles-index-v1" && -d "$indexes/doubles-index-v1" ]]; then
+            echo '::warning::The head-to-head refresh failed. Publishing the last successful indexes.'
+          else
+            exit 1
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.refresh-head-to-head.outputs.refreshed == 'true'
+        with:
+          path: ${{ runner.temp }}/head-to-head-indexes
+          key: ${{ steps.head-to-head-cache.outputs.cache-primary-key }}
       - name: Include the head-to-head indexes in Pages
         run: cp -a "$RUNNER_TEMP/head-to-head-indexes/." pages-source/
       - uses: actions/jekyll-build-pages@v1
