@@ -12,3 +12,4 @@ make loading and caching behavior important. Offline access to previously loaded
 data, with visible update times, is already part of the agreed scope.
 
 The tournament lists use a [generated catalogue on GitHub Pages](0009-publish-tournament-catalogue-on-github-pages.md).
+Üz-üzə uses a [prebuilt match index on GitHub Pages](0010-publish-head-to-head-index-on-github-pages.md).
