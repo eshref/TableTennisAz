@@ -37,6 +37,23 @@ class FixtureHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def generate(fixtures, output, *, unavailable=(), previous=None, options=()):
+    handler = functools.partial(FixtureHandler, directory=fixtures, unavailable=unavailable)
+    with ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            return subprocess.run(
+                [sys.executable, str(ROOT / "generate.py"),
+                 "--source", f"http://127.0.0.1:{server.server_port}",
+                 *(["--previous", str(previous)] if previous else []), *options, str(output)],
+                capture_output=True, text=True, timeout=15,
+            )
+        finally:
+            server.shutdown()
+            thread.join()
+
+
 class CatalogueTest(unittest.TestCase):
     def test_publishes_verified_tournaments_with_source_fields_in_end_date_order(self):
         # arrange
@@ -44,7 +61,7 @@ class CatalogueTest(unittest.TestCase):
             output = Path(directory) / "tournaments-v1.json"
 
             # act
-            result = self.generate(ROOT / "fixtures", output)
+            result = generate(ROOT / "fixtures", output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -94,7 +111,7 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            initial = self.generate(fixtures, output)
+            initial = generate(fixtures, output)
 
             # assert
             self.assertEqual(initial.returncode, 0, initial.stderr)
@@ -107,7 +124,7 @@ class CatalogueTest(unittest.TestCase):
             event.write_bytes(published_detail)
 
             # act
-            updated = self.generate(fixtures, output, previous=output)
+            updated = generate(fixtures, output, previous=output)
 
             # assert
             self.assertEqual(updated.returncode, 0, updated.stderr)
@@ -123,7 +140,7 @@ class CatalogueTest(unittest.TestCase):
             index.write_text(complete_index, encoding="utf-8")
 
             # act
-            reappeared = self.generate(fixtures, output, previous=output)
+            reappeared = generate(fixtures, output, previous=output)
 
             # assert
             self.assertEqual(reappeared.returncode, 0, reappeared.stderr)
@@ -136,7 +153,7 @@ class CatalogueTest(unittest.TestCase):
             output.write_text('{"version":1,"tournaments":[{"id":123}]}', encoding="utf-8")
 
             # act
-            result = self.generate(ROOT / "fixtures", output, previous=output)
+            result = generate(ROOT / "fixtures", output, previous=output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -152,7 +169,7 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            result = self.generate(fixtures, output)
+            result = generate(fixtures, output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -169,7 +186,7 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            result = self.generate(ROOT / "fixtures", output, unavailable=("/api/getDuoInfo?id=413",))
+            result = generate(ROOT / "fixtures", output, unavailable=("/api/getDuoInfo?id=413",))
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -190,7 +207,7 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            result = self.generate(fixtures, output)
+            result = generate(fixtures, output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -208,7 +225,7 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            result = self.generate(fixtures, output)
+            result = generate(fixtures, output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -227,7 +244,7 @@ class CatalogueTest(unittest.TestCase):
             output.write_text("previous publication", encoding="utf-8")
 
             # act
-            result = self.generate(root, output)
+            result = generate(root, output)
 
             # assert
             self.assertNotEqual(result.returncode, 0)
@@ -244,7 +261,7 @@ class CatalogueTest(unittest.TestCase):
             output.write_text("previous publication", encoding="utf-8")
 
             # act
-            result = self.generate(fixtures, output)
+            result = generate(fixtures, output)
 
             # assert
             self.assertNotEqual(result.returncode, 0)
@@ -261,25 +278,9 @@ class CatalogueTest(unittest.TestCase):
             output = root / "tournaments-v1.json"
 
             # act
-            result = self.generate(fixtures, output)
+            result = generate(fixtures, output)
 
             # assert
             self.assertEqual(result.returncode, 0, result.stderr)
             entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
             self.assertEqual([entry["id"] for entry in entries], [944, 941, 993])
-
-    def generate(self, fixtures, output, *, unavailable=(), previous=None):
-        handler = functools.partial(FixtureHandler, directory=fixtures, unavailable=unavailable)
-        with ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
-            thread = Thread(target=server.serve_forever, daemon=True)
-            thread.start()
-            try:
-                return subprocess.run(
-                    [sys.executable, str(ROOT / "generate.py"),
-                     "--source", f"http://127.0.0.1:{server.server_port}",
-                     *(["--previous", str(previous)] if previous else []), str(output)],
-                    capture_output=True, text=True, timeout=15,
-                )
-            finally:
-                server.shutdown()
-                thread.join()
