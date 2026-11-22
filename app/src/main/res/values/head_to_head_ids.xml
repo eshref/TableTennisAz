@@ -1,0 +1,8 @@
+<resources>
+    <item name="head_to_head_singles" type="id" />
+    <item name="head_to_head_doubles" type="id" />
+    <item name="head_to_head_left_first" type="id" />
+    <item name="head_to_head_left_second" type="id" />
+    <item name="head_to_head_right_first" type="id" />
+    <item name="head_to_head_right_second" type="id" />
+</resources>

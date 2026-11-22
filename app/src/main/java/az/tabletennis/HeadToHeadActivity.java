@@ -19,11 +19,14 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,12 +38,15 @@ public final class HeadToHeadActivity extends Activity {
             .thenComparingLong(match -> match.id);
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final ArrayList<MatchSummary> matches = new ArrayList<>();
     private MainScreenChrome chrome;
     private HeadToHeadSearch source;
     private ScrollView scroll;
-    private PlayerField first;
-    private PlayerField second;
+    private SearchForm singles;
+    private SearchForm doubles;
+    private SearchForm active;
+    private RadioButton singlesTab;
+    private RadioButton doublesTab;
+    private LinearLayout fields;
     private Button search;
     private TextView status;
     private ProgressBar progress;
@@ -51,7 +57,6 @@ public final class HeadToHeadActivity extends Activity {
     private int directoryVersion;
     private enum SearchStatus { IDLE, RUNNING, COMPLETE, INTERRUPTED }
 
-    private SearchStatus searchStatus = SearchStatus.IDLE;
     private long openedMatchId;
     private int openedMatchOffset;
 
@@ -67,15 +72,20 @@ public final class HeadToHeadActivity extends Activity {
         scroll.addView(form);
         chrome.body.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
 
-        RadioButton singles = new RadioButton(this);
-        singles.setText(R.string.match_singles);
-        Presentation.segment(singles);
-        singles.setChecked(true);
-        singles.setClickable(false);
-        form.addView(singles, new LinearLayout.LayoutParams(-1, -2));
+        RadioGroup tabs = new RadioGroup(this);
+        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        tabs.setPadding(dp(3), dp(3), dp(3), dp(3));
+        tabs.setBackground(Presentation.shape(this, R.color.soft));
+        singlesTab = addTab(tabs, R.id.head_to_head_singles, R.string.match_singles);
+        doublesTab = addTab(tabs, R.id.head_to_head_doubles, R.string.match_doubles);
+        LinearLayout.LayoutParams tabLayout = new LinearLayout.LayoutParams(-1, -2);
+        tabLayout.bottomMargin = dp(12);
+        form.addView(tabs, tabLayout);
 
-        first = new PlayerField(form, R.id.head_to_head_first, R.string.head_to_head_first);
-        second = new PlayerField(form, R.id.head_to_head_second, R.string.head_to_head_second);
+        fields = column();
+        form.addView(fields);
+        singles = new SearchForm(false);
+        doubles = new SearchForm(true);
         search = button(R.string.head_to_head_search, this::startSearch);
         form.addView(search);
         status = Presentation.label(this, "", 14);
@@ -88,26 +98,23 @@ public final class HeadToHeadActivity extends Activity {
         form.addView(results);
 
         if (state != null) {
-            first.restore(state, "first");
-            second.restore(state, "second");
-            @SuppressWarnings("unchecked")
-            List<MatchSummary> saved = (List<MatchSummary>) state.getSerializable("matches");
-            if (saved != null) for (MatchSummary match : saved) showMatch(match);
-            searchStatus = (SearchStatus) state.getSerializable("status");
+            singles.restore(state, "singles");
+            doubles.restore(state, "doubles");
             openedMatchId = state.getLong("opened-match");
             openedMatchOffset = state.getInt("opened-offset");
-            if (searchStatus == SearchStatus.RUNNING) startSearch();
             if (state.getBoolean("drawer")) chrome.openDrawer();
         }
-        updateControls();
+        selectMode(state != null && state.getBoolean("doubles-mode") ? doubles : singles);
+        tabs.check(active == doubles ? doublesTab.getId() : singlesTab.getId());
+        tabs.setOnCheckedChangeListener((group, checked) -> selectMode(checked == doublesTab.getId() ? doubles : singles));
+        if (active.status == SearchStatus.RUNNING) startSearch();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
-        first.save(state, "first");
-        second.save(state, "second");
-        state.putSerializable("matches", new ArrayList<>(matches));
-        state.putSerializable("status", searchStatus);
+        singles.save(state, "singles");
+        doubles.save(state, "doubles");
+        state.putBoolean("doubles-mode", active == doubles);
         state.putLong("opened-match", openedMatchId);
         state.putInt("opened-offset", openedMatchOffset);
         state.putBoolean("drawer", chrome.isDrawerOpen());
@@ -136,11 +143,39 @@ public final class HeadToHeadActivity extends Activity {
         super.onDestroy();
     }
 
+    private RadioButton addTab(RadioGroup tabs, int id, int label) {
+        RadioButton tab = new RadioButton(this);
+        tab.setId(id);
+        tab.setText(label);
+        tab.setSaveEnabled(false);
+        Presentation.segment(tab);
+        tabs.addView(tab, new RadioGroup.LayoutParams(0, -2, 1));
+        return tab;
+    }
+
+    private void selectMode(SearchForm mode) {
+        if (active == mode) return;
+        clearSuggestions();
+        if (active != null) {
+            hideKeyboard();
+            openedMatchId = 0;
+            scroll.scrollTo(0, 0);
+        }
+        active = mode;
+        fields.removeAllViews();
+        fields.addView(mode.inputs);
+        results.removeAllViews();
+        for (MatchSummary match : mode.matches) {
+            results.addView(new MatchCard(this, match, () -> openMatch(match)));
+        }
+        updateControls();
+    }
+
     private void edit(PlayerField field) {
         if (field.settingText) return;
         field.selected = null;
         clearMatches();
-        searchStatus = SearchStatus.IDLE;
+        active.status = SearchStatus.IDLE;
         updateControls();
         suggest(field);
     }
@@ -206,20 +241,22 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     private void startSearch() {
-        HeadToHeadSearch.Player left = first.selected;
-        HeadToHeadSearch.Player right = second.selected;
-        if (left == null || right == null || left.id() == right.id()) return;
+        List<HeadToHeadSearch.Player> selected = active.selections();
+        if (selected.size() != active.players.size() || hasDuplicatePlayers(selected)) return;
+        int sideSize = selected.size() / 2;
+        List<HeadToHeadSearch.Player> left = selected.subList(0, sideSize);
+        List<HeadToHeadSearch.Player> right = selected.subList(sideSize, selected.size());
 
         clearSuggestions();
         hideKeyboard();
-        if (searchStatus != SearchStatus.RUNNING) clearMatches();
-        searchStatus = SearchStatus.RUNNING;
+        if (active.status != SearchStatus.RUNNING) clearMatches();
+        active.status = SearchStatus.RUNNING;
         updateControls();
 
         RankingsApplication application = (RankingsApplication) getApplication();
         worker.execute(() -> {
             try {
-                source.findSingles(left, right, (match, details) -> {
+                source.findMeetings(left, right, (match, details) -> {
                     try {
                         new SavedDataStore<>(application, "match-" + details.id, MatchDetails.class)
                                 .write(new SavedData<>(details, application.clock().millis()));
@@ -240,25 +277,26 @@ public final class HeadToHeadActivity extends Activity {
 
     private void finishSearch(SearchStatus outcome) {
         if (isDestroyed()) return;
-        searchStatus = outcome;
+        active.status = outcome;
         updateControls();
     }
 
     private void clearMatches() {
-        matches.clear();
+        active.matches.clear();
         results.removeAllViews();
     }
 
     private void showMatch(MatchSummary match) {
+        List<MatchSummary> matches = active.matches;
         if (matches.stream().anyMatch(existing -> existing.id == match.id)) return;
-        int insertion = -java.util.Collections.binarySearch(matches, match, NEWEST_FIRST) - 1;
+        int insertion = -Collections.binarySearch(matches, match, NEWEST_FIRST) - 1;
         matches.add(insertion, match);
         results.addView(new MatchCard(this, match, () -> openMatch(match)), insertion);
     }
 
     private void openMatch(MatchSummary match) {
         openedMatchId = match.id;
-        openedMatchOffset = matchTop(matches.indexOf(match)) - scroll.getScrollY();
+        openedMatchOffset = matchTop(active.matches.indexOf(match)) - scroll.getScrollY();
         startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id));
     }
 
@@ -267,6 +305,7 @@ public final class HeadToHeadActivity extends Activity {
         scroll.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             @Override public boolean onPreDraw() {
                 scroll.getViewTreeObserver().removeOnPreDrawListener(this);
+                List<MatchSummary> matches = active.matches;
                 for (int index = 0; index < matches.size(); index++) {
                     if (matches.get(index).id == openedMatchId) {
                         scroll.scrollTo(0, matchTop(index) - openedMatchOffset);
@@ -284,21 +323,28 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     private void updateControls() {
-        boolean running = searchStatus == SearchStatus.RUNNING;
-        boolean valid = first.selected != null && second.selected != null;
-        boolean duplicate = valid && first.selected.id() == second.selected.id();
-        first.input.setEnabled(!running);
-        second.input.setEnabled(!running);
-        search.setEnabled(valid && !duplicate && !running);
+        boolean running = active.status == SearchStatus.RUNNING;
+        List<HeadToHeadSearch.Player> selected = active.selections();
+        boolean duplicate = hasDuplicatePlayers(selected);
+        for (PlayerField field : active.players) field.input.setEnabled(!running);
+        singlesTab.setEnabled(!running);
+        doublesTab.setEnabled(!running);
+        search.setEnabled(selected.size() == active.players.size() && !duplicate && !running);
         progress.setVisibility(running ? View.VISIBLE : View.GONE);
-        int message = switch (searchStatus) {
-            case IDLE -> duplicate ? R.string.head_to_head_distinct_players : 0;
+        int message = switch (active.status) {
+            case IDLE -> duplicate ? active.duplicateMessage : 0;
             case RUNNING -> R.string.head_to_head_running;
-            case COMPLETE -> matches.isEmpty() ? R.string.head_to_head_empty : R.string.head_to_head_complete;
+            case COMPLETE -> active.matches.isEmpty() ? R.string.head_to_head_empty : R.string.head_to_head_complete;
             case INTERRUPTED -> R.string.head_to_head_interrupted;
         };
         status.setVisibility(message == 0 ? View.GONE : View.VISIBLE);
         if (message != 0) status.setText(message);
+    }
+
+    private boolean hasDuplicatePlayers(List<HeadToHeadSearch.Player> selected) {
+        HashSet<Long> ids = new HashSet<>();
+        for (HeadToHeadSearch.Player player : selected) if (!ids.add(player.id())) return true;
+        return false;
     }
 
     private void hideKeyboard() {
@@ -321,17 +367,75 @@ public final class HeadToHeadActivity extends Activity {
 
     private int dp(int value) { return Presentation.dp(this, value); }
 
+    private final class SearchForm {
+        final LinearLayout inputs = column();
+        final List<PlayerField> players = new ArrayList<>();
+        final ArrayList<MatchSummary> matches = new ArrayList<>();
+        final int duplicateMessage;
+        SearchStatus status = SearchStatus.IDLE;
+
+        SearchForm(boolean doubles) {
+            if (doubles) {
+                duplicateMessage = R.string.head_to_head_four_distinct_players;
+                addPair(1, R.id.head_to_head_left_first, R.id.head_to_head_left_second);
+                addPair(2, R.id.head_to_head_right_first, R.id.head_to_head_right_second);
+            } else {
+                duplicateMessage = R.string.head_to_head_distinct_players;
+                players.add(new PlayerField(inputs, R.id.head_to_head_first, R.string.head_to_head_first, null));
+                players.add(new PlayerField(inputs, R.id.head_to_head_second, R.string.head_to_head_second, null));
+            }
+        }
+
+        private void addPair(int side, int firstId, int secondId) {
+            LinearLayout pair = column();
+            pair.setPadding(dp(12), dp(8), dp(12), dp(8));
+            pair.setBackground(Presentation.shape(HeadToHeadActivity.this, R.color.soft));
+            LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-1, -2);
+            layout.bottomMargin = dp(8);
+            inputs.addView(pair, layout);
+            TextView title = Presentation.label(HeadToHeadActivity.this, getString(R.string.head_to_head_pair, side), 16);
+            if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+            pair.addView(title);
+            players.add(new PlayerField(pair, firstId, R.string.head_to_head_first,
+                    getString(R.string.head_to_head_pair_player, side, getString(R.string.head_to_head_first))));
+            players.add(new PlayerField(pair, secondId, R.string.head_to_head_second,
+                    getString(R.string.head_to_head_pair_player, side, getString(R.string.head_to_head_second))));
+        }
+
+        List<HeadToHeadSearch.Player> selections() {
+            List<HeadToHeadSearch.Player> selected = new ArrayList<>();
+            for (PlayerField field : players) if (field.selected != null) selected.add(field.selected);
+            return selected;
+        }
+
+        void save(Bundle state, String key) {
+            for (int index = 0; index < players.size(); index++) players.get(index).save(state, key + index);
+            state.putSerializable(key + "-matches", new ArrayList<>(matches));
+            state.putSerializable(key + "-status", status);
+        }
+
+        void restore(Bundle state, String key) {
+            for (int index = 0; index < players.size(); index++) players.get(index).restore(state, key + index);
+            @SuppressWarnings("unchecked")
+            List<MatchSummary> saved = (List<MatchSummary>) state.getSerializable(key + "-matches");
+            if (saved != null) matches.addAll(saved);
+            SearchStatus savedStatus = (SearchStatus) state.getSerializable(key + "-status");
+            if (savedStatus != null) status = savedStatus;
+        }
+    }
+
     private final class PlayerField {
         final EditText input;
         final LinearLayout suggestions;
         HeadToHeadSearch.Player selected;
         boolean settingText;
 
-        PlayerField(LinearLayout form, int id, int label) {
+        PlayerField(LinearLayout form, int id, int label, String accessibleLabel) {
             LinearLayout group = column();
             form.addView(group);
             TextView name = Presentation.label(HeadToHeadActivity.this, getString(label), 14);
             name.setLabelFor(id);
+            name.setContentDescription(accessibleLabel);
             group.addView(name);
             input = new EditText(HeadToHeadActivity.this);
             input.setId(id);

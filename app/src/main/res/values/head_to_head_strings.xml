@@ -7,6 +7,9 @@
     <string name="head_to_head_short_query">Ən azı 3 simvol yazın.</string>
     <string name="head_to_head_directory_failed">Oyunçu siyahısı yüklənmədi.</string>
     <string name="head_to_head_distinct_players">İki fərqli oyunçu seçin.</string>
+    <string name="head_to_head_four_distinct_players">Dörd fərqli oyunçu seçin.</string>
+    <string name="head_to_head_pair">Qoşa %1$d</string>
+    <string name="head_to_head_pair_player">Qoşa %1$d, %2$s</string>
     <string name="head_to_head_search">Axtar</string>
     <string name="head_to_head_running">Axtarış davam edir</string>
     <string name="head_to_head_complete">Axtarış tamamlandı</string>

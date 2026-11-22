@@ -11,8 +11,13 @@ import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static az.tabletennis.HeadToHeadFixtures.ALIKHAN;
 import static az.tabletennis.HeadToHeadFixtures.ASHRAF;
+import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
+import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
+import static az.tabletennis.HeadToHeadFixtures.ERHAN;
 import static az.tabletennis.HeadToHeadFixtures.ILQAR;
+import static az.tabletennis.HeadToHeadFixtures.KHAYAL;
 import static az.tabletennis.HeadToHeadFixtures.NEWER;
 import static az.tabletennis.HeadToHeadFixtures.OLDER;
 import static org.hamcrest.Matchers.allOf;
@@ -69,8 +74,7 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
-                onView(withContentDescription(NEWER)).perform(scrollTo());
-                capture("head-to-head-results");
+                awaitView(withContentDescription(NEWER));
 
                 // act
                 onView(withContentDescription(OLDER)).perform(scrollTo());
@@ -90,6 +94,41 @@ public class HeadToHeadDeviceTest {
                 onView(withId(R.id.head_to_head_first)).check(matches(withText(ASHRAF)));
                 onView(withId(R.id.head_to_head_second)).check(matches(withText(ILQAR)));
                 onView(withContentDescription(OLDER)).check(matches(withId(R.id.match_card)));
+
+                // act
+                onView(withId(R.id.head_to_head_doubles)).perform(scrollTo(), click());
+                selectPlayer(R.id.head_to_head_left_first, "Erh", ERHAN);
+                selectPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
+                selectPlayer(R.id.head_to_head_right_first, "Əli", ALIKHAN);
+                selectPlayer(R.id.head_to_head_right_second, "Xəy", KHAYAL);
+                onView(withId(R.id.head_to_head_doubles)).perform(scrollTo());
+                capture("head-to-head-doubles-form");
+                onView(withText("Axtar")).perform(scrollTo(), click());
+
+                // assert
+                awaitView(withText("Axtarış tamamlandı"));
+                onView(withContentDescription(DOUBLES)).perform(scrollTo());
+                capture("head-to-head-results");
+
+                // act
+                int doublesPosition = scrollPosition();
+                onView(withContentDescription(DOUBLES)).perform(click());
+
+                // assert
+                awaitView(withText("09 Nov. 2026"));
+                onView(withId(R.id.match_score_left)).check(matches(withText("3")));
+                onView(withId(R.id.match_score_right)).check(matches(withText("2")));
+
+                // act
+                pressBack();
+
+                // assert
+                assertThat(scrollPosition(), is(doublesPosition));
+                onView(withId(R.id.head_to_head_left_first)).check(matches(withText(ERHAN)));
+                onView(withId(R.id.head_to_head_left_second)).check(matches(withText(ELCHIN)));
+                onView(withId(R.id.head_to_head_right_first)).check(matches(withText(ALIKHAN)));
+                onView(withId(R.id.head_to_head_right_second)).check(matches(withText(KHAYAL)));
+                onView(withContentDescription(DOUBLES)).check(matches(withId(R.id.match_card)));
                 capture("head-to-head-return");
             } finally {
                 application.fixtureClient = null;
@@ -101,6 +140,7 @@ public class HeadToHeadDeviceTest {
             throws Exception {
         Map<String, String> pages = new HashMap<>();
         HeadToHeadFixtures.publish(pages);
+        HeadToHeadFixtures.publishDoubles(pages);
         new RankingsStore(application).write(new RankingSnapshot(
                 Collections.singletonList(new RankingSnapshot.Player(13, ILQAR, 894)), application.clock().millis()));
         server.setDispatcher(new Dispatcher() {

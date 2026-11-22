@@ -71,7 +71,13 @@ A match between two individual players, with one player on each side.
 A match between two pairs, with two players competing together on each side.
 
 **Doubles pair**:
-A partnership of two players competing together in doubles. Partnerships with different teammates are separate pairs, so a player can belong to more than one pair.
+A partnership of two players competing together in doubles, regardless of the order of the teammates. A player can belong to several distinct pairs by partnering with different teammates.
+
+**Head-to-head (Üz-üzə)**:
+The match history between two opposing players in singles or two opposing doubles pairs.
+
+**Head-to-head score**:
+The number of match wins for each side across their completed head-to-head matches.
 
 **Doubles tournament pair count**:
 The tournament’s published total of doubles pairs, or the number of distinct pairs in its complete published match results when the website provides only an individual player count.

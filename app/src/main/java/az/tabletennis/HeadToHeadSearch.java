@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.regex.Pattern;
 import okhttp3.HttpUrl;
 import org.jsoup.Jsoup;
@@ -60,9 +61,12 @@ final class HeadToHeadSearch {
         return new ArrayList<>(players.values());
     }
 
-    void findSingles(Player first, Player second, BiConsumer<MatchSummary, MatchDetails> found) throws IOException {
-        // Use the same history order when the reader reverses the selected sides.
-        List<Player> owners = first.id() < second.id() ? Arrays.asList(first, second) : Arrays.asList(second, first);
+    void findMeetings(List<Player> firstSide, List<Player> secondSide,
+                      BiConsumer<MatchSummary, MatchDetails> found) throws IOException {
+        // Read every selected player's history in the same order for equivalent selections.
+        List<Player> owners = new ArrayList<>(firstSide);
+        owners.addAll(secondSide);
+        owners.sort(Comparator.comparingLong(Player::id));
         Set<Long> checked = new HashSet<>();
         for (Player owner : owners) {
             String path = "/matches/results/player/" + owner.id();
@@ -70,10 +74,12 @@ final class HeadToHeadSearch {
                 checkInterrupted();
                 WebsiteSource.ResultPage page = source.playerHistory(path);
                 for (MatchSummary row : page.matches) {
-                    if (!namesMatch(row, first, second) || !checked.add(row.id)) continue;
+                    if (!matchesSides(row.left, row.right, firstSide, secondSide,
+                            (name, player) -> name.equalsIgnoreCase(player.name())) || !checked.add(row.id)) continue;
                     checkInterrupted();
                     MatchDetails details = source.match(row.id);
-                    if (!playersMatch(details, first, second)) continue;
+                    if (!matchesSides(details.left, details.right, firstSide, secondSide,
+                            (participant, player) -> participant.id == player.id())) continue;
 
                     try {
                         MatchSummary.sourceDay(details.date);
@@ -81,8 +87,7 @@ final class HeadToHeadSearch {
                         throw new IOException("Unusable source match date", failure);
                     }
                     String event = details.eventName.isEmpty() ? row.eventName : details.eventName;
-                    found.accept(new MatchSummary(row.id, Collections.singletonList(details.left.get(0).name),
-                            Collections.singletonList(details.right.get(0).name), details.date, details.score,
+                    found.accept(new MatchSummary(row.id, names(details.left), names(details.right), details.date, details.score,
                             row.eventId, event, row.duel, row.teamChild, row.stage), details);
                 }
                 path = page.next == null ? null : page.next.path;
@@ -90,19 +95,23 @@ final class HeadToHeadSearch {
         }
     }
 
-    private boolean namesMatch(MatchSummary row, Player first, Player second) {
-        if (row.left.size() != 1 || row.right.size() != 1) return false;
-        String left = row.left.get(0);
-        String right = row.right.get(0);
-        return (left.equalsIgnoreCase(first.name()) && right.equalsIgnoreCase(second.name()))
-                || (left.equalsIgnoreCase(second.name()) && right.equalsIgnoreCase(first.name()));
+    private <T> boolean matchesSides(List<T> left, List<T> right, List<Player> firstSide, List<Player> secondSide,
+                                     BiPredicate<T, Player> matchesPlayer) {
+        return (matchesSide(left, firstSide, matchesPlayer) && matchesSide(right, secondSide, matchesPlayer))
+                || (matchesSide(left, secondSide, matchesPlayer) && matchesSide(right, firstSide, matchesPlayer));
     }
 
-    private boolean playersMatch(MatchDetails details, Player first, Player second) {
-        if (details.left.size() != 1 || details.right.size() != 1) return false;
-        long left = details.left.get(0).id;
-        long right = details.right.get(0).id;
-        return (left == first.id() && right == second.id()) || (left == second.id() && right == first.id());
+    private <T> boolean matchesSide(List<T> published, List<Player> selected, BiPredicate<T, Player> matchesPlayer) {
+        if (published.size() != selected.size()) return false;
+        if (selected.size() == 1) return matchesPlayer.test(published.get(0), selected.get(0));
+        return (matchesPlayer.test(published.get(0), selected.get(0)) && matchesPlayer.test(published.get(1), selected.get(1)))
+                || (matchesPlayer.test(published.get(0), selected.get(1)) && matchesPlayer.test(published.get(1), selected.get(0)));
+    }
+
+    private List<String> names(List<MatchDetails.PlayerLink> side) {
+        List<String> names = new ArrayList<>(side.size());
+        for (MatchDetails.PlayerLink player : side) names.add(player.name);
+        return names;
     }
 
     private void checkInterrupted() throws IOException {
