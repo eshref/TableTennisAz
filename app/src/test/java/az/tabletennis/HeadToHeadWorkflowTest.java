@@ -8,6 +8,7 @@ import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TEAM_GAME;
 import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TOURNAMENT;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES_NEWER;
+import static az.tabletennis.HeadToHeadFixtures.DOUBLES_SHARD;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES_TEAM_GAME;
 import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
 import static az.tabletennis.HeadToHeadFixtures.ERHAN;
@@ -22,7 +23,6 @@ import static az.tabletennis.HeadToHeadFixtures.SHAKIR;
 import static az.tabletennis.HeadToHeadFixtures.VAQIF;
 import static az.tabletennis.HeadToHeadFixtures.directory;
 import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
-import static az.tabletennis.HeadToHeadFixtures.laterDoublesPage;
 import static az.tabletennis.HeadToHeadFixtures.REFRESH_DATE;
 import static az.tabletennis.HeadToHeadFixtures.SINGLES_SHARD;
 import static az.tabletennis.HeadToHeadFixtures.publish;
@@ -48,6 +48,7 @@ import okhttp3.EventListener;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okio.Buffer;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -352,9 +353,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
     @Test public void doublesSearchFindsTheSameMeetingsAcrossTeammateAndSideOrders() throws Exception {
         // arrange
         HeadToHeadFixtures.publishDoubles(website);
-        HeadToHeadFixtures.publishTournamentArchive(website);
-        CountDownLatch laterPage = new CountDownLatch(1);
-        responses.put("/matches/results/player/7?page=2", () -> awaitPage(laterPage, new MockResponse().setResponseCode(503)));
+        responses.put(DOUBLES_SHARD, () -> new MockResponse().setResponseCode(503));
         openScreen();
 
         // act
@@ -378,52 +377,33 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         pickPlayer(R.id.head_to_head_right_second, "Xəy", KHAYAL);
         clickText("Axtar");
 
-        // act & assert
-        try {
-            awaitText(DOUBLES);
-            assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain(DOUBLES_NEWER, "Qələbə sayı", "Matç tapılmadı");
-        } finally {
-            laterPage.countDown();
-        }
-
         // assert
         awaitText("Axtarış tamamlanmadı");
-        assertThat(matchCards()).containsExactly(DOUBLES);
+        assertThat(visibleText()).contains("Yenidən cəhd et").doesNotContain("Qələbə sayı", "Matç tapılmadı", REFRESH_DATE);
+        assertThat(matchCards()).isEmpty();
 
         // arrange
-        CountDownLatch retryPage = new CountDownLatch(1);
-        CountDownLatch tournamentArchive = new CountDownLatch(1);
-        responses.put("/matches/results/player/7?page=2", () -> awaitPage(retryPage, new MockResponse().setBody(laterDoublesPage())));
-        String teamPage = "/matches/results/event/912?page=2";
-        responses.put(teamPage, () -> awaitPage(tournamentArchive, new MockResponse().setBody(website.get(teamPage))));
+        responses.remove(DOUBLES_SHARD);
 
-        // act & assert
-        try {
-            clickText("Yenidən cəhd et");
-            assertThat(visibleText()).contains("Axtarış davam edir");
-            assertThat(matchCards()).containsExactly(DOUBLES);
-            retryPage.countDown();
-            awaitText(DOUBLES_NEWER);
-            assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain("Qələbə sayı");
-            assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
-        } finally {
-            retryPage.countDown();
-            tournamentArchive.countDown();
-        }
+        // act
+        clickText("Yenidən cəhd et");
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(visibleText()).containsSequence("Qələbə sayı", "2–1", ERHAN + "\n" + ELCHIN, ALIKHAN + "\n" + KHAYAL);
+        assertThat(visibleText()).contains(REFRESH_DATE)
+                .containsSequence("Qələbə sayı", "2–1", ERHAN + "\n" + ELCHIN, ALIKHAN + "\n" + KHAYAL);
         assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
 
         // act
         pickPlayer(R.id.head_to_head_left_first, "Elç", ELCHIN);
         pickPlayer(R.id.head_to_head_left_second, "Erh", ERHAN);
+        pickPlayer(R.id.head_to_head_right_first, "Xəy", KHAYAL);
+        pickPlayer(R.id.head_to_head_right_second, "Əli", ALIKHAN);
         clickText("Axtar");
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(visibleText()).containsSequence("Qələbə sayı", "2–1", ELCHIN + "\n" + ERHAN, ALIKHAN + "\n" + KHAYAL);
+        assertThat(visibleText()).containsSequence("Qələbə sayı", "2–1", ELCHIN + "\n" + ERHAN, KHAYAL + "\n" + ALIKHAN);
         assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
 
         // act
@@ -437,6 +417,39 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         awaitText("Axtarış tamamlandı");
         assertThat(visibleText()).containsSequence("Qələbə sayı", "1–2", ALIKHAN + "\n" + KHAYAL, ERHAN + "\n" + ELCHIN);
         assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
+    }
+
+    @Test public void aMalformedDoublesShardFailsAndAVerifiedEmptyComparisonShowsZeroWins() throws Exception {
+        // arrange
+        HeadToHeadFixtures.publishDoubles(website);
+        JSONObject shard = new JSONObject(website.get(DOUBLES_SHARD));
+        shard.getJSONArray("matches").getJSONObject(1).getJSONArray("right").remove(1);
+        website.put(DOUBLES_SHARD, shard.toString());
+        openScreen();
+
+        // act
+        openDoubles();
+        pickPlayer(R.id.head_to_head_left_first, "Erh", ERHAN);
+        pickPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
+        pickPlayer(R.id.head_to_head_right_first, "Əli", ALIKHAN);
+        pickPlayer(R.id.head_to_head_right_second, "Xəy", KHAYAL);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlanmadı");
+        assertThat(visibleText()).contains("Yenidən cəhd et").doesNotContain("Qələbə sayı", "Matç tapılmadı", REFRESH_DATE);
+        assertThat(matchCards()).isEmpty();
+
+        // arrange
+        HeadToHeadFixtures.publishEmptyDoubles(website);
+
+        // act
+        clickText("Yenidən cəhd et");
+
+        // assert
+        awaitText("Matç tapılmadı");
+        assertThat(visibleText()).contains(REFRESH_DATE).containsSubsequence("Qələbə sayı", "0–0", "Matç tapılmadı");
+        assertThat(matchCards()).isEmpty();
     }
 
     @Test public void historicalDoublesRequireTheSelectedProfilesOnTheirExactSides() throws Exception {

@@ -9,6 +9,7 @@ final class HeadToHeadFixtures {
     private HeadToHeadFixtures() {}
 
     static final String SINGLES_SHARD = "/singles-index-v1/13.json";
+    static final String DOUBLES_SHARD = "/doubles-index-v1/7.json";
     static final String REFRESH_DATE = "Mənbənin yenilənmə tarixi: 19.11.2026";
 
     static final String ASHRAF = "Əşrəf Səfərov";
@@ -137,11 +138,22 @@ final class HeadToHeadFixtures {
 
     private static JSONObject indexed(int id, int leftId, String left, int rightId, String right,
                                       String date, String score, String event, boolean duel) {
+        return indexed(id, indexedPlayer(leftId, left), indexedPlayer(rightId, right), date, score, event, 0, duel);
+    }
+
+    private static JSONObject indexedPlayer(int id, String name) {
         try {
-            return new JSONObject().put("id", id)
-                    .put("left", new JSONObject().put("id", leftId).put("name", left))
-                    .put("right", new JSONObject().put("id", rightId).put("name", right))
-                    .put("date", date).put("score", score).put("event", event).put("eventId", 0).put("duel", duel);
+            return new JSONObject().put("id", id).put("name", name);
+        } catch (JSONException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    private static JSONObject indexed(int id, Object left, Object right, String date, String score,
+                                      String event, int eventId, boolean duel) {
+        try {
+            return new JSONObject().put("id", id).put("left", left).put("right", right)
+                    .put("date", date).put("score", score).put("event", event).put("eventId", eventId).put("duel", duel);
         } catch (JSONException error) {
             throw new IllegalStateException(error);
         }
@@ -154,54 +166,53 @@ final class HeadToHeadFixtures {
     private static String overlappingDuelRow() { return row(502, "16 Nov. 2026", ASHRAF, ILQAR, "1-3", "Duello"); }
 
     static void publishDoubles(Map<String, String> website) {
-        website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
-        website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "erh", 14, ERHAN);
         publishPlayer(website, "el%C3%A7", 22, ELCHIN);
         publishPlayer(website, "%C9%99li", 7, ALIKHAN);
         publishPlayer(website, "x%C9%99y", 70, KHAYAL);
         String event = "Ping Pong Club Qoşa Reytinq Turniri";
-        String published = row(30583, "09 Nov. 2026", pair(ERHAN, ELCHIN), pair(ALIKHAN, KHAYAL), "3-2", event);
-        website.put("/matches/results/player/7", history(published)
-                + "<ul class='pagination'><li><a href='/matches/results/player/7?page=2'>2</a></li></ul>");
-        website.put("/matches/results/player/7?page=2", laterDoublesPage());
-        website.put("/matches/results/player/14", history(published));
         website.put("/matches/30583", details(player(14, ERHAN) + player(22, ELCHIN),
                 player(70, KHAYAL) + player(7, ALIKHAN), "09 Nov. 2026", 3, 2, event));
         website.put("/matches/31001", details(player(7, ALIKHAN) + player(70, KHAYAL),
                 player(22, ELCHIN) + player(14, ERHAN), "20 Nov. 2026", 3, 1, "Liqa"));
-    }
-
-    static String laterDoublesPage() {
-        return history(row(31001, "20 Nov. 2026", pair(ALIKHAN, KHAYAL), pair(ELCHIN, ERHAN), "3-1", "Liqa"));
+        website.put("/matches/615", details(player(14, ERHAN) + player(22, ELCHIN),
+                player(7, ALIKHAN) + player(70, KHAYAL), "10 Nov. 2026", 3, 0, "Komanda Liqası"));
+        var first = players(14, ERHAN, 22, ELCHIN);
+        var second = players(7, ALIKHAN, 70, KHAYAL);
+        website.put(DOUBLES_SHARD, shard(7,
+                indexed(30583, first, players(70, KHAYAL, 7, ALIKHAN), "09 Nov. 2026", "3-2", event, 0, false),
+                indexed(31001, second, players(22, ELCHIN, 14, ERHAN), "20 Nov. 2026", "3-1", "Liqa", 0, false),
+                indexed(615, first, second, "10 Nov. 2026", "3-0", "Komanda Liqası", 912, false)));
     }
 
     static void publishHistoricalDoubles(Map<String, String> website) {
-        website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
-        website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "x%C9%99y", 70, KHAYAL);
         publishPlayer(website, "fir", 32, FIRDOVSI);
         publishPlayer(website, "vaq", 126, VAQIF);
         publishPlayer(website, "%C5%9Fak", 76, SHAKIR);
         String event = "BTTC Qoşa Reytinq Turniri #105";
-        website.put("/matches/results/player/76", history(
-                row(23924, "25 Mar. 2026", pair(KHAYAL, FIRDOVSI), pair(SHAKIR, VAQIF), "3-1", event)
-                + row(24001, "26 Mar. 2026", pair(KHAYAL, VAQIF), pair(SHAKIR, FIRDOVSI), "3-2", event)
-                + row(24002, "27 Mar. 2026", pair(KHAYAL, ERHAN), pair(SHAKIR, VAQIF), "3-0", event)
-                + row(24003, "28 Mar. 2026", pair(KHAYAL, FIRDOVSI), pair(SHAKIR, VAQIF), "3-0", event)));
         website.put("/matches/23924", details(player(70, KHAYAL) + player(32, FIRDOVSI),
                 player(126, VAQIF) + player(76, SHAKIR), "25 Mar. 2026", 3, 1, event));
-        website.put("/matches/24001", details(player(70, KHAYAL) + player(126, VAQIF),
-                player(76, SHAKIR) + player(32, FIRDOVSI), "26 Mar. 2026", 3, 2, event));
-        website.put("/matches/24002", details(player(70, KHAYAL) + player(14, ERHAN),
-                player(76, SHAKIR) + player(126, VAQIF), "27 Mar. 2026", 3, 0, event));
-        website.put("/matches/24003", details(player(70, KHAYAL) + player(132, FIRDOVSI),
-                player(76, SHAKIR) + player(126, VAQIF), "28 Mar. 2026", 3, 0, event));
+        var first = players(70, KHAYAL, 32, FIRDOVSI);
+        var second = players(126, VAQIF, 76, SHAKIR);
+        website.put("/doubles-index-v1/32.json", shard(32,
+                indexed(23924, first, second, "25 Mar. 2026", "3-1", event, 0, false),
+                indexed(24001, players(70, KHAYAL, 126, VAQIF), players(76, SHAKIR, 32, FIRDOVSI),
+                        "26 Mar. 2026", "3-2", event, 0, false),
+                indexed(24002, first, players(76, SHAKIR, 270, VAQIF),
+                        "27 Mar. 2026", "3-0", event, 0, false)));
+    }
+
+    static void publishEmptyDoubles(Map<String, String> website) {
+        website.put(DOUBLES_SHARD, shard(7));
+    }
+
+    private static JSONArray players(int firstId, String first, int secondId, String second) {
+        return new JSONArray().put(indexedPlayer(firstId, first)).put(indexedPlayer(secondId, second));
     }
 
     private static void publishPlayer(Map<String, String> website, String query, long id, String name) {
         website.put("/search?query=" + query, directory(id, name));
-        website.put("/matches/results/player/" + id, history(""));
     }
 
     private static String pair(String first, String second) { return first + "</div><div>" + second; }
