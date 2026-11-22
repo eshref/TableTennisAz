@@ -126,7 +126,8 @@ public class HeadToHeadDeviceTest {
                 awaitView(withText("Axtarış tamamlandı"));
                 onView(withText("Qələbə sayı")).perform(scrollTo()).check(matches(isDisplayed()));
                 onView(withText("2–1")).perform(scrollTo()).check(matches(isDisplayed()));
-                onView(withText(ALIKHAN + "\n" + KHAYAL)).perform(scrollTo());
+                onView(allOf(withText(ALIKHAN + "\n" + KHAYAL), hasSibling(withText(ERHAN + "\n" + ELCHIN))))
+                        .perform(scrollTo());
                 capture("head-to-head-results");
                 onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
 
