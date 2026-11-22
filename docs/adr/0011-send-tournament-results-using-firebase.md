@@ -32,6 +32,12 @@ after publication until Firebase accepts them or they expire. Deduplicate
 received messages by tournament ID on the device so a send retry produces at
 most one alert.
 
+The live catalogue carries first-publication history, using the deployment's
+`Last-Modified` time for new entries. The workflow keeps Firebase acceptance
+receipts in Actions artifacts for two days, covering the delivery window.
+Batch sending is enabled by the `TOURNAMENT_ALERTS_ENABLED` repository variable
+and uses the `FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT` secret.
+
 Before rollout, update the published [privacy policy](../privacy-policy.html)
 to describe notification processing and controls. Verify live push delivery with
 a Google Play compatible test device or a Google APIs emulator.

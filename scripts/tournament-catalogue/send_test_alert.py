@@ -1,61 +1,28 @@
 """Send one Firebase test alert for an event in the newly deployed Pages catalogue."""
 import argparse
-from hashlib import sha256
 import json
 import os
 from pathlib import Path
 import re
 import sys
-from time import monotonic, sleep, time_ns
-from urllib.error import URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from time import time_ns
 
-TEST_TOPIC = "tournament-results-test"
-
-
-def read_deployment(url, expected_digest, wait):
-    deadline = monotonic() + wait
-    attempt = 0
-    while True:
-        attempt += 1
-        cache_key = urlencode({"deployment": expected_digest, "attempt": attempt})
-        request = Request(f"{url}?{cache_key}", headers={"Cache-Control": "no-cache"})
-        try:
-            with urlopen(request, timeout=15) as response:
-                body = response.read()
-            if sha256(body).hexdigest() == expected_digest:
-                return json.loads(body)
-        except (URLError, TimeoutError):
-            pass
-        if monotonic() >= deadline:
-            raise ValueError("The deployed catalogue does not match this run's build")
-        sleep(min(5, max(0, deadline - monotonic())))
+from publish_alerts import WINDOW_MS, read_deployment, send_message
 
 
 def send_test_alert(arguments, token):
     previous = json.loads(arguments.previous.read_bytes())
     if any(entry["id"] == arguments.event_id for entry in previous["tournaments"]):
         raise ValueError(f"Event {arguments.event_id} was already in the live catalogue before this deployment")
-    catalogue = read_deployment(arguments.catalogue, arguments.sha256, arguments.wait)
+    catalogue, _ = read_deployment(arguments.catalogue, arguments.sha256, arguments.wait)
     tournament = next((entry for entry in catalogue["tournaments"]
                        if entry["id"] == arguments.event_id), None)
     if tournament is None or tournament["format"] not in ("singles", "doubles"):
         raise ValueError(f"Event {arguments.event_id} is missing from the verified singles and doubles catalogue")
     published_at = time_ns() // 1_000_000
-    payload = {"message": {
-        "topic": TEST_TOPIC,
-        "data": {"eventId": str(tournament["id"]), "name": tournament["name"], "publishedAt": str(published_at)},
-        "android": {"priority": "high", "ttl": "86400s"},
-    }}
-    request = Request(
-        f"{arguments.fcm_origin}/v1/projects/{arguments.project}/messages:send",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"},
-    )
-    with urlopen(request, timeout=30) as response:
-        if not json.load(response).get("name"):
-            raise ValueError("Firebase did not return a message name")
+    send_message(arguments.fcm_origin, arguments.project, token,
+                 {"eventId": tournament["id"], "name": tournament["name"], "publishedAt": published_at},
+                 WINDOW_MS // 1000)
     print(f"Firebase accepted test alert for event {arguments.event_id} at {published_at}")
 
 

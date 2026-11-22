@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urljoin, urlsplit
 from urllib.request import Request, urlopen
 
+from publish_alerts import PUBLICATIONS, publication_history
+
 from bs4 import BeautifulSoup, SoupStrainer
 
 SITE = "https://tabletennis.az"
@@ -386,10 +388,9 @@ def verified_tournament(source, event_id, event):
     return tournament
 
 
-def previous_index(previous):
-    if previous is None:
+def previous_index(catalogue):
+    if catalogue is None:
         return {}
-    catalogue = json.loads(previous.read_text(encoding="utf-8"))
     if not isinstance(catalogue, dict) or catalogue.get("version") != 1:
         raise ValueError("Unsupported previous catalogue")
     tournaments = catalogue.get("tournaments")
@@ -443,10 +444,21 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--source", default=SITE, help="tabletennis.az or a source fixture server")
     parser.add_argument("--previous", type=Path, help="previously published catalogue, including first observations")
+    parser.add_argument("--previous-modified", help="Last-Modified header from the live catalogue response")
+    parser.add_argument("--track-alerts", action="store_true", help="track first publication for tournament alerts")
     arguments = parser.parse_args()
     try:
-        publish(arguments.output, build_catalogue(arguments.source.rstrip("/"), previous_index(arguments.previous)))
-    except (OSError, ValueError) as error:
+        previous = json.loads(arguments.previous.read_bytes()) if arguments.previous else None
+        catalogue = build_catalogue(arguments.source.rstrip("/"), previous_index(previous))
+        if arguments.track_alerts or (previous and PUBLICATIONS in previous):
+            if previous is None:
+                raise ValueError("A live catalogue is required to seed tournament alert history")
+            history = publication_history(previous, arguments.previous_modified)
+            for tournament in catalogue["tournaments"]:
+                history.setdefault(str(tournament["id"]), {"name": tournament["name"], "publishedAt": None})
+            catalogue[PUBLICATIONS] = history
+        publish(arguments.output, catalogue)
+    except (OSError, ValueError, KeyError, TypeError) as error:
         sys.exit(f"Catalogue generation failed: {error}")
 
 

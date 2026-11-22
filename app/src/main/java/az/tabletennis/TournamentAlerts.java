@@ -16,6 +16,7 @@ final class TournamentAlerts {
     static final String TOPIC = "tournament-results-test";
     private static final String CHANNEL = "tournament-results";
     private static final String ENABLED_AT = "enabled-at";
+    private static final String DELIVERED = "delivered-";
     private static final long MAX_AGE = Duration.ofHours(24).toMillis();
 
     interface Topic {
@@ -83,11 +84,14 @@ final class TournamentAlerts {
         if (id <= 0 || name == null || name.trim().isEmpty()
                 || publishedAt <= preferences.getLong(ENABLED_AT, 0)
                 || publishedAt <= now - MAX_AGE) return;
+        String identity = Long.toString(id);
+        String deliveredKey = DELIVERED + identity;
+        if (preferences.contains(deliveredKey)) return;
 
         notifications.createNotificationChannel(new NotificationChannel(CHANNEL,
                 application.getString(R.string.tournament_alerts), NotificationManager.IMPORTANCE_DEFAULT));
         Intent results = TournamentResultsActivity.open(application, id, name)
-                .setData(Uri.fromParts("tournament-results", Long.toString(id), null))
+                .setData(Uri.fromParts("tournament-results", identity, null))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent tap = PendingIntent.getActivity(application, 0, results,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
@@ -99,6 +103,7 @@ final class TournamentAlerts {
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .build();
-        notifications.notify(Long.toString(id), 0, alert);
+        // Commit before posting so a dismissal and process restart cannot make a retry visible.
+        if (preferences.edit().putBoolean(deliveredKey, true).commit()) notifications.notify(identity, 0, alert);
     }
 }

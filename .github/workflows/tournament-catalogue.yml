@@ -48,6 +48,8 @@ jobs:
     timeout-minutes: 120
     outputs:
       catalogue_sha256: ${{ steps.catalogue-digest.outputs.sha256 }}
+      previous_catalogue_sha256: ${{ steps.catalogue-digest.outputs.previous_sha256 }}
+      page_url: ${{ steps.pages.outputs.base_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,13 +63,19 @@ jobs:
       - name: Generate the catalogue for the existing site
         env:
           CATALOGUE_URL: ${{ steps.pages.outputs.base_url }}/tournaments-v1.json
+          ALERTS_ENABLED: ${{ vars.TOURNAMENT_ALERTS_ENABLED }}
         run: |
           curl --fail --silent --show-error --retry 3 --max-time 30 \
             --header 'Cache-Control: no-cache' \
+            --dump-header "$RUNNER_TEMP/previous-catalogue.headers" \
             "$CATALOGUE_URL?run=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -o "$RUNNER_TEMP/previous-catalogue.json"
+          modified=$(awk 'tolower($1) == "last-modified:" {sub(/^[^:]*: */, ""); sub(/\r$/, ""); value=$0} END {print value}' \
+            "$RUNNER_TEMP/previous-catalogue.headers")
+          alerts=()
+          if [[ "$ALERTS_ENABLED" == true ]]; then alerts+=(--track-alerts); fi
           cp -a docs pages-source
           python scripts/tournament-catalogue/generate.py --previous "$RUNNER_TEMP/previous-catalogue.json" \
-            pages-source/tournaments-v1.json
+            --previous-modified "$modified" "${alerts[@]}" pages-source/tournaments-v1.json
       - name: Generate the complete head-to-head indexes
         run: |
           python scripts/singles-index/generate.py pages-source/singles-index-v1 \
@@ -80,6 +88,7 @@ jobs:
         id: catalogue-digest
         run: |
           sha256sum _site/tournaments-v1.json | awk '{print "sha256=" $1}' >> "$GITHUB_OUTPUT"
+          sha256sum "$RUNNER_TEMP/previous-catalogue.json" | awk '{print "previous_sha256=" $1}' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch' && inputs.firebase_test_event_id != ''
         with:
@@ -92,16 +101,88 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
+      page_url: ${{ needs.build.outputs.page_url }}
     permissions:
       pages: write
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ needs.build.outputs.page_url }}
     steps:
+      - name: Check that publication history has not advanced since the build
+        id: catalogue
+        env:
+          PAGE_URL: ${{ needs.build.outputs.page_url }}
+          PREVIOUS_SHA256: ${{ needs.build.outputs.previous_catalogue_sha256 }}
+          CANDIDATE_SHA256: ${{ needs.build.outputs.catalogue_sha256 }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --max-time 30 --header 'Cache-Control: no-cache' \
+            "${PAGE_URL%/}/tournaments-v1.json?publish=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -o "$RUNNER_TEMP/live.json"
+          live_sha256=$(sha256sum "$RUNNER_TEMP/live.json" | awk '{print $1}')
+          if [[ "$live_sha256" == "$PREVIOUS_SHA256" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          elif [[ "$live_sha256" != "$CANDIDATE_SHA256" ]]; then
+            echo 'The live catalogue has advanced. Build a new catalogue before deploying.' >&2
+            exit 1
+          fi
       - uses: actions/deploy-pages@v4
-        id: deployment
+        if: steps.catalogue.outputs.deploy == 'true'
+
+  firebase-alerts:
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.TOURNAMENT_ALERTS_ENABLED == 'true' }}
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Load the latest Firebase receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          artifact=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" | \
+            jq -sr --arg repository "$GITHUB_REPOSITORY_ID" '
+              [.[].artifacts[] | select(.expired == false and (.name | startswith("tournament-alert-receipts-")))
+                | select(.workflow_run.head_branch == "main" and (.workflow_run.head_repository_id | tostring) == $repository)]
+              | max_by(.id) | .id // empty')
+          if [[ -n "$artifact" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact/zip" > "$RUNNER_TEMP/receipts.zip"
+            unzip -p "$RUNNER_TEMP/receipts.zip" tournament-alert-receipts.json > "$RUNNER_TEMP/previous-receipts.json"
+          fi
+      - uses: google-github-actions/auth@v3
+        id: firebase
+        with:
+          credentials_json: ${{ secrets.FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/firebase.messaging
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Send pending alerts from the live catalogue
+        id: send
+        env:
+          CATALOGUE_URL: ${{ steps.pages.outputs.base_url }}/tournaments-v1.json
+          CATALOGUE_SHA256: ${{ needs.publish.result == 'success' && github.run_attempt == '1' && needs.build.outputs.catalogue_sha256 || '' }}
+          FIREBASE_PROJECT: ${{ steps.firebase.outputs.project_id }}
+          FCM_ACCESS_TOKEN: ${{ steps.firebase.outputs.access_token }}
+        run: |
+          deployment=()
+          if [[ -n "$CATALOGUE_SHA256" ]]; then deployment+=(--sha256 "$CATALOGUE_SHA256"); fi
+          python3 scripts/tournament-catalogue/publish_alerts.py --catalogue "$CATALOGUE_URL" "${deployment[@]}" \
+            --receipts "$RUNNER_TEMP/previous-receipts.json" \
+            --accepted "$RUNNER_TEMP/tournament-alert-receipts.json" --project "$FIREBASE_PROJECT"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.send.outcome != 'skipped' }}
+        with:
+          name: tournament-alert-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/tournament-alert-receipts.json
+          if-no-files-found: ignore
+          retention-days: 2
 
   firebase-test-alert:
     if: github.event_name == 'workflow_dispatch' && inputs.firebase_test_event_id != ''
