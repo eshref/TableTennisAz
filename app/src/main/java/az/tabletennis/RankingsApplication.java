@@ -41,7 +41,7 @@ public class RankingsApplication extends Application {
     }
 
     PlayerPhotos photos() {
-        if (photos == null) photos = new PlayerPhotos(this, websiteUrl());
+        if (photos == null) photos = new PlayerPhotos(this, websiteClient());
         return photos;
     }
 
