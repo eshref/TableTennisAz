@@ -7,7 +7,9 @@ import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.hasSibling;
 import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -77,6 +79,10 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
+                onView(withText("Qələbə sayı")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(withText("3–4")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(allOf(withText(ILQAR), hasSibling(withText(ASHRAF)))).perform(scrollTo());
+                capture("head-to-head-singles-summary");
                 onView(withContentDescription(ARCHIVE_TOURNAMENT)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(ARCHIVE_TEAM_GAME)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(NEWER)).check(matches(withId(R.id.match_card)));
@@ -118,11 +124,15 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
-                onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
-                onView(withContentDescription(DOUBLES)).perform(scrollTo());
+                onView(withText("Qələbə sayı")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(withText("2–1")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(allOf(withText(ALIKHAN + "\n" + KHAYAL), hasSibling(withText(ERHAN + "\n" + ELCHIN))))
+                        .perform(scrollTo());
                 capture("head-to-head-results");
+                onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
 
                 // act
+                onView(withContentDescription(DOUBLES)).perform(scrollTo());
                 int doublesPosition = scrollPosition();
                 onView(withContentDescription(DOUBLES)).perform(click());
 
