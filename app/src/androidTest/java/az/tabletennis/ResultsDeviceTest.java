@@ -216,7 +216,7 @@ public class ResultsDeviceTest {
         // The Android Test Device image uses a placeholder System UI without a notification shade.
         // Invoke the posted notification's pending intent with the system's background-start privilege.
         ActivityOptions options = ActivityOptions.makeBasic()
-                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS);
         system.adoptShellPermissionIdentity("android.permission.START_ACTIVITIES_FROM_BACKGROUND");
         try {
             notification.contentIntent.send(context, 0, null, null, null, null, options.toBundle());
