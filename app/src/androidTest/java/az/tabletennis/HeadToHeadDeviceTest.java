@@ -25,16 +25,22 @@ import static az.tabletennis.HeadToHeadFixtures.ERHAN;
 import static az.tabletennis.HeadToHeadFixtures.ILQAR;
 import static az.tabletennis.HeadToHeadFixtures.KHAYAL;
 import static az.tabletennis.HeadToHeadFixtures.NEWER;
+import static az.tabletennis.HeadToHeadFixtures.directory;
+import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.VectorDrawable;
 import android.os.SystemClock;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ScrollView;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.core.app.ApplicationProvider;
+import androidx.test.espresso.matcher.BoundedMatcher;
 import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -50,17 +56,27 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.tls.HandshakeCertificates;
 import okhttp3.tls.HeldCertificate;
+import okio.Buffer;
+import okio.ByteString;
+import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class HeadToHeadDeviceTest {
+    private static final String ILQAR_PHOTO = "/portraits/ilqar.png";
+    private static final String ALIKHAN_PHOTO = "/portraits/elixan.png";
+    private static final String ILQAR_PROFILE = ILQAR + " · Profil 13";
+    private static final String ILQAR_NAMESAKE = ILQAR + " · Profil 113";
+
     @Test public void menuSearchAndDetailsReturnWorkWithTheInstalledApp() throws Exception {
         // arrange
         var application = ApplicationProvider.<FixtureTestRunner.FixtureApplication>getApplicationContext();
+        Map<String, ByteString> portraits = Map.of(ILQAR_PHOTO, portraitFixture(ILQAR_PHOTO),
+                ALIKHAN_PHOTO, portraitFixture(ALIKHAN_PHOTO));
         try (MockWebServer server = new MockWebServer()) {
-            givenPublishedResults(server, application);
+            givenPublishedResults(server, application, portraits);
 
             // act
             try (ActivityScenario<RankingsActivity> rankings = ActivityScenario.launch(RankingsActivity.class)) {
@@ -74,7 +90,22 @@ public class HeadToHeadDeviceTest {
                 // act
                 onView(withId(R.id.destination_head_to_head)).perform(click());
                 selectPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
-                selectPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+                showSuggestions(R.id.head_to_head_second, "İlq");
+                awaitView(suggestion(ILQAR_PROFILE));
+                onView(suggestion(ILQAR_PROFILE)).perform(scrollTo());
+
+                // assert
+                awaitView(suggestionPortrait(ILQAR_PROFILE, true));
+
+                // act
+                onView(suggestion(ILQAR_NAMESAKE)).perform(scrollTo());
+
+                // assert
+                awaitView(suggestionPortrait(ILQAR_NAMESAKE, false));
+                capture("head-to-head-singles-suggestions");
+
+                // act
+                onView(suggestion(ILQAR_PROFILE)).perform(scrollTo(), click());
                 onView(withText("Axtar")).perform(scrollTo(), click());
 
                 // assert
@@ -116,7 +147,16 @@ public class HeadToHeadDeviceTest {
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo(), click());
                 selectPlayer(R.id.head_to_head_left_first, "Erh", ERHAN);
                 selectPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
-                selectPlayer(R.id.head_to_head_right_first, "Əli", ALIKHAN);
+                showSuggestions(R.id.head_to_head_right_first, "Əli");
+                awaitView(suggestion(ALIKHAN));
+                onView(suggestion(ALIKHAN)).perform(scrollTo());
+
+                // assert
+                awaitView(suggestionPortrait(ALIKHAN, true));
+                capture("head-to-head-doubles-suggestions");
+
+                // act
+                onView(suggestion(ALIKHAN)).perform(click());
                 selectPlayer(R.id.head_to_head_right_second, "Xəy", KHAYAL);
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo());
                 capture("head-to-head-doubles-form");
@@ -158,16 +198,22 @@ public class HeadToHeadDeviceTest {
         }
     }
 
-    private void givenPublishedResults(MockWebServer server, FixtureTestRunner.FixtureApplication application)
-            throws Exception {
+    private void givenPublishedResults(MockWebServer server, FixtureTestRunner.FixtureApplication application,
+                                       Map<String, ByteString> portraits) throws Exception {
         Map<String, String> pages = new HashMap<>();
         HeadToHeadFixtures.publish(pages);
         HeadToHeadFixtures.publishDoubles(pages);
         HeadToHeadFixtures.publishTournamentArchive(pages);
+        pages.put("/search?query=ilq", directory(directoryPlayer(13, ILQAR, ILQAR_PHOTO),
+                directoryPlayer(113, ILQAR, "/portraits/unavailable.png")));
+        pages.put("/search?query=%C9%99li", directory(directoryPlayer(7, ALIKHAN, ALIKHAN_PHOTO)));
         new RankingsStore(application).write(new RankingSnapshot(
                 Collections.singletonList(new RankingSnapshot.Player(13, ILQAR, 894)), application.clock().millis()));
         server.setDispatcher(new Dispatcher() {
             @Override public MockResponse dispatch(RecordedRequest request) {
+                ByteString portrait = portraits.get(request.getPath());
+                if (portrait != null) return new MockResponse().setHeader("Content-Type", "image/png")
+                        .setBody(new Buffer().write(portrait));
                 String page = pages.get(request.getPath());
                 if (page == null) return new MockResponse().setResponseCode(404);
                 return new MockResponse().setHeader("Content-Type", "text/html; charset=utf-8").setBody(page);
@@ -185,10 +231,38 @@ public class HeadToHeadDeviceTest {
     }
 
     private void selectPlayer(int id, String query, String name) {
+        showSuggestions(id, query);
+        Matcher<View> button = suggestion(name);
+        awaitView(button);
+        onView(button).perform(scrollTo(), click());
+    }
+
+    private void showSuggestions(int id, String query) {
         onView(withId(id)).perform(scrollTo(), click(), replaceText(query), closeSoftKeyboard());
-        Matcher<View> suggestion = allOf(isAssignableFrom(Button.class), withText(name));
-        awaitView(suggestion);
-        onView(suggestion).perform(scrollTo(), click());
+    }
+
+    private Matcher<View> suggestion(String name) {
+        return allOf(isAssignableFrom(Button.class), withText(name));
+    }
+
+    private Matcher<View> suggestionPortrait(String label, boolean available) {
+        return allOf(withId(android.R.id.icon), hasSibling(suggestion(label)),
+                new BoundedMatcher<View, ImageView>(ImageView.class) {
+                    @Override protected boolean matchesSafely(ImageView view) {
+                        return available ? view.getDrawable() instanceof BitmapDrawable
+                                : view.getDrawable() instanceof VectorDrawable;
+                    }
+
+                    @Override public void describeTo(Description description) {
+                        description.appendText(available ? "player portrait" : "player silhouette");
+                    }
+                });
+    }
+
+    private ByteString portraitFixture(String path) throws Exception {
+        try (var input = InstrumentationRegistry.getInstrumentation().getContext().getAssets().open(path.substring(1))) {
+            return ByteString.of(input.readAllBytes());
+        }
     }
 
     private void awaitView(Matcher<View> matcher) {

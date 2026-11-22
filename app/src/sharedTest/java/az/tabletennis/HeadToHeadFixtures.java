@@ -39,6 +39,14 @@ final class HeadToHeadFixtures {
         website.put("/matches/duellos", history(""));
     }
 
+    static void publishNamesakeMeeting(Map<String, String> website) {
+        website.put("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
+        website.put("/matches/duellos", history(""));
+        website.put("/matches/results/player/15", history(row(513, "18 Nov. 2026", ASHRAF, ASHRAF, "3-1", "Liqa")));
+        website.put("/matches/results/player/115", history(""));
+        website.put("/matches/513", details(15, ASHRAF, 115, ASHRAF, "18 Nov. 2026", 3, 1, "Liqa"));
+    }
+
     static void publish(Map<String, String> website) {
         website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.put("/search?query=s%C9%99f", directory(15, ASHRAF));
@@ -152,8 +160,17 @@ final class HeadToHeadFixtures {
     private static String pair(String first, String second) { return first + "</div><div>" + second; }
 
     private static String directory(long id, String name) {
-        return "<div id='center'><div class='ranking-page-list'><a href='/players/" + id
-                + "'><div class='rank-name'>" + name + "</div></a></div></div>";
+        return directory(directoryPlayer(id, name, null));
+    }
+
+    static String directory(String... players) {
+        return "<div id='center'><div class='ranking-page-list'>" + String.join("", players) + "</div></div>";
+    }
+
+    static String directoryPlayer(long id, String name, String photoUrl) {
+        return "<a href='/players/" + id + "'><div class='rank-box'><div class='rank-picture'>"
+                + (photoUrl == null ? "" : "<img src='" + photoUrl + "' alt=''>")
+                + "</div><div class='rank-name'>" + name + "</div></div></a>";
     }
 
     private static String history(String rows) { return "<div id='center'><div class='matches-box'>" + rows + "</div></div>"; }

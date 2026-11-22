@@ -35,13 +35,15 @@ final class HeadToHeadSearch {
         private static final long serialVersionUID = 1L;
     }
 
+    record Suggestion(Player player, String photoUrl) {}
+
     enum Winner { FIRST, SECOND, NONE }
 
     record Meeting(MatchSummary match, Winner winner) implements Serializable {
         private static final long serialVersionUID = 1L;
     }
 
-    List<Player> findPlayers(String query) throws IOException {
+    List<Suggestion> findPlayers(String query) throws IOException {
         // The public directory matches a dotted capital İ only when sent as lowercase i.
         HttpUrl url = client.websiteUrl().newBuilder().encodedPath("/search")
                 .addQueryParameter("query", query.toLowerCase(AZERBAIJANI)).build();
@@ -53,19 +55,21 @@ final class HeadToHeadSearch {
             throw new IOException("Missing player directory");
         }
 
-        Map<Long, Player> players = new LinkedHashMap<>();
+        Map<Long, Suggestion> suggestions = new LinkedHashMap<>();
         for (Element link : list.children()) {
             var identity = PLAYER_PATH.matcher(link.attr("href"));
             Element name = link.selectFirst(".rank-name");
             if (!identity.matches() || name == null || name.text().isEmpty()) throw new IOException("Unusable player suggestion");
             try {
                 long id = Long.parseLong(identity.group(1));
-                players.putIfAbsent(id, new Player(id, name.text()));
+                Element photo = link.selectFirst(".rank-picture img[src]");
+                String photoUrl = photo == null ? null : client.photoUrl(photo.attr("src"));
+                suggestions.putIfAbsent(id, new Suggestion(new Player(id, name.text()), photoUrl));
             } catch (NumberFormatException failure) {
                 throw new IOException("Unusable player identity", failure);
             }
         }
-        return new ArrayList<>(players.values());
+        return new ArrayList<>(suggestions.values());
     }
 
     void findMeetings(List<Player> firstSide, List<Player> secondSide, Set<Long> verifiedMatches,

@@ -2,6 +2,7 @@ package az.tabletennis;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,6 +25,8 @@ import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import az.tabletennis.HeadToHeadSearch.Meeting;
+import az.tabletennis.HeadToHeadSearch.Player;
+import az.tabletennis.HeadToHeadSearch.Suggestion;
 import az.tabletennis.HeadToHeadSearch.Winner;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,6 +68,7 @@ public final class HeadToHeadActivity extends Activity {
     private Runnable pendingQuery;
     private Future<?> directoryRequest;
     private int directoryVersion;
+    private ViewTreeObserver.OnPreDrawListener pendingPortraits;
     private enum SearchStatus { IDLE, RUNNING, COMPLETE, INTERRUPTED }
 
     private long openedMatchId;
@@ -152,6 +156,7 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        stopLoadingSuggestionPortraits();
         worker.shutdownNow();
         main.removeCallbacksAndMessages(null);
         super.onDestroy();
@@ -204,10 +209,10 @@ public final class HeadToHeadActivity extends Activity {
         int version = directoryVersion;
         pendingQuery = () -> directoryRequest = worker.submit(() -> {
             try {
-                List<HeadToHeadSearch.Player> players = source.findPlayers(query);
+                List<Suggestion> suggestions = source.findPlayers(query);
                 main.post(() -> {
                     if (isDestroyed() || version != directoryVersion) return;
-                    showSuggestions(field, players);
+                    showSuggestions(field, suggestions);
                 });
             } catch (IOException failure) {
                 Log.w("HeadToHead", "Could not load player suggestions", failure);
@@ -221,33 +226,79 @@ public final class HeadToHeadActivity extends Activity {
         main.postDelayed(pendingQuery, 250);
     }
 
-    private void showSuggestions(PlayerField field, List<HeadToHeadSearch.Player> players) {
-        if (players.isEmpty()) {
+    private void showSuggestions(PlayerField field, List<Suggestion> suggestions) {
+        if (suggestions.isEmpty()) {
             field.suggestions.addView(Presentation.label(this, getString(R.string.no_matches), 14));
             return;
         }
-        for (HeadToHeadSearch.Player player : players) {
-            Button suggestion = new Button(this);
-            Presentation.action(suggestion);
-            boolean duplicateName = players.stream().anyMatch(other ->
+        List<SuggestionPortrait> portraits = new ArrayList<>();
+        for (Suggestion suggestion : suggestions) {
+            Player player = suggestion.player();
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPaddingRelative(dp(8), 0, 0, 0);
+            row.setBackground(Presentation.shape(this, R.color.surface));
+            row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            row.setFocusable(false);
+            PlayerPortraitView portrait = new PlayerPortraitView(this);
+            portrait.setId(android.R.id.icon);
+            portrait.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LinearLayout.LayoutParams photoSize = new LinearLayout.LayoutParams(dp(36), dp(36));
+            photoSize.setMarginEnd(dp(10));
+            row.addView(portrait, photoSize);
+
+            Button name = new Button(this);
+            Presentation.action(name);
+            boolean duplicateName = suggestions.stream().map(Suggestion::player).anyMatch(other ->
                     other.id() != player.id() && other.name().equals(player.name()));
-            suggestion.setText(duplicateName ? getString(R.string.head_to_head_named_profile, player.name(), player.id()) : player.name());
-            suggestion.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-            suggestion.setOnClickListener(view -> {
+            name.setText(duplicateName ? getString(R.string.head_to_head_named_profile, player.name(), player.id()) : player.name());
+            name.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+            name.setPaddingRelative(0, dp(6), dp(12), dp(6));
+            View.OnClickListener select = view -> {
                 field.selected = player;
                 field.setText(player.name());
                 clearSuggestions();
                 hideKeyboard();
                 updateControls();
-            });
-            field.suggestions.addView(suggestion, new LinearLayout.LayoutParams(-1, -2));
+            };
+            name.setOnClickListener(select);
+            row.setOnClickListener(select);
+            row.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+            field.suggestions.addView(row, new LinearLayout.LayoutParams(-1, -2));
+            portraits.add(new SuggestionPortrait(portrait, suggestion));
         }
+        loadVisibleSuggestionPortraits(portraits);
+    }
+
+    private record SuggestionPortrait(PlayerPortraitView view, Suggestion suggestion) {}
+
+    private void loadVisibleSuggestionPortraits(List<SuggestionPortrait> pending) {
+        RankingsApplication application = (RankingsApplication) getApplication();
+        Rect visible = new Rect();
+        pendingPortraits = () -> {
+            pending.removeIf(portrait -> {
+                if (!portrait.view().getLocalVisibleRect(visible)) return false;
+                Suggestion suggestion = portrait.suggestion();
+                application.photos().bind(portrait.view(), suggestion.player().id(), suggestion.photoUrl(), application.isOnline());
+                return true;
+            });
+            if (pending.isEmpty()) stopLoadingSuggestionPortraits();
+            return true;
+        };
+        scroll.getViewTreeObserver().addOnPreDrawListener(pendingPortraits);
+    }
+
+    private void stopLoadingSuggestionPortraits() {
+        if (pendingPortraits == null) return;
+        scroll.getViewTreeObserver().removeOnPreDrawListener(pendingPortraits);
+        pendingPortraits = null;
     }
 
     private void clearSuggestions() {
         directoryVersion++;
         if (pendingQuery != null) main.removeCallbacks(pendingQuery);
         if (directoryRequest != null) directoryRequest.cancel(true);
+        stopLoadingSuggestionPortraits();
         if (activeField != null) activeField.suggestions.removeAllViews();
         activeField = null;
     }

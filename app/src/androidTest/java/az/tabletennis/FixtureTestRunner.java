@@ -23,5 +23,10 @@ public final class FixtureTestRunner extends AndroidJUnitRunner {
             WebsiteClient fixture = fixtureClient;
             return fixture == null ? super.tournamentCatalogueUrl() : fixture.websiteUrl().resolve("/tournaments-v1.json");
         }
+
+        @Override protected boolean isOnline() {
+            // The loopback website remains reachable with the emulator's radios disabled.
+            return fixtureClient != null || super.isOnline();
+        }
     }
 }

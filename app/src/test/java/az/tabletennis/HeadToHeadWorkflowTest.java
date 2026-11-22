@@ -20,28 +20,158 @@ import static az.tabletennis.HeadToHeadFixtures.NEWER;
 import static az.tabletennis.HeadToHeadFixtures.OLDER;
 import static az.tabletennis.HeadToHeadFixtures.SHAKIR;
 import static az.tabletennis.HeadToHeadFixtures.VAQIF;
+import static az.tabletennis.HeadToHeadFixtures.directory;
+import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
 import static az.tabletennis.HeadToHeadFixtures.laterDoublesPage;
 import static az.tabletennis.HeadToHeadFixtures.laterPage;
 import static az.tabletennis.HeadToHeadFixtures.publish;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.VectorDrawable;
 import android.os.Looper;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ScrollView;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Call;
+import okhttp3.EventListener;
+import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
+import okio.Buffer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.GraphicsMode;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 36, qualifiers = "w411dp-h500dp", application = RankingsUiScenario.FixtureApplication.class)
 public class HeadToHeadWorkflowTest extends ProductUiScenario {
+    private static final String MISSING_PORTRAIT = "/portraits/player-115.png";
+
+    public static class PortraitFixtureApplication extends RankingsUiScenario.FixtureApplication {
+        private final CountDownLatch missingPortraitResponse = new CountDownLatch(1);
+
+        @Override WebsiteClient websiteClient() {
+            return new WebsiteClient(websiteUrl(), new OkHttpClient.Builder().eventListener(new EventListener() {
+                @Override public void callEnd(Call call) {
+                    if (MISSING_PORTRAIT.equals(call.request().url().encodedPath())) missingPortraitResponse.countDown();
+                }
+            }));
+        }
+    }
+
+    @Test
+    @Config(application = PortraitFixtureApplication.class)
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    public void namesakeSuggestionsKeepTheirPortraitsAndSelectionsWhenTheQueryChanges() throws Exception {
+        // arrange
+        HeadToHeadFixtures.publishNamesakeMeeting(website);
+        String available = "/portraits/player-15.png";
+        String player = directoryPlayer(15, ASHRAF, available);
+        String withPhoto = ASHRAF + " · Profil 15";
+        String withoutPhoto = ASHRAF + " · Profil 115";
+        website.put("/search?query=s%C9%99f", directory(player, directoryPlayer(115, ASHRAF, "/assets/img/person.png")));
+        website.put("/search?query=s%C9%99f%C9%99r", directory(directoryPlayer(115, ASHRAF, MISSING_PORTRAIT), player));
+        CountDownLatch releasePhoto = new CountDownLatch(1);
+        Bitmap portrait = Bitmap.createBitmap(24, 24, Bitmap.Config.ARGB_8888);
+        portrait.eraseColor(Color.BLUE);
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        portrait.compress(Bitmap.CompressFormat.PNG, 100, png);
+        portrait.recycle();
+        responses.put(available, () -> awaitPage(releasePhoto,
+                new MockResponse().setHeader("Content-Type", "image/png").setBody(new Buffer().write(png.toByteArray()))));
+        responses.put(MISSING_PORTRAIT, () -> new MockResponse().setResponseCode(404));
+        var application = (PortraitFixtureApplication) RuntimeEnvironment.getApplication();
+        openDirect(HeadToHeadActivity.class, "", 0);
+
+        try {
+            // act
+            field(R.id.head_to_head_first).setText("Səf");
+            advanceDebounce();
+
+            // assert
+            awaitText(withPhoto);
+            assertThat(requestTo(available)).isEqualTo(available);
+            assertThat(visibleText()).containsSequence(withPhoto, withoutPhoto);
+            assertThat(suggestionPortrait(withPhoto).getDrawable()).isInstanceOf(VectorDrawable.class);
+
+            // act
+            clickText(withPhoto);
+
+            // assert
+            assertThat(field(R.id.head_to_head_first).getText().toString()).isEqualTo(ASHRAF);
+
+            // act
+            field(R.id.head_to_head_second).setText("Səf");
+            advanceDebounce();
+            awaitText(withPhoto);
+            field(R.id.head_to_head_second).setText("Səfər");
+            advanceDebounce();
+
+            // assert
+            awaitText(withoutPhoto);
+            assertThat(visibleText()).containsSequence(withoutPhoto, withPhoto);
+            assertThat(application.missingPortraitResponse.await(5, TimeUnit.SECONDS))
+                    .as("the unavailable portrait HTTP response was received").isTrue();
+        } finally {
+            releasePhoto.countDown();
+        }
+
+        // assert
+        awaitPortrait(withPhoto);
+        assertThat(suggestionPortrait(withoutPhoto).getDrawable()).isInstanceOf(VectorDrawable.class);
+
+        // act
+        clickText(withoutPhoto);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlandı");
+        assertThat(visibleText()).containsSequence("Qələbə sayı", "1–0", ASHRAF, ASHRAF);
+        assertThat(matchCards()).containsExactly("18 Nov. 2026 · Əşrəf Səfərov — Əşrəf Səfərov · 3-1 · Liqa · Tək · Turnir");
+    }
+
+    @Test public void scrollingToASuggestionRequestsItsPortrait() throws Exception {
+        // arrange
+        String portrait = "/portraits/player-15.png";
+        List<String> directoryRows = new ArrayList<>();
+        for (int id = 101; id <= 120; id++) {
+            directoryRows.add(directoryPlayer(id, "Səfərov " + id, null));
+        }
+        directoryRows.add(directoryPlayer(15, ASHRAF, portrait));
+        website.put("/search?query=s%C9%99f", directory(directoryRows.toArray(String[]::new)));
+        openDirect(HeadToHeadActivity.class, "", 0);
+
+        // act
+        field(R.id.head_to_head_first).setText("Səf");
+        advanceDebounce();
+
+        // assert
+        awaitText(ASHRAF);
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(32));
+        assertThat(requestTo(portrait)).isNull();
+
+        // act
+        ScrollView scroll = activity().findViewById(R.id.main_scroll);
+        scroll.scrollTo(0, scroll.getChildAt(0).getHeight());
+        // Robolectric updates the scroll offset without dispatching a new frame.
+        scroll.getViewTreeObserver().dispatchOnPreDraw();
+
+        // assert
+        assertThat(requestTo(portrait)).isEqualTo(portrait);
+    }
+
     @Test public void singlesSearchIncludesTournamentResultsAndOnlyTheSelectedPlayersTeamGame() throws Exception {
         // arrange
         publish(website);
@@ -453,6 +583,21 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
     private void advanceDebounce() {
         shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(300));
+    }
+
+    private ImageView suggestionPortrait(String label) {
+        View suggestion = findText(activity().getWindow().getDecorView(), label);
+        return ((View) suggestion.getParent()).findViewById(android.R.id.icon);
+    }
+
+    private void awaitPortrait(String label) throws InterruptedException {
+        for (int attempt = 0; attempt < 250; attempt++) {
+            shadowOf(Looper.getMainLooper()).idle();
+            if (suggestionPortrait(label).getDrawable() instanceof BitmapDrawable) break;
+            Thread.sleep(20);
+        }
+        assertThat(suggestionPortrait(label).getDrawable()).isInstanceOfSatisfying(BitmapDrawable.class,
+                image -> assertThat(image.getBitmap().getPixel(12, 12)).isEqualTo(Color.BLUE));
     }
 
     private MockResponse awaitPage(CountDownLatch release, MockResponse response) {
