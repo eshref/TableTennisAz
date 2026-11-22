@@ -32,6 +32,13 @@ final class HeadToHeadFixtures {
     static final String HISTORICAL = "25 Mar. 2026 · Xəyal Həşimli / Firdovsi Kərimov — Vaqif Babayev / Şakir Qədirov"
             + " · 3-1 · BTTC Qoşa Reytinq Turniri #105 · Qoşalar · Turnir";
 
+    static void publishEmptySingles(Map<String, String> website) {
+        publishPlayer(website, "s%C9%99f", 15, ASHRAF);
+        publishPlayer(website, "ilq", 13, ILQAR);
+        website.put("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
+        website.put("/matches/duellos", history(""));
+    }
+
     static void publish(Map<String, String> website) {
         website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.put("/search?query=s%C9%99f", directory(15, ASHRAF));

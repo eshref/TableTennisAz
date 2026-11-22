@@ -2,6 +2,7 @@ package az.tabletennis;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,20 +23,24 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import az.tabletennis.HeadToHeadSearch.Meeting;
+import az.tabletennis.HeadToHeadSearch.Winner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 public final class HeadToHeadActivity extends Activity {
-    private static final Comparator<MatchSummary> NEWEST_FIRST = Comparator
-            .comparing((MatchSummary match) -> MatchSummary.sourceDay(match.date)).reversed()
-            .thenComparingLong(match -> match.id);
+    private static final Comparator<Meeting> NEWEST_FIRST = Comparator
+            .comparing((Meeting meeting) -> MatchSummary.sourceDay(meeting.match().date)).reversed()
+            .thenComparingLong(meeting -> meeting.match().id);
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private MainScreenChrome chrome;
@@ -48,6 +53,11 @@ public final class HeadToHeadActivity extends Activity {
     private RadioButton doublesTab;
     private LinearLayout fields;
     private Button search;
+    private Button retry;
+    private LinearLayout winSummary;
+    private TextView winScore;
+    private TextView firstSideNames;
+    private TextView secondSideNames;
     private TextView status;
     private ProgressBar progress;
     private LinearLayout results;
@@ -88,9 +98,13 @@ public final class HeadToHeadActivity extends Activity {
         doubles = new SearchForm(true);
         search = button(R.string.head_to_head_search, this::startSearch);
         form.addView(search);
+        winSummary = createWinSummary();
+        form.addView(winSummary);
         status = Presentation.label(this, "", 14);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         form.addView(status);
+        retry = button(R.string.retry, this::startSearch);
+        form.addView(retry);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setIndeterminate(true);
         form.addView(progress, new LinearLayout.LayoutParams(-1, dp(4)));
@@ -165,9 +179,7 @@ public final class HeadToHeadActivity extends Activity {
         fields.removeAllViews();
         fields.addView(mode.inputs);
         results.removeAllViews();
-        for (MatchSummary match : mode.matches) {
-            results.addView(new MatchCard(this, match, () -> openMatch(match)));
-        }
+        for (Meeting meeting : mode.meetings) results.addView(matchCard(meeting));
         updateControls();
     }
 
@@ -249,14 +261,15 @@ public final class HeadToHeadActivity extends Activity {
 
         clearSuggestions();
         hideKeyboard();
-        if (active.status != SearchStatus.RUNNING) clearMatches();
+        if (active.status == SearchStatus.COMPLETE) clearMatches();
         active.status = SearchStatus.RUNNING;
         updateControls();
 
+        Set<Long> verifiedMatches = active.meetings.stream().map(meeting -> meeting.match().id).collect(Collectors.toSet());
         RankingsApplication application = (RankingsApplication) getApplication();
         worker.execute(() -> {
             try {
-                source.findMeetings(left, right, (match, details) -> {
+                source.findMeetings(left, right, verifiedMatches, (meeting, details) -> {
                     try {
                         new SavedDataStore<>(application, "match-" + details.id, MatchDetails.class)
                                 .write(new SavedData<>(details, application.clock().millis()));
@@ -264,7 +277,7 @@ public final class HeadToHeadActivity extends Activity {
                         Log.w("HeadToHead", "Could not save match details", failure);
                     }
                     main.post(() -> {
-                        if (!isDestroyed()) showMatch(match);
+                        if (!isDestroyed()) showMatch(meeting);
                     });
                 });
                 main.post(() -> finishSearch(SearchStatus.COMPLETE));
@@ -282,22 +295,25 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     private void clearMatches() {
-        active.matches.clear();
+        active.meetings.clear();
         results.removeAllViews();
     }
 
-    private void showMatch(MatchSummary match) {
-        List<MatchSummary> matches = active.matches;
-        if (matches.stream().anyMatch(existing -> existing.id == match.id)) return;
-        int insertion = -Collections.binarySearch(matches, match, NEWEST_FIRST) - 1;
-        matches.add(insertion, match);
-        results.addView(new MatchCard(this, match, () -> openMatch(match)), insertion);
+    private void showMatch(Meeting meeting) {
+        List<Meeting> meetings = active.meetings;
+        int insertion = -Collections.binarySearch(meetings, meeting, NEWEST_FIRST) - 1;
+        meetings.add(insertion, meeting);
+        results.addView(matchCard(meeting), insertion);
     }
 
-    private void openMatch(MatchSummary match) {
-        openedMatchId = match.id;
-        openedMatchOffset = matchTop(active.matches.indexOf(match)) - scroll.getScrollY();
-        startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", match.id));
+    private MatchCard matchCard(Meeting meeting) {
+        return new MatchCard(this, meeting.match(), () -> openMatch(meeting));
+    }
+
+    private void openMatch(Meeting meeting) {
+        openedMatchId = meeting.match().id;
+        openedMatchOffset = matchTop(active.meetings.indexOf(meeting)) - scroll.getScrollY();
+        startActivity(new Intent(this, MatchActivity.class).putExtra("matchId", openedMatchId));
     }
 
     private void restoreMatchPosition() {
@@ -305,9 +321,9 @@ public final class HeadToHeadActivity extends Activity {
         scroll.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             @Override public boolean onPreDraw() {
                 scroll.getViewTreeObserver().removeOnPreDrawListener(this);
-                List<MatchSummary> matches = active.matches;
-                for (int index = 0; index < matches.size(); index++) {
-                    if (matches.get(index).id == openedMatchId) {
+                List<Meeting> meetings = active.meetings;
+                for (int index = 0; index < meetings.size(); index++) {
+                    if (meetings.get(index).match().id == openedMatchId) {
                         scroll.scrollTo(0, matchTop(index) - openedMatchOffset);
                         break;
                     }
@@ -322,19 +338,69 @@ public final class HeadToHeadActivity extends Activity {
         return results.getTop() + results.getChildAt(index).getTop();
     }
 
+    private LinearLayout createWinSummary() {
+        LinearLayout summary = column();
+        summary.setPadding(dp(12), dp(8), dp(12), dp(6));
+        summary.setBackground(Presentation.shape(this, R.color.soft));
+
+        TextView title = Presentation.label(this, getString(R.string.head_to_head_wins), 16);
+        title.setGravity(Gravity.CENTER);
+        title.setTypeface(null, Typeface.BOLD);
+        if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+        summary.addView(title);
+        winScore = Presentation.label(this, "", 28);
+        winScore.setGravity(Gravity.CENTER);
+        winScore.setTextColor(getColor(R.color.primary));
+        winScore.setTypeface(null, Typeface.BOLD);
+        summary.addView(winScore);
+
+        LinearLayout sides = new LinearLayout(this);
+        firstSideNames = Presentation.label(this, "", 14);
+        secondSideNames = Presentation.label(this, "", 14);
+        firstSideNames.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        secondSideNames.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        sides.addView(firstSideNames, new LinearLayout.LayoutParams(0, -2, 1));
+        sides.addView(secondSideNames, new LinearLayout.LayoutParams(0, -2, 1));
+        summary.addView(sides);
+        return summary;
+    }
+
+    private void showWinSummary(List<HeadToHeadSearch.Player> selected) {
+        int firstWins = 0;
+        int secondWins = 0;
+        for (Meeting meeting : active.meetings) {
+            if (meeting.winner() == Winner.FIRST) firstWins++;
+            else if (meeting.winner() == Winner.SECOND) secondWins++;
+        }
+        winScore.setText(getString(R.string.head_to_head_win_score, firstWins, secondWins));
+        int sideSize = selected.size() / 2;
+        firstSideNames.setText(sideNames(selected.subList(0, sideSize)));
+        secondSideNames.setText(sideNames(selected.subList(sideSize, selected.size())));
+    }
+
+    private String sideNames(List<HeadToHeadSearch.Player> side) {
+        return side.stream().map(HeadToHeadSearch.Player::name).collect(Collectors.joining("\n"));
+    }
+
     private void updateControls() {
         boolean running = active.status == SearchStatus.RUNNING;
+        boolean interrupted = active.status == SearchStatus.INTERRUPTED;
+        boolean complete = active.status == SearchStatus.COMPLETE;
         List<HeadToHeadSearch.Player> selected = active.selections();
         boolean duplicate = hasDuplicatePlayers(selected);
         for (PlayerField field : active.players) field.input.setEnabled(!running);
         singlesTab.setEnabled(!running);
         doublesTab.setEnabled(!running);
         search.setEnabled(selected.size() == active.players.size() && !duplicate && !running);
+        search.setVisibility(interrupted ? View.GONE : View.VISIBLE);
+        retry.setVisibility(interrupted ? View.VISIBLE : View.GONE);
         progress.setVisibility(running ? View.VISIBLE : View.GONE);
+        winSummary.setVisibility(complete ? View.VISIBLE : View.GONE);
+        if (complete) showWinSummary(selected);
         int message = switch (active.status) {
             case IDLE -> duplicate ? active.duplicateMessage : 0;
             case RUNNING -> R.string.head_to_head_running;
-            case COMPLETE -> active.matches.isEmpty() ? R.string.head_to_head_empty : R.string.head_to_head_complete;
+            case COMPLETE -> active.meetings.isEmpty() ? R.string.head_to_head_empty : R.string.head_to_head_complete;
             case INTERRUPTED -> R.string.head_to_head_interrupted;
         };
         status.setVisibility(message == 0 ? View.GONE : View.VISIBLE);
@@ -370,7 +436,7 @@ public final class HeadToHeadActivity extends Activity {
     private final class SearchForm {
         final LinearLayout inputs = column();
         final List<PlayerField> players = new ArrayList<>();
-        final ArrayList<MatchSummary> matches = new ArrayList<>();
+        final ArrayList<Meeting> meetings = new ArrayList<>();
         final int duplicateMessage;
         SearchStatus status = SearchStatus.IDLE;
 
@@ -410,15 +476,16 @@ public final class HeadToHeadActivity extends Activity {
 
         void save(Bundle state, String key) {
             for (int index = 0; index < players.size(); index++) players.get(index).save(state, key + index);
-            state.putSerializable(key + "-matches", new ArrayList<>(matches));
+            state.putSerializable(key + "-meetings", new ArrayList<>(meetings));
             state.putSerializable(key + "-status", status);
         }
 
         void restore(Bundle state, String key) {
             for (int index = 0; index < players.size(); index++) players.get(index).restore(state, key + index);
             @SuppressWarnings("unchecked")
-            List<MatchSummary> saved = (List<MatchSummary>) state.getSerializable(key + "-matches");
-            if (saved != null) matches.addAll(saved);
+            List<Meeting> saved = (List<Meeting>) state.getSerializable(key + "-meetings");
+            if (saved == null) return;
+            meetings.addAll(saved);
             SearchStatus savedStatus = (SearchStatus) state.getSerializable(key + "-status");
             if (savedStatus != null) status = savedStatus;
         }

@@ -2,6 +2,7 @@ package az.tabletennis;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +35,12 @@ final class HeadToHeadSearch {
         private static final long serialVersionUID = 1L;
     }
 
+    enum Winner { FIRST, SECOND, NONE }
+
+    record Meeting(MatchSummary match, Winner winner) implements Serializable {
+        private static final long serialVersionUID = 1L;
+    }
+
     List<Player> findPlayers(String query) throws IOException {
         // The public directory matches a dotted capital İ only when sent as lowercase i.
         HttpUrl url = client.websiteUrl().newBuilder().encodedPath("/search")
@@ -61,8 +68,8 @@ final class HeadToHeadSearch {
         return new ArrayList<>(players.values());
     }
 
-    void findMeetings(List<Player> firstSide, List<Player> secondSide,
-                      BiConsumer<MatchSummary, MatchDetails> found) throws IOException {
+    void findMeetings(List<Player> firstSide, List<Player> secondSide, Set<Long> verifiedMatches,
+                      BiConsumer<Meeting, MatchDetails> found) throws IOException {
         // Read every selected player's history in the same order for equivalent selections.
         List<Player> owners = new ArrayList<>(firstSide);
         owners.addAll(secondSide);
@@ -74,7 +81,7 @@ final class HeadToHeadSearch {
         }
         firstPages.add(WebsiteSource.FIRST_DUELS_PAGE);
 
-        Set<Long> checked = new HashSet<>();
+        Set<Long> checked = new HashSet<>(verifiedMatches);
         for (ResultsFeed.Page page : firstPages) {
             findOnPages(page, firstSide, secondSide, checked, found);
         }
@@ -86,7 +93,8 @@ final class HeadToHeadSearch {
     }
 
     private void findOnPages(ResultsFeed.Page next, List<Player> firstSide, List<Player> secondSide, Set<Long> checked,
-                             BiConsumer<MatchSummary, MatchDetails> found) throws IOException {
+                             BiConsumer<Meeting, MatchDetails> found) throws IOException {
+        BiPredicate<MatchDetails.PlayerLink, Player> sameProfile = (participant, player) -> participant.id == player.id();
         while (next != null) {
             checkInterrupted();
             WebsiteSource.ResultPage page = source.resultPage(next);
@@ -96,8 +104,7 @@ final class HeadToHeadSearch {
                         (name, player) -> name.equalsIgnoreCase(player.name())) || !checked.add(row.id)) continue;
                 checkInterrupted();
                 MatchDetails details = source.match(row.id);
-                if (!matchesSides(details.left, details.right, firstSide, secondSide,
-                        (participant, player) -> participant.id == player.id())) continue;
+                if (!matchesSides(details.left, details.right, firstSide, secondSide, sameProfile)) continue;
 
                 try {
                     MatchSummary.sourceDay(details.date);
@@ -105,11 +112,21 @@ final class HeadToHeadSearch {
                     throw new IOException("Unusable source match date", failure);
                 }
                 String event = details.eventName.isEmpty() ? row.eventName : details.eventName;
-                found.accept(new MatchSummary(row.id, names(details.left), names(details.right), details.date, details.score,
-                        row.eventId, event, row.duel, row.teamChild, row.stage), details);
+                MatchSummary match = new MatchSummary(row.id, names(details.left), names(details.right), details.date,
+                        details.score, row.eventId, event, row.duel, row.teamChild, row.stage);
+                boolean firstSideOnLeft = matchesSide(details.left, firstSide, sameProfile);
+                found.accept(new Meeting(match, winner(details.score, firstSideOnLeft)), details);
             }
             next = page.next;
         }
+    }
+
+    private Winner winner(String score, boolean firstSideOnLeft) {
+        // WebsiteSource has already verified the two published scores are numeric.
+        String[] scores = score.split("-", 2);
+        int comparison = new BigInteger(scores[0]).compareTo(new BigInteger(scores[1]));
+        if (comparison == 0) return Winner.NONE;
+        return (comparison > 0) == firstSideOnLeft ? Winner.FIRST : Winner.SECOND;
     }
 
     private <T> boolean matchesSides(List<T> left, List<T> right, List<Player> firstSide, List<Player> secondSide,
