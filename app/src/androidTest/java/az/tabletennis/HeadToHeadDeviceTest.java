@@ -13,14 +13,16 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static az.tabletennis.HeadToHeadFixtures.ALIKHAN;
 import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_FINAL_DUEL;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TEAM_GAME;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TOURNAMENT;
 import static az.tabletennis.HeadToHeadFixtures.ASHRAF;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
+import static az.tabletennis.HeadToHeadFixtures.DOUBLES_TEAM_GAME;
 import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
 import static az.tabletennis.HeadToHeadFixtures.ERHAN;
 import static az.tabletennis.HeadToHeadFixtures.ILQAR;
 import static az.tabletennis.HeadToHeadFixtures.KHAYAL;
 import static az.tabletennis.HeadToHeadFixtures.NEWER;
-import static az.tabletennis.HeadToHeadFixtures.OLDER;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -56,7 +58,7 @@ public class HeadToHeadDeviceTest {
         // arrange
         var application = ApplicationProvider.<FixtureTestRunner.FixtureApplication>getApplicationContext();
         try (MockWebServer server = new MockWebServer()) {
-            givenPublishedPlayerHistories(server, application);
+            givenPublishedResults(server, application);
 
             // act
             try (ActivityScenario<RankingsActivity> rankings = ActivityScenario.launch(RankingsActivity.class)) {
@@ -75,20 +77,25 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
+                onView(withContentDescription(ARCHIVE_TOURNAMENT)).check(matches(withId(R.id.match_card)));
+                onView(withContentDescription(ARCHIVE_TEAM_GAME)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(NEWER)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(ARCHIVE_FINAL_DUEL)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(ARCHIVE_FINAL_DUEL)).perform(scrollTo());
                 capture("head-to-head-singles-duel");
 
                 // act
-                onView(withContentDescription(OLDER)).perform(scrollTo());
+                onView(withContentDescription(ARCHIVE_TEAM_GAME)).perform(scrollTo());
+                capture("head-to-head-team-game");
                 int position = scrollPosition();
-                onView(withContentDescription(OLDER)).perform(click());
+                onView(withContentDescription(ARCHIVE_TEAM_GAME)).perform(click());
 
                 // assert
-                awaitView(withText("10 Aug. 2021"));
-                onView(withId(R.id.match_score_left)).check(matches(withText("3")));
-                onView(withId(R.id.match_score_right)).check(matches(withText("2")));
+                awaitView(withText("12 Nov. 2026"));
+                awaitView(withText("Komanda Liqası"));
+                onView(withId(R.id.match_score_left)).check(matches(withText("2")));
+                onView(withId(R.id.match_score_right)).check(matches(withText("3")));
+                capture("head-to-head-team-game-details");
 
                 // act
                 pressBack();
@@ -97,7 +104,7 @@ public class HeadToHeadDeviceTest {
                 assertThat(scrollPosition(), is(position));
                 onView(withId(R.id.head_to_head_first)).check(matches(withText(ASHRAF)));
                 onView(withId(R.id.head_to_head_second)).check(matches(withText(ILQAR)));
-                onView(withContentDescription(OLDER)).check(matches(withId(R.id.match_card)));
+                onView(withContentDescription(ARCHIVE_TEAM_GAME)).check(matches(withId(R.id.match_card)));
 
                 // act
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo(), click());
@@ -111,6 +118,7 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
+                onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
                 onView(withContentDescription(DOUBLES)).perform(scrollTo());
                 capture("head-to-head-results");
 
@@ -140,11 +148,12 @@ public class HeadToHeadDeviceTest {
         }
     }
 
-    private void givenPublishedPlayerHistories(MockWebServer server, FixtureTestRunner.FixtureApplication application)
+    private void givenPublishedResults(MockWebServer server, FixtureTestRunner.FixtureApplication application)
             throws Exception {
         Map<String, String> pages = new HashMap<>();
         HeadToHeadFixtures.publish(pages);
         HeadToHeadFixtures.publishDoubles(pages);
+        HeadToHeadFixtures.publishTournamentArchive(pages);
         new RankingsStore(application).write(new RankingSnapshot(
                 Collections.singletonList(new RankingSnapshot.Player(13, ILQAR, 894)), application.clock().millis()));
         server.setDispatcher(new Dispatcher() {

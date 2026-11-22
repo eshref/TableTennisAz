@@ -41,7 +41,7 @@ final class WebsiteSource {
         List<ResultsFeed.Page> pending = previous == null ? new ArrayList<>() : new ArrayList<>(previous.pendingEvents);
         for (EventCatalog.Event event : catalog.events) {
             if (!selection.type.events || (selection.eventId != 0 && selection.eventId != event.id)) continue;
-            ResultsFeed.Page first = new ResultsFeed.Page("/matches/results/event/" + event.id, event.id, event.name, false);
+            ResultsFeed.Page first = eventResultsPage(event);
             if (!containsPage(loaded, first.path) && !containsPage(pending, first.path)) pending.add(first);
         }
         ResultsFeed.Page duels = previous == null
@@ -133,6 +133,10 @@ final class WebsiteSource {
 
     static ResultsFeed.Page playerHistoryPage(String path) {
         return new ResultsFeed.Page(path, 0, "", false);
+    }
+
+    static ResultsFeed.Page eventResultsPage(EventCatalog.Event event) {
+        return new ResultsFeed.Page("/matches/results/event/" + event.id, event.id, event.name, false);
     }
 
     static final class ResultPage {
