@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -121,6 +122,8 @@ public final class HeadToHeadActivity extends Activity {
         super.onPause();
     }
 
+    // Legacy Back dispatch; MainScreenChrome registers the native gesture callback on API 33+.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() {
         if (!chrome.closeDrawer()) super.onBackPressed();
     }
@@ -158,6 +161,7 @@ public final class HeadToHeadActivity extends Activity {
                     showSuggestions(field, players);
                 });
             } catch (IOException failure) {
+                Log.w("HeadToHead", "Could not load player suggestions", failure);
                 main.post(() -> {
                     if (isDestroyed() || version != directoryVersion) return;
                     field.suggestions.addView(Presentation.label(this, getString(R.string.head_to_head_directory_failed), 14));
@@ -218,7 +222,7 @@ public final class HeadToHeadActivity extends Activity {
                         new SavedDataStore<>(application, "match-" + details.id, MatchDetails.class)
                                 .write(new SavedData<>(details, application.clock().millis()));
                     } catch (IOException failure) {
-                        android.util.Log.w("HeadToHead", "Could not save match details", failure);
+                        Log.w("HeadToHead", "Could not save match details", failure);
                     }
                     main.post(() -> {
                         if (!isDestroyed()) showMatch(match);
@@ -226,6 +230,7 @@ public final class HeadToHeadActivity extends Activity {
                 });
                 main.post(() -> finishSearch(SearchStatus.COMPLETE));
             } catch (IOException failure) {
+                Log.w("HeadToHead", "Could not finish player histories", failure);
                 main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
             }
         });

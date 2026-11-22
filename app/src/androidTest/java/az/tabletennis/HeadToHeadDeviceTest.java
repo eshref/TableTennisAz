@@ -115,7 +115,9 @@ public class HeadToHeadDeviceTest {
         HandshakeCertificates clientTls = new HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate()).build();
         server.useHttps(serverTls.sslSocketFactory(), false);
         server.start(InetAddress.getByName("127.0.0.1"), 0);
-        application.fixtureClient = new WebsiteClient(server.url("/"), new OkHttpClient.Builder()
+        // MockWebServer may reverse-resolve its bind address to localhost. Use the certificate's IP identity.
+        var fixtureUrl = server.url("/").newBuilder().host("127.0.0.1").build();
+        application.fixtureClient = new WebsiteClient(fixtureUrl, new OkHttpClient.Builder()
                 .sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager()));
     }
 
