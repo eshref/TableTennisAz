@@ -41,7 +41,7 @@ public class RankingsApplication extends Application {
     }
 
     PlayerPhotos photos() {
-        if (photos == null) photos = new PlayerPhotos(this, websiteUrl());
+        if (photos == null) photos = new PlayerPhotos(this, websiteClient());
         return photos;
     }
 
@@ -72,6 +72,10 @@ public class RankingsApplication extends Application {
 
     protected HttpUrl tournamentCatalogueUrl() {
         return HttpUrl.get("https://eshref.github.io/TableTennisAz/tournaments-v1.json");
+    }
+
+    protected WebsiteClient headToHeadIndexClient() {
+        return new WebsiteClient(HttpUrl.get("https://eshref.github.io/TableTennisAz/"));
     }
 
     protected Clock clock() { return Clock.systemUTC(); }

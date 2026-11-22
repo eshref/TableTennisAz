@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import okhttp3.HttpUrl;
 
 /** Optional portraits have their own workers and durable storage, independent of saved rankings. */
 final class PlayerPhotos implements AutoCloseable {
@@ -40,10 +39,10 @@ final class PlayerPhotos implements AutoCloseable {
     private final Set<String> attempted = new HashSet<>();
     private final Map<Long, String> latestUrls = new java.util.concurrent.ConcurrentHashMap<>();
 
-    PlayerPhotos(Context context, HttpUrl website) {
+    PlayerPhotos(Context context, WebsiteClient client) {
         directory = new File(context.getFilesDir(), "player-portraits");
-        client = new WebsiteClient(website);
-        doubles = new DoublesRepository(context, website);
+        this.client = client;
+        doubles = new DoublesRepository(context, client.websiteUrl());
     }
 
     void bind(DoublesPortraitView view, DoublesPair pair, boolean online) {

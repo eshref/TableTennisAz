@@ -8,6 +8,14 @@ on:
         description: Run the opt-in live website check on Android 8
         type: boolean
         default: false
+      singles_index_live:
+        description: Time a fresh install search against the published singles index
+        type: boolean
+        default: false
+      doubles_index_live:
+        description: Time a fresh install search against the published doubles index
+        type: boolean
+        default: false
       fixture_journey:
         description: Saved-fixture matrix to run on Android 16
         type: choice
@@ -260,3 +268,39 @@ jobs:
           target: default
           arch: x86_64
           script: ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveExperienceTest,az.tabletennis.LiveDoublesTest
+
+  live-index:
+    if: github.event_name == 'workflow_dispatch' && (inputs.singles_index_live || inputs.doubles_index_live)
+    name: live-${{ matrix.format }}-index
+    strategy:
+      fail-fast: false
+      matrix:
+        format: ${{ fromJSON(inputs.singles_index_live && (inputs.doubles_index_live && '["singles","doubles"]' || '["singles"]') || '["doubles"]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          script: bash scripts/android/live-head-to-head-index ${{ matrix.format }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-${{ matrix.format }}-index
+          path: live-${{ matrix.format }}-evidence/

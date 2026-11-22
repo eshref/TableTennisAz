@@ -472,8 +472,10 @@ esac
                          f'{NOTES}\n<!-- APK for {sha}: sha256:{apk_digest}; evidence sha256:{hashlib.sha256(evidence).hexdigest()} -->\n')
         with ZipFile(BytesIO(evidence)) as archive:
             summary = archive.read('verification.md').decode()
-            for detail in (f'`{name}.apk`', sha, apk_digest, '28/28', 'In-place Android upgrade', '`v0.4.0`'):
+            for detail in (f'`{name}.apk`', sha, apk_digest, '29/29', 'In-place Android upgrade', '`v0.4.0`'):
                 self.assertIn(detail, summary)
+            self.assertIn('screenshots/head-to-head/light-offline/light-offline-head-to-head-offline-singles.png',
+                          archive.namelist())
             first_capture = {'match': '501', 'profile': 'profile', 'rating-history': 'chart', 'results': 'results',
                              'doubles-profile': 'profile', 'native-acceptance': 'players',
                              'head-to-head': 'head-to-head-results'}
@@ -536,10 +538,18 @@ actual=$(sha256sum "$6")
 cp "$6" "$run/app-release.apk"
 printf 'apk.sha256=%s\\nsource.commit=%s\\napi=36\\ntests=%s\\napk.variant=release\\n' "$7" "$GITHUB_SHA" "$4" > "$run/result.properties"
 printf 'testApk.sha256=%064d\\npreflight=passed\\n' 1 >> "$run/result.properties"
-screens=$(grep -F "$4=" scripts/android/fixture-captures.properties | cut -d= -f2)
-IFS=, read -ra screens <<< "$screens"
-for configuration in light dark-offline narrow-large landscape-large; do
+configurations=(light dark-offline narrow-large landscape-large)
+if [[ "$JOURNEY" == head-to-head ]]; then configurations+=(light-offline); fi
+for configuration in "${configurations[@]}"; do
   fixture="fixture-screenshots/$configuration-501.png"
+  capture_key=$4
+  if [[ "$configuration" == light-offline ]]; then
+    fixture=fixture-screenshots/light-501.png
+    capture_key="$4.offline"
+    printf 'light-offline.offline=confirmed\\n' >> "$run/result.properties"
+  fi
+  screens=$(grep -F "$capture_key=" scripts/android/fixture-captures.properties | cut -d= -f2)
+  IFS=, read -ra screens <<< "$screens"
   captures=()
   for screen in "${screens[@]}"; do
     captures+=("$configuration-$screen.png")
@@ -608,7 +618,7 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
         self.assertIn(f'TableTennisAz-0.4.0.apk', summary)
         self.assertIn(sha, summary)
         self.assertIn(hashlib.sha256(apk.read_bytes()).hexdigest(), summary)
-        self.assertIn('28/28', summary)
+        self.assertIn('29/29', summary)
         for journey, (class_prefix, screen) in journeys.items():
             run = evidence / f'android-signed-api36-{journey}' / 'run-fixture'
             self.assertEqual((run / 'app-release.apk').read_bytes(), apk.read_bytes())
@@ -644,7 +654,7 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
                 self.assertNotEqual(result.returncode, 0)
                 bundle = evidence / 'android-signed-fixture-matrix'
                 summary = (bundle / 'verification.md').read_text()
-                self.assertIn('27/28', summary)
+                self.assertIn('28/29', summary)
                 self.assertRegex(summary, rf'(?m)^\| results \| landscape-large \| .*{outcome}')
                 self.assertTrue((bundle / 'screenshots/results/light/light-results.png').is_file())
                 self.assertFalse((bundle / 'screenshots/results/landscape-large/landscape-large-empty.png').exists())
@@ -669,7 +679,7 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
         upgrade = evidence / 'android-signed-upgrade'
         self.assertIn('installed=failure', (upgrade / 'job.properties').read_text())
         self.assertIn('upgrade-before.instrumentation=passed', (upgrade / 'verification.md').read_text())
-        self.assertIn('28/28', (evidence / 'android-signed-fixture-matrix' / 'verification.md').read_text())
+        self.assertIn('29/29', (evidence / 'android-signed-fixture-matrix' / 'verification.md').read_text())
         self.assertEqual(self.api('/releases'), [released_version])
         with self.assertRaisesRegex(error.HTTPError, '404'):
             self.api('/git/ref/tags/v0.5.0')
