@@ -10,6 +10,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 final class WebsiteSource {
+    static final ResultsFeed.Page FIRST_DUELS_PAGE = new ResultsFeed.Page("/matches/duellos", 0, "Duello", true);
     private final WebsiteClient client;
     private final HttpUrl website;
 
@@ -44,7 +45,7 @@ final class WebsiteSource {
             if (!containsPage(loaded, first.path) && !containsPage(pending, first.path)) pending.add(first);
         }
         ResultsFeed.Page duels = previous == null
-                ? (selection.type.duels ? new ResultsFeed.Page("/matches/duellos", 0, "Duello", true) : null) : previous.nextDuels;
+                ? (selection.type.duels ? FIRST_DUELS_PAGE : null) : previous.nextDuels;
         java.util.Map<Long, MatchSummary> matches = new java.util.LinkedHashMap<>();
         if (previous != null && more) for (MatchSummary match : previous.matches) matches.put(match.id, match);
         if (previous != null && !more) {
@@ -91,7 +92,7 @@ final class WebsiteSource {
         }
     }
 
-    private ResultPage resultPage(ResultsFeed.Page page) throws IOException {
+    ResultPage resultPage(ResultsFeed.Page page) throws IOException {
         Document document = Jsoup.parse(client.get(page.path));
         List<MatchSummary> matches = parseResults(document, page.eventId, page.eventName, page.duel);
         HttpUrl current = website.resolve(page.path);
@@ -130,8 +131,8 @@ final class WebsiteSource {
         }
     }
 
-    ResultPage playerHistory(String path) throws IOException {
-        return resultPage(new ResultsFeed.Page(path, 0, "", false));
+    static ResultsFeed.Page playerHistoryPage(String path) {
+        return new ResultsFeed.Page(path, 0, "", false);
     }
 
     static final class ResultPage {
@@ -220,7 +221,7 @@ final class WebsiteSource {
         List<MatchDetails> verified = new ArrayList<>();
         String next = previous == null ? null : previous.nextHistoryPage;
         for (String path : requested) {
-            ResultPage page = playerHistory(path);
+            ResultPage page = resultPage(playerHistoryPage(path));
             List<MatchSummary> owned = new ArrayList<>();
             for (MatchSummary summary : page.matches) {
                 if (!summary.teamChild) owned.add(summary);

@@ -67,12 +67,18 @@ final class HeadToHeadSearch {
         List<Player> owners = new ArrayList<>(firstSide);
         owners.addAll(secondSide);
         owners.sort(Comparator.comparingLong(Player::id));
-        Set<Long> checked = new HashSet<>();
+
+        List<ResultsFeed.Page> firstPages = new ArrayList<>();
         for (Player owner : owners) {
-            String path = "/matches/results/player/" + owner.id();
-            while (path != null) {
+            firstPages.add(WebsiteSource.playerHistoryPage("/matches/results/player/" + owner.id()));
+        }
+        firstPages.add(WebsiteSource.FIRST_DUELS_PAGE);
+
+        Set<Long> checked = new HashSet<>();
+        for (ResultsFeed.Page next : firstPages) {
+            while (next != null) {
                 checkInterrupted();
-                WebsiteSource.ResultPage page = source.playerHistory(path);
+                WebsiteSource.ResultPage page = source.resultPage(next);
                 for (MatchSummary row : page.matches) {
                     if (!matchesSides(row.left, row.right, firstSide, secondSide,
                             (name, player) -> name.equalsIgnoreCase(player.name())) || !checked.add(row.id)) continue;
@@ -90,7 +96,7 @@ final class HeadToHeadSearch {
                     found.accept(new MatchSummary(row.id, names(details.left), names(details.right), details.date, details.score,
                             row.eventId, event, row.duel, row.teamChild, row.stage), details);
                 }
-                path = page.next == null ? null : page.next.path;
+                next = page.next;
             }
         }
     }
@@ -115,6 +121,6 @@ final class HeadToHeadSearch {
     }
 
     private void checkInterrupted() throws IOException {
-        if (Thread.currentThread().isInterrupted()) throw new IOException("Player history search interrupted");
+        if (Thread.currentThread().isInterrupted()) throw new IOException("Head-to-head search interrupted");
     }
 }

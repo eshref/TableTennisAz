@@ -2,6 +2,8 @@ package az.tabletennis;
 
 import static az.tabletennis.HeadToHeadFixtures.ASHRAF;
 import static az.tabletennis.HeadToHeadFixtures.ALIKHAN;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_FINAL_DUEL;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_PAGE_TWO_DUEL;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES_NEWER;
 import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
@@ -37,7 +39,7 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 36, qualifiers = "w411dp-h500dp", application = RankingsUiScenario.FixtureApplication.class)
 public class HeadToHeadWorkflowTest extends ProductUiScenario {
-    @Test public void singlesSearchFindsVerifiedMatchesAcrossPagesAndKeepsItsPlaceAfterDetails() throws Exception {
+    @Test public void singlesSearchMergesVerifiedHistoryAndDuelsAndKeepsItsPlaceAfterDetails() throws Exception {
         // arrange
         publish(website);
         CountDownLatch laterPage = new CountDownLatch(1);
@@ -88,7 +90,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         // assert
         awaitText(NEWER);
         awaitText("Axtarış tamamlandı");
-        assertThat(matchCards()).containsExactly(NEWER, MIDDLE, OLDER);
+        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
 
         // act
         ScrollView scroll = activity().findViewById(R.id.main_scroll);
@@ -111,7 +113,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(scroll.getScrollY()).isEqualTo(position);
         assertThat(field(R.id.head_to_head_first).getText().toString()).isEqualTo(ASHRAF);
         assertThat(field(R.id.head_to_head_second).getText().toString()).isEqualTo(ILQAR);
-        assertThat(matchCards()).containsExactly(NEWER, MIDDLE, OLDER);
+        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
 
         // act
         pickPlayer(R.id.head_to_head_first, "İlq", ILQAR);
@@ -120,7 +122,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(matchCards()).containsExactly(NEWER, MIDDLE, OLDER);
+        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
     }
 
     @Test public void keepsVerifiedMatchesWhenALaterHistoryPageFails() throws Exception {
@@ -141,6 +143,26 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         awaitText("Axtarış tamamlanmadı");
         assertThat(visibleText()).doesNotContain("Matç tapılmadı");
         assertThat(matchCards()).containsExactly(OLDER);
+        assertThat(searchButton().isEnabled()).isTrue();
+    }
+
+    @Test public void keepsVerifiedMatchesWhenTheFinalDuelPageFails() throws Exception {
+        // arrange
+        publish(website);
+        responses.put("/matches/duellos?page=3", () -> new MockResponse().setResponseCode(503));
+        openScreen();
+
+        // act
+        clickText("☰");
+        clickText("Üz-üzə");
+        followNavigation();
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlanmadı");
+        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, OLDER);
         assertThat(searchButton().isEnabled()).isTrue();
     }
 
@@ -189,7 +211,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(doublesCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
 
         // act
         pickPlayer(R.id.head_to_head_left_first, "Elç", ELCHIN);
@@ -198,7 +220,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(doublesCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
 
         // act
         pickPlayer(R.id.head_to_head_left_first, "Əli", ALIKHAN);
@@ -209,7 +231,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(doublesCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
     }
 
     @Test public void historicalDoublesRequireTheSelectedProfilesOnTheirExactSides() throws Exception {
@@ -227,7 +249,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(doublesCards()).containsExactly(HISTORICAL);
+        assertThat(matchCards()).containsExactly(HISTORICAL);
 
         // act
         clickText(HISTORICAL);
@@ -244,7 +266,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         // assert
         assertThat(field(R.id.head_to_head_left_first).isShown()).isTrue();
         assertThat(visibleText()).contains(KHAYAL, FIRDOVSI, VAQIF, SHAKIR);
-        assertThat(doublesCards()).containsExactly(HISTORICAL);
+        assertThat(matchCards()).containsExactly(HISTORICAL);
     }
 
     @Test public void playerDirectoryDistinguishesAFailedLookupFromNoMatchingPlayers() throws Exception {
@@ -319,12 +341,10 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         suggestion.performClick();
     }
 
-    private java.util.List<String> matchCards() {
-        return visibleText().stream().filter(text -> text.endsWith(" · Tək · Duel") || text.endsWith(" · Tək · Turnir")).toList();
-    }
-
-    private List<String> doublesCards() {
-        return visibleText().stream().filter(text -> text.endsWith(" · Qoşalar · Turnir")).toList();
+    private List<String> matchCards() {
+        return visibleText().stream()
+                .filter(text -> text.contains(" — ") && (text.endsWith(" · Duel") || text.endsWith(" · Turnir")))
+                .toList();
     }
 
 }

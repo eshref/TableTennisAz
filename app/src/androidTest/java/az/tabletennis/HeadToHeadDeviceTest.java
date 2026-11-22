@@ -12,6 +12,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static az.tabletennis.HeadToHeadFixtures.ALIKHAN;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_FINAL_DUEL;
 import static az.tabletennis.HeadToHeadFixtures.ASHRAF;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
 import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
@@ -74,7 +75,10 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
-                awaitView(withContentDescription(NEWER));
+                onView(withContentDescription(NEWER)).check(matches(withId(R.id.match_card)));
+                onView(withContentDescription(ARCHIVE_FINAL_DUEL)).check(matches(withId(R.id.match_card)));
+                onView(withContentDescription(ARCHIVE_FINAL_DUEL)).perform(scrollTo());
+                capture("head-to-head-singles-duel");
 
                 // act
                 onView(withContentDescription(OLDER)).perform(scrollTo());
