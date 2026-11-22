@@ -72,7 +72,7 @@ final class HeadToHeadSearch {
         return new ArrayList<>(suggestions.values());
     }
 
-    void findMeetings(List<Player> firstSide, List<Player> secondSide, Set<Long> verifiedMatches,
+    void findDoublesMeetings(List<Player> firstSide, List<Player> secondSide, Set<Long> verifiedMatches,
                       BiConsumer<Meeting, MatchDetails> found) throws IOException {
         // Read every selected player's history in the same order for equivalent selections.
         List<Player> owners = new ArrayList<>(firstSide);
@@ -125,8 +125,8 @@ final class HeadToHeadSearch {
         }
     }
 
-    private Winner winner(String score, boolean firstSideOnLeft) {
-        // WebsiteSource has already verified the two published scores are numeric.
+    static Winner winner(String score, boolean firstSideOnLeft) {
+        // Both sources verify the published scores before tallying wins.
         String[] scores = score.split("-", 2);
         int comparison = new BigInteger(scores[0]).compareTo(new BigInteger(scores[1]));
         if (comparison == 0) return Winner.NONE;

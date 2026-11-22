@@ -29,11 +29,15 @@ import az.tabletennis.HeadToHeadSearch.Player;
 import az.tabletennis.HeadToHeadSearch.Suggestion;
 import az.tabletennis.HeadToHeadSearch.Winner;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,10 +48,13 @@ public final class HeadToHeadActivity extends Activity {
     private static final Comparator<Meeting> NEWEST_FIRST = Comparator
             .comparing((Meeting meeting) -> MatchSummary.sourceDay(meeting.match().date)).reversed()
             .thenComparingLong(meeting -> meeting.match().id);
+    private static final DateTimeFormatter REFRESH_DAY = DateTimeFormatter.ofPattern("dd.MM.uuuu", Locale.ROOT)
+            .withZone(ZoneId.of("Asia/Baku"));
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private MainScreenChrome chrome;
     private HeadToHeadSearch source;
+    private HeadToHeadSinglesIndex singlesIndex;
     private ScrollView scroll;
     private SearchForm singles;
     private SearchForm doubles;
@@ -62,6 +69,7 @@ public final class HeadToHeadActivity extends Activity {
     private TextView firstSideNames;
     private TextView secondSideNames;
     private TextView status;
+    private TextView refreshDate;
     private ProgressBar progress;
     private LinearLayout results;
     private PlayerField activeField;
@@ -76,7 +84,9 @@ public final class HeadToHeadActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        source = new HeadToHeadSearch(((RankingsApplication) getApplication()).websiteClient());
+        RankingsApplication application = (RankingsApplication) getApplication();
+        source = new HeadToHeadSearch(application.websiteClient());
+        singlesIndex = new HeadToHeadSinglesIndex(application.headToHeadIndexClient());
         chrome = new MainScreenChrome(this, MainScreenChrome.Destination.HEAD_TO_HEAD, null);
 
         scroll = new ScrollView(this);
@@ -104,6 +114,8 @@ public final class HeadToHeadActivity extends Activity {
         form.addView(search);
         winSummary = createWinSummary();
         form.addView(winSummary);
+        refreshDate = Presentation.label(this, "", 14);
+        form.addView(refreshDate);
         status = Presentation.label(this, "", 14);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         form.addView(status);
@@ -316,11 +328,16 @@ public final class HeadToHeadActivity extends Activity {
         active.status = SearchStatus.RUNNING;
         updateControls();
 
+        if (active == singles) {
+            worker.execute(() -> searchSingles(left.get(0), right.get(0)));
+            return;
+        }
+
         Set<Long> verifiedMatches = active.meetings.stream().map(meeting -> meeting.match().id).collect(Collectors.toSet());
         RankingsApplication application = (RankingsApplication) getApplication();
         worker.execute(() -> {
             try {
-                source.findMeetings(left, right, verifiedMatches, (meeting, details) -> {
+                source.findDoublesMeetings(left, right, verifiedMatches, (meeting, details) -> {
                     try {
                         new SavedDataStore<>(application, "match-" + details.id, MatchDetails.class)
                                 .write(new SavedData<>(details, application.clock().millis()));
@@ -339,6 +356,23 @@ public final class HeadToHeadActivity extends Activity {
         });
     }
 
+    private void searchSingles(Player first, Player second) {
+        try {
+            HeadToHeadSinglesIndex.Comparison comparison = singlesIndex.findMeetings(first, second);
+            main.post(() -> {
+                if (isDestroyed()) return;
+                singles.refreshedAt = comparison.refreshedAt();
+                singles.meetings.addAll(comparison.meetings());
+                singles.meetings.sort(NEWEST_FIRST);
+                for (Meeting meeting : singles.meetings) results.addView(matchCard(meeting));
+                finishSearch(SearchStatus.COMPLETE);
+            });
+        } catch (IOException failure) {
+            Log.w("HeadToHead", "Could not load the singles index", failure);
+            main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
+        }
+    }
+
     private void finishSearch(SearchStatus outcome) {
         if (isDestroyed()) return;
         active.status = outcome;
@@ -347,6 +381,7 @@ public final class HeadToHeadActivity extends Activity {
 
     private void clearMatches() {
         active.meetings.clear();
+        active.refreshedAt = null;
         results.removeAllViews();
     }
 
@@ -448,6 +483,9 @@ public final class HeadToHeadActivity extends Activity {
         progress.setVisibility(running ? View.VISIBLE : View.GONE);
         winSummary.setVisibility(complete ? View.VISIBLE : View.GONE);
         if (complete) showWinSummary(selected);
+        boolean showRefresh = complete && active.refreshedAt != null;
+        refreshDate.setVisibility(showRefresh ? View.VISIBLE : View.GONE);
+        if (showRefresh) refreshDate.setText(getString(R.string.head_to_head_source_refresh, REFRESH_DAY.format(active.refreshedAt)));
         int message = switch (active.status) {
             case IDLE -> duplicate ? active.duplicateMessage : 0;
             case RUNNING -> R.string.head_to_head_running;
@@ -490,6 +528,7 @@ public final class HeadToHeadActivity extends Activity {
         final ArrayList<Meeting> meetings = new ArrayList<>();
         final int duplicateMessage;
         SearchStatus status = SearchStatus.IDLE;
+        Instant refreshedAt;
 
         SearchForm(boolean doubles) {
             if (doubles) {
@@ -529,6 +568,7 @@ public final class HeadToHeadActivity extends Activity {
             for (int index = 0; index < players.size(); index++) players.get(index).save(state, key + index);
             state.putSerializable(key + "-meetings", new ArrayList<>(meetings));
             state.putSerializable(key + "-status", status);
+            if (refreshedAt != null) state.putString(key + "-refreshed-at", refreshedAt.toString());
         }
 
         void restore(Bundle state, String key) {
@@ -539,6 +579,8 @@ public final class HeadToHeadActivity extends Activity {
             meetings.addAll(saved);
             SearchStatus savedStatus = (SearchStatus) state.getSerializable(key + "-status");
             if (savedStatus != null) status = savedStatus;
+            String savedRefresh = state.getString(key + "-refreshed-at");
+            if (savedRefresh != null) refreshedAt = Instant.parse(savedRefresh);
         }
     }
 

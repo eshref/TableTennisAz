@@ -23,7 +23,8 @@ import static az.tabletennis.HeadToHeadFixtures.VAQIF;
 import static az.tabletennis.HeadToHeadFixtures.directory;
 import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
 import static az.tabletennis.HeadToHeadFixtures.laterDoublesPage;
-import static az.tabletennis.HeadToHeadFixtures.laterPage;
+import static az.tabletennis.HeadToHeadFixtures.REFRESH_DATE;
+import static az.tabletennis.HeadToHeadFixtures.SINGLES_SHARD;
 import static az.tabletennis.HeadToHeadFixtures.publish;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.Shadows.shadowOf;
@@ -55,11 +56,17 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk = 36, qualifiers = "w411dp-h500dp", application = RankingsUiScenario.FixtureApplication.class)
+@Config(sdk = 36, qualifiers = "w411dp-h500dp", application = HeadToHeadWorkflowTest.IndexFixtureApplication.class)
 public class HeadToHeadWorkflowTest extends ProductUiScenario {
     private static final String MISSING_PORTRAIT = "/portraits/player-115.png";
 
-    public static class PortraitFixtureApplication extends RankingsUiScenario.FixtureApplication {
+    public static class IndexFixtureApplication extends RankingsUiScenario.FixtureApplication {
+        @Override protected WebsiteClient headToHeadIndexClient() {
+            return new WebsiteClient(websiteUrl());
+        }
+    }
+
+    public static class PortraitFixtureApplication extends IndexFixtureApplication {
         private final CountDownLatch missingPortraitResponse = new CountDownLatch(1);
 
         @Override WebsiteClient websiteClient() {
@@ -202,11 +209,9 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(visibleText()).contains(ASHRAF, ILQAR, "2", "3", "Komanda Liqası");
     }
 
-    @Test public void singlesSearchMergesVerifiedHistoryAndDuelsAndKeepsItsPlaceAfterDetails() throws Exception {
+    @Test public void singlesSearchReturnsTheSameMeetingsInEitherOrderAndKeepsItsPlaceAfterDetails() throws Exception {
         // arrange
         publish(website);
-        CountDownLatch laterPage = new CountDownLatch(1);
-        responses.put("/matches/results/player/13?page=2", () -> awaitPage(laterPage, new MockResponse().setBody(laterPage())));
         openScreen();
 
         // act
@@ -235,17 +240,9 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
         clickText("Axtar");
 
-        // act & assert
-        try {
-            awaitText(OLDER);
-            assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain(NEWER, "Qələbə sayı", "Matç tapılmadı");
-        } finally {
-            laterPage.countDown();
-        }
-
         // assert
-        awaitText(NEWER);
         awaitText("Axtarış tamamlandı");
+        assertThat(visibleText()).contains(REFRESH_DATE);
         assertThat(visibleText()).containsSequence("Qələbə sayı", "1–4", ASHRAF, ILQAR);
         assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
 
@@ -283,102 +280,42 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
     }
 
-    @Test public void retriesSinglesAfterALaterHistoryPageFails() throws Exception {
+    @Test public void retriesTheSameSinglesSelectionAfterAnUnavailableIndex() throws Exception {
         // arrange
         publish(website);
-        responses.put("/matches/results/player/13?page=2", () -> new MockResponse().setResponseCode(503));
-        openScreen();
+        responses.put(SINGLES_SHARD, () -> new MockResponse().setResponseCode(503));
+        openDirect(HeadToHeadActivity.class, "", 0);
 
         // act
-        clickText("☰");
-        clickText("Üz-üzə");
-        followNavigation();
         pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
         pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
         clickText("Axtar");
 
         // assert
         awaitText("Axtarış tamamlanmadı");
-        assertThat(visibleText()).doesNotContain("Qələbə sayı", "Matç tapılmadı");
-        assertThat(matchCards()).containsExactly(OLDER);
+        assertThat(visibleText()).contains("Yenidən cəhd et").doesNotContain("Qələbə sayı", "Matç tapılmadı", REFRESH_DATE);
+        assertThat(matchCards()).isEmpty();
 
         // arrange
-        CountDownLatch laterPage = new CountDownLatch(1);
-        CountDownLatch duelArchive = new CountDownLatch(1);
-        // A previously verified match is still usable if its details cannot be fetched on retry.
-        responses.put("/matches/46", () -> new MockResponse().setResponseCode(503));
-        responses.put("/matches/results/player/13?page=2", () -> awaitPage(laterPage, new MockResponse().setBody(laterPage())));
-        responses.put("/matches/duellos", () -> awaitPage(duelArchive, new MockResponse().setBody(website.get("/matches/duellos"))));
+        responses.remove(SINGLES_SHARD);
 
-        // act & assert
-        try {
-            clickText("Yenidən cəhd et");
-            assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain("Yenidən cəhd et");
-            assertThat(field(R.id.head_to_head_first).getText().toString()).isEqualTo(ASHRAF);
-            assertThat(field(R.id.head_to_head_second).getText().toString()).isEqualTo(ILQAR);
-            assertThat(matchCards()).containsExactly(OLDER);
-            laterPage.countDown();
-            awaitText(MIDDLE);
-            assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain("Qələbə sayı");
-            assertThat(matchCards()).containsExactly(NEWER, MIDDLE, OLDER);
-        } finally {
-            laterPage.countDown();
-            duelArchive.countDown();
-        }
+        // act
+        clickText("Yenidən cəhd et");
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(visibleText()).containsSequence("Qələbə sayı", "1–4", ASHRAF, ILQAR);
+        assertThat(field(R.id.head_to_head_first).getText().toString()).isEqualTo(ASHRAF);
+        assertThat(field(R.id.head_to_head_second).getText().toString()).isEqualTo(ILQAR);
+        assertThat(visibleText()).contains(REFRESH_DATE).containsSequence("Qələbə sayı", "1–4", ASHRAF, ILQAR);
         assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
-    }
-
-    @Test public void keepsVerifiedMatchesWhenTheFinalDuelPageFails() throws Exception {
-        // arrange
-        publish(website);
-        responses.put("/matches/duellos?page=3", () -> new MockResponse().setResponseCode(503));
-        openScreen();
-
-        // act
-        clickText("☰");
-        clickText("Üz-üzə");
-        followNavigation();
-        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
-        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
-        clickText("Axtar");
-
-        // assert
-        awaitText("Axtarış tamamlanmadı");
-        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, OLDER);
-        assertThat(visibleText()).contains("Yenidən cəhd et");
-    }
-
-    @Test public void keepsVerifiedMatchesWhenALaterTournamentPageFails() throws Exception {
-        // arrange
-        publish(website);
-        HeadToHeadFixtures.publishTournamentArchive(website);
-        responses.put("/matches/results/event/912?page=2", () -> new MockResponse().setResponseCode(503));
-        openScreen();
-
-        // act
-        clickText("☰");
-        clickText("Üz-üzə");
-        followNavigation();
-        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
-        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
-        clickText("Axtar");
-
-        // assert
-        awaitText("Axtarış tamamlanmadı");
-        assertThat(visibleText()).doesNotContain("Qələbə sayı", "Matç tapılmadı");
-        assertThat(matchCards()).containsExactly(ARCHIVE_TOURNAMENT, NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE,
-                ARCHIVE_FINAL_DUEL, OLDER);
     }
 
     @Test public void showsAnEmptyScoreOnlyAfterTheSearchCompletes() throws Exception {
         // arrange
         HeadToHeadFixtures.publishEmptySingles(website);
-        CountDownLatch firstPage = new CountDownLatch(1);
-        responses.put("/matches/results/player/13", () -> awaitPage(firstPage, new MockResponse().setResponseCode(503)));
+        CountDownLatch publication = new CountDownLatch(1);
+        responses.put(SINGLES_SHARD, () -> awaitPage(publication, new MockResponse().setBody(
+                "{\"schema\":1,\"bucket\":13,\"matches\":[]}")));
         openScreen();
 
         // act
@@ -393,7 +330,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
             clickText("Axtar");
             assertThat(visibleText()).contains("Axtarış davam edir").doesNotContain("Qələbə sayı", "0–0", "Matç tapılmadı");
         } finally {
-            firstPage.countDown();
+            publication.countDown();
         }
 
         // assert
@@ -401,14 +338,14 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(visibleText()).doesNotContain("Qələbə sayı", "0–0", "Matç tapılmadı");
 
         // arrange
-        responses.remove("/matches/results/player/13");
+        responses.remove(SINGLES_SHARD);
 
         // act
         clickText("Yenidən cəhd et");
 
         // assert
         awaitText("Matç tapılmadı");
-        assertThat(visibleText()).containsSubsequence("Qələbə sayı", "0–0", "Matç tapılmadı");
+        assertThat(visibleText()).contains(REFRESH_DATE).containsSubsequence("Qələbə sayı", "0–0", "Matç tapılmadı");
         assertThat(matchCards()).isEmpty();
     }
 

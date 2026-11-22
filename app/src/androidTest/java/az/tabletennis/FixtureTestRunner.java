@@ -19,6 +19,11 @@ public final class FixtureTestRunner extends AndroidJUnitRunner {
             return fixture == null ? super.websiteClient() : fixture;
         }
 
+        @Override protected WebsiteClient headToHeadIndexClient() {
+            WebsiteClient fixture = fixtureClient;
+            return fixture == null ? super.headToHeadIndexClient() : fixture;
+        }
+
         @Override protected HttpUrl tournamentCatalogueUrl() {
             WebsiteClient fixture = fixtureClient;
             return fixture == null ? super.tournamentCatalogueUrl() : fixture.websiteUrl().resolve("/tournaments-v1.json");
