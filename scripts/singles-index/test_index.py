@@ -17,11 +17,12 @@ def results(*rows, pages=""):
     return f'<main id="center"><div class="matches-box">{"".join(rows)}</div>{pages}</main>'
 
 
-def row(match, team=False):
+def row(match, team=False, doubles=False):
     kind, side = ("team-matches-match", "col-5") if team else ("match-box", "col-3")
+    partner = "<div>Teammate</div>" if doubles else ""
     return (f'<a href="/matches/{match}"><div class="{kind}">'
-            f'<div class="{side}"><div>Əşrəf Səfərov</div></div>'
-            f'<div class="{side}"><div>Etibar Yunusov</div></div></div></a>')
+            f'<div class="{side}"><div>Əşrəf Səfərov</div>{partner}</div>'
+            f'<div class="{side}"><div>Etibar Yunusov</div>{partner}</div></div></a>')
 
 
 def details(left=15, right=20, score=(3, 1), event="Liqa"):
@@ -179,3 +180,75 @@ class DailySinglesIndexTest(unittest.TestCase):
             self.assertNotEqual(missing_history.returncode, 0)
             self.assertIn("/matches/results/player/20: source page not found", missing_history.stderr)
             self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, snapshot)
+
+    def test_publishes_doubles_from_later_duel_tournament_and_historical_player_pages(self):
+        # arrange
+        duels = "/matches/duellos"
+        event = "/matches/results/event/7"
+        history = "/matches/results/player/15"
+        older_player = "/matches/results/player/30"
+        directory = ('<main id="center"><div class="ranking-page-list">'
+                     '<a href="/players/15">Əşrəf Səfərov</a></div></main>')
+
+        def doubles(left, right, event_name="Liqa"):
+            def side(players):
+                return '<div class="match-player-box">' + "".join(
+                    f'<a href="/players/{identity}"><span class="match-player-name">{name}</span></a>'
+                    for identity, name in players) + '</div>'
+
+            return (f'<main id="center"><div class="match-players-box">{side(left)}'
+                    f'<div class="match-date">{DAY}</div><div class="match-tournament">{event_name}</div>'
+                    '<div class="match-player-score">3</div><div class="match-player-score">1</div>'
+                    f'{side(right)}</div></main>')
+
+        left = [(15, "Əşrəf Səfərov"), (30, "Tarixi tərəfdaş")]
+        right = [(20, "Etibar Yunusov"), (21, "Digər tərəfdaş")]
+        pages = {
+            "/players?level=amateur": directory,
+            "/players?level=pro": directory,
+            "/matches/results": f'<main id="center"><div class="tournament-list">'
+                                f'<a href="{event}"><span class="tournament-title">Liqa</span></a></div></main>',
+            duels: results(row(11), pages=pagination(duels, 2)),
+            duels + "?page=2": results(row(31, doubles=True)),
+            event: results(row(32, doubles=True), pages=pagination(event, 2)),
+            event + "?page=2": results('<div class="team-match-box"><div class="child-matches-group">'
+                                        + row(33, team=True, doubles=True) + row(34, team=True, doubles=True)
+                                        + '</div></div>'),
+            history: results(row(31, doubles=True)),
+            older_player: results(row(32, doubles=True), pages=pagination(older_player, 2)),
+            older_player + "?page=2": results(row(35, doubles=True)),
+            "/matches/results/player/20": results(),
+            "/matches/results/player/21": results(),
+            "/matches/results/player/130": results(),
+            "/matches/11": details(event="Duello"),
+            "/matches/31": doubles(left, right, "Duello"),
+            "/matches/32": doubles(right, left[::-1]),
+            "/matches/33": doubles(left, right),
+            "/matches/34": doubles([(15, "Əşrəf Səfərov"), (130, "Tarixi tərəfdaş")], right),
+            "/matches/35": doubles(left, right),
+        }
+
+        with tempfile.TemporaryDirectory() as temporary, website(pages) as source:
+            singles = Path(temporary) / "singles-index-v1"
+            output = Path(temporary) / "doubles-index-v1"
+
+            # act
+            refresh = subprocess.run([sys.executable, str(GENERATOR), "--source", source, str(singles),
+                                      "--doubles-output", str(output)], capture_output=True, text=True)
+
+            # assert
+            self.assertEqual(refresh.returncode, 0, refresh.stderr)
+            published = json.loads((output / "15.json").read_text())
+            self.assertEqual([match["id"] for match in published["matches"]], [31, 32, 33, 34, 35])
+            duel, archive, team, namesake, older = published["matches"]
+            self.assertTrue(duel["duel"])
+            self.assertEqual([player["id"] for player in archive["left"]], [20, 21])
+            self.assertEqual([player["id"] for player in archive["right"]], [30, 15])
+            self.assertEqual((team["eventId"], team["event"], team["date"], team["score"]), (7, "Liqa", DAY, "3-1"))
+            self.assertEqual(namesake["left"][1], {"id": 130, "name": "Tarixi tərəfdaş"})
+            self.assertEqual(older["left"][1], {"id": 30, "name": "Tarixi tərəfdaş"})
+            self.assertEqual(json.loads((output / "0.json").read_text())["matches"], [])
+            self.assertEqual(len(list(output.iterdir())), 256)
+            singles_shard = json.loads((singles / "15.json").read_text())
+            self.assertEqual([match["id"] for match in singles_shard["matches"]], [11])
+            self.assertEqual(singles_shard["refreshedAt"], published["refreshedAt"])

@@ -1,4 +1,4 @@
-"""Build the Pages singles index from the public website."""
+"""Build the Pages head-to-head indexes from the public website."""
 
 import argparse
 import json
@@ -60,7 +60,7 @@ class Website:
     def page(self, path):
         if not hasattr(self.connection, "session"):
             session = Session()
-            session.headers.update({"User-Agent": "TableTennisAz daily singles index",
+            session.headers.update({"User-Agent": "TableTennisAz daily head-to-head index",
                                     "Accept-Language": "az-AZ,az;q=0.9"})
             session.mount(self.source + "/", HTTPAdapter(max_retries=Retry(
                 total=3, backoff_factor=1, status_forcelist=(408, 429, 500, 502, 503, 504))))
@@ -160,9 +160,7 @@ class Website:
                 team = "team-matches-match" in row.classes
                 sides = select(row, ":scope > .col-5" if team else ":scope > .col-3")
                 sizes = [sum(bool(content(child)) for child in side) for side in sides]
-                if sizes == [2, 2]:
-                    continue
-                if sizes != [1, 1]:
+                if sizes not in ([1, 1], [2, 2]):
                     raise ValueError(f"{path}: unrecognized sides of match {match_id}")
                 event = select(row, ":scope > .col-4")
                 stage = select(row, ".match-box-stage")
@@ -177,17 +175,21 @@ class Website:
         if len(boxes) != 1:
             raise ValueError(f"{path}: missing match details")
         box = boxes[0]
-        players = []
+        sides = []
         for side in select(box, ".match-player-box"):
-            names = select(side, ".match-player-name")
-            links = list(names[0].iterancestors("a")) if len(names) == 1 else []
-            if len(links) != 1 or not content(names[0]):
-                raise ValueError(f"{path}: missing singles participant profile")
-            players.append({"id": linked_id(links[0].get("href"), PLAYER_LINK), "name": content(names[0])})
+            players = []
+            for name in select(side, ".match-player-name"):
+                links = list(name.iterancestors("a"))
+                if len(links) != 1 or not content(name):
+                    raise ValueError(f"{path}: missing participant profile")
+                players.append({"id": linked_id(links[0].get("href"), PLAYER_LINK), "name": content(name)})
+            sides.append(players)
+        players = [player for side in sides for player in side]
         scores = [content(score) for score in select(box, ".match-player-score")]
-        if (len(players) != 2 or players[0]["id"] == players[1]["id"] or len(scores) != 2
+        if ([len(side) for side in sides] not in ([1, 1], [2, 2])
+                or len({player["id"] for player in players}) != len(players) or len(scores) != 2
                 or not all(re.fullmatch(r"[0-9]+", score) for score in scores)):
-            raise ValueError(f"{path}: unusable singles match details")
+            raise ValueError(f"{path}: unusable match details")
         date = select(box, ".match-date")
         if len(date) != 1:
             raise ValueError(f"{path}: missing published date")
@@ -197,7 +199,7 @@ class Website:
         except ValueError as error:
             raise ValueError(f"{path}: invalid published date {day!r}") from error
         event = select(box, ".match-tournament")
-        return {"id": identity, "left": players[0], "right": players[1], "date": day,
+        return {"id": identity, "left": sides[0], "right": sides[1], "date": day,
                 "score": "-".join(scores), "event": content(event[0]) if event else ""}
 
 
@@ -246,15 +248,16 @@ def build(website, workers):
                     previous = contexts.get(identity)
                     contexts[identity] = context if previous is None else previous.combine(context)
             pending = sorted(contexts.keys() - matches.keys())
-            print(f"Read {len(feeds)} result feeds. Verifying {len(pending)} singles matches.", flush=True)
+            print(f"Read {len(feeds)} result feeds. Verifying {len(pending)} matches.", flush=True)
             for verified, match in enumerate(pool.map(website.match, pending), start=1):
                 matches[match["id"]] = match
-                players.update((match["left"]["id"], match["right"]["id"]))
+                players.update(player["id"] for player in match["left"] + match["right"])
                 if verified % 5000 == 0:
-                    print(f"Verified {verified} of {len(pending)} singles matches in this batch.", flush=True)
+                    print(f"Verified {verified} of {len(pending)} matches in this batch.", flush=True)
             feeds = []
 
-    buckets = defaultdict(list)
+    singles = defaultdict(list)
+    doubles = defaultdict(list)
     for identity, match in sorted(matches.items()):
         context = contexts[identity]
         match["event"] = match["event"] or context.event
@@ -264,26 +267,37 @@ def build(website, workers):
         match["duel"] = context.duel or match["event"].casefold() == "duello"
         if context.stage and not match["duel"]:
             match["stage"] = context.stage
-        bucket = min(match["left"]["id"], match["right"]["id"]) % BUCKETS
-        buckets[bucket].append(match)
-    print(f"Verified {len(matches)} singles matches across {len(checked_players)} player histories.", flush=True)
-    return buckets
+        # The lowest profile ID is independent of teammate and opponent order.
+        bucket = min(player["id"] for player in match["left"] + match["right"]) % BUCKETS
+        if len(match["left"]) == 1:
+            singles[bucket].append(dict(match, left=match["left"][0], right=match["right"][0]))
+        else:
+            doubles[bucket].append(match)
+    print(f"Verified {len(matches)} matches across {len(checked_players)} player histories.", flush=True)
+    return singles, doubles
+
+
+def publish(output, buckets, refreshed):
+    output.mkdir(parents=True, exist_ok=True)
+    for bucket in range(BUCKETS):
+        payload = {"schema": 1, "bucket": bucket, "refreshedAt": refreshed, "matches": buckets[bucket]}
+        (output / f"{bucket}.json").write_text(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--doubles-output", type=Path)
     parser.add_argument("--source", default="https://tabletennis.az")
     parser.add_argument("--workers", type=int, default=10)
     args = parser.parse_args()
-    buckets = build(Website(args.source), args.workers)
+    singles, doubles = build(Website(args.source), args.workers)
     refreshed = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     # The Pages workflow deploys the entire staging tree as one publication.
-    args.output.mkdir(parents=True, exist_ok=True)
-    for bucket in range(BUCKETS):
-        payload = {"schema": 1, "bucket": bucket, "refreshedAt": refreshed, "matches": buckets[bucket]}
-        (args.output / f"{bucket}.json").write_text(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    publish(args.output, singles, refreshed)
+    if args.doubles_output is not None:
+        publish(args.doubles_output, doubles, refreshed)
 
 
 if __name__ == "__main__":

@@ -166,8 +166,9 @@ public class HeadToHeadDeviceTest {
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
+                awaitView(allOf(withText("2–1"), isDisplayed()));
                 onView(withText("Qələbə sayı")).perform(scrollTo()).check(matches(isDisplayed()));
-                onView(withText("2–1")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(withText(REFRESH_DATE)).perform(scrollTo()).check(matches(isDisplayed()));
                 onView(allOf(withText(ALIKHAN + "\n" + KHAYAL), hasSibling(withText(ERHAN + "\n" + ELCHIN))))
                         .perform(scrollTo());
                 capture("head-to-head-results");

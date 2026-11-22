@@ -62,8 +62,10 @@ jobs:
           cp -a docs pages-source
           python scripts/tournament-catalogue/generate.py --previous "$RUNNER_TEMP/previous-catalogue.json" \
             pages-source/tournaments-v1.json
-      - name: Generate the complete singles index
-        run: python scripts/singles-index/generate.py pages-source/singles-index-v1
+      - name: Generate the complete head-to-head indexes
+        run: |
+          python scripts/singles-index/generate.py pages-source/singles-index-v1 \
+            --doubles-output pages-source/doubles-index-v1
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./pages-source

@@ -33,12 +33,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -54,7 +52,7 @@ public final class HeadToHeadActivity extends Activity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private MainScreenChrome chrome;
     private HeadToHeadSearch source;
-    private HeadToHeadSinglesIndex singlesIndex;
+    private HeadToHeadIndex index;
     private ScrollView scroll;
     private SearchForm singles;
     private SearchForm doubles;
@@ -86,7 +84,7 @@ public final class HeadToHeadActivity extends Activity {
         super.onCreate(state);
         RankingsApplication application = (RankingsApplication) getApplication();
         source = new HeadToHeadSearch(application.websiteClient());
-        singlesIndex = new HeadToHeadSinglesIndex(application.headToHeadIndexClient());
+        index = new HeadToHeadIndex(application.headToHeadIndexClient());
         chrome = new MainScreenChrome(this, MainScreenChrome.Destination.HEAD_TO_HEAD, null);
 
         scroll = new ScrollView(this);
@@ -328,49 +326,38 @@ public final class HeadToHeadActivity extends Activity {
         active.status = SearchStatus.RUNNING;
         updateControls();
 
-        if (active == singles) {
-            worker.execute(() -> searchSingles(left.get(0), right.get(0)));
-            return;
-        }
-
-        Set<Long> verifiedMatches = active.meetings.stream().map(meeting -> meeting.match().id).collect(Collectors.toSet());
-        RankingsApplication application = (RankingsApplication) getApplication();
-        worker.execute(() -> {
-            try {
-                source.findDoublesMeetings(left, right, verifiedMatches, (meeting, details) -> {
-                    try {
-                        new SavedDataStore<>(application, "match-" + details.id, MatchDetails.class)
-                                .write(new SavedData<>(details, application.clock().millis()));
-                    } catch (IOException failure) {
-                        Log.w("HeadToHead", "Could not save match details", failure);
-                    }
-                    main.post(() -> {
-                        if (!isDestroyed()) showMatch(meeting);
-                    });
-                });
-                main.post(() -> finishSearch(SearchStatus.COMPLETE));
-            } catch (IOException failure) {
-                Log.w("HeadToHead", "Could not finish head-to-head search", failure);
-                main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
-            }
-        });
+        worker.execute(() -> searchIndex(left, right));
     }
 
-    private void searchSingles(Player first, Player second) {
+    private void searchIndex(List<Player> left, List<Player> right) {
         try {
-            HeadToHeadSinglesIndex.Comparison comparison = singlesIndex.findMeetings(first, second);
+            HeadToHeadIndex.Comparison comparison = index.findMeetings(left, right);
             main.post(() -> {
                 if (isDestroyed()) return;
-                singles.refreshedAt = comparison.refreshedAt();
-                singles.meetings.addAll(comparison.meetings());
-                singles.meetings.sort(NEWEST_FIRST);
-                for (Meeting meeting : singles.meetings) results.addView(matchCard(meeting));
+                active.refreshedAt = comparison.refreshedAt();
+                active.meetings.addAll(comparison.meetings());
+                active.meetings.sort(NEWEST_FIRST);
+                for (Meeting meeting : active.meetings) results.addView(matchCard(meeting));
                 finishSearch(SearchStatus.COMPLETE);
+                if (active == doubles) revealDoublesSummary();
             });
         } catch (IOException failure) {
-            Log.w("HeadToHead", "Could not load the singles index", failure);
+            Log.w("HeadToHead", "Could not load the head-to-head index", failure);
             main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
         }
+    }
+
+    private void revealDoublesSummary() {
+        scroll.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                scroll.getViewTreeObserver().removeOnPreDrawListener(this);
+                if (active == doubles && active.status == SearchStatus.COMPLETE) {
+                    Rect summary = new Rect(0, 0, winSummary.getWidth(), winSummary.getHeight());
+                    winSummary.requestRectangleOnScreen(summary, true);
+                }
+                return true;
+            }
+        });
     }
 
     private void finishSearch(SearchStatus outcome) {
@@ -383,13 +370,6 @@ public final class HeadToHeadActivity extends Activity {
         active.meetings.clear();
         active.refreshedAt = null;
         results.removeAllViews();
-    }
-
-    private void showMatch(Meeting meeting) {
-        List<Meeting> meetings = active.meetings;
-        int insertion = -Collections.binarySearch(meetings, meeting, NEWEST_FIRST) - 1;
-        meetings.add(insertion, meeting);
-        results.addView(matchCard(meeting), insertion);
     }
 
     private MatchCard matchCard(Meeting meeting) {

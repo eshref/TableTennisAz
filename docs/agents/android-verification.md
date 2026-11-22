@@ -83,12 +83,14 @@ Open **live-smoke** to inspect the installed live website journeys on API 26.
 This check requires website access from Android. [Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
 
 After the daily Pages deployment succeeds, dispatch **Android** with
-**singles_index_live** enabled to time Əşrəf Səfərov against Etibar Yunusov
-on a fresh installation. The **live-singles-index** job uses an API 36 emulator
-with internet access and measures from **Axtar** to the displayed **Qələbə sayı**.
-The run summary and **live-singles-index** artifact record the device,
-connection, source refresh date, score, and elapsed time. The artifact includes
-the result screenshot.
+**singles_index_live** to time Əşrəf Səfərov against Etibar Yunusov or
+**doubles_index_live** to time Elçin Mustafayev / Erhan Əliyev against
+Xəyal Həşimli / Əlixan Əlizadə. Each selected check starts with a fresh
+installation on an API 36 emulator with internet access and measures from
+**Axtar** to the displayed **Qələbə sayı**. The run summary and corresponding
+**live-singles-index** or **live-doubles-index** artifact record the device,
+connection, source refresh date, score, and elapsed time. The artifact
+includes the result screenshot.
 
 ## Required check
 
