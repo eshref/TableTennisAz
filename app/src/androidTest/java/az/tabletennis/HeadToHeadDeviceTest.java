@@ -25,6 +25,7 @@ import static az.tabletennis.HeadToHeadFixtures.ERHAN;
 import static az.tabletennis.HeadToHeadFixtures.ILQAR;
 import static az.tabletennis.HeadToHeadFixtures.KHAYAL;
 import static az.tabletennis.HeadToHeadFixtures.NEWER;
+import static az.tabletennis.HeadToHeadFixtures.REFRESH_DATE;
 import static az.tabletennis.HeadToHeadFixtures.directory;
 import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
 import static org.hamcrest.Matchers.allOf;
@@ -112,6 +113,7 @@ public class HeadToHeadDeviceTest {
                 awaitView(withText("Axtarış tamamlandı"));
                 onView(withText("Qələbə sayı")).perform(scrollTo()).check(matches(isDisplayed()));
                 onView(withText("3–4")).perform(scrollTo()).check(matches(isDisplayed()));
+                onView(withText(REFRESH_DATE)).perform(scrollTo()).check(matches(isDisplayed()));
                 onView(allOf(withText(ILQAR), hasSibling(withText(ASHRAF)))).perform(scrollTo());
                 capture("head-to-head-singles-summary");
                 onView(withContentDescription(ARCHIVE_TOURNAMENT)).check(matches(withId(R.id.match_card)));

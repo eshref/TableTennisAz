@@ -1,9 +1,15 @@
 package az.tabletennis;
 
 import java.util.Map;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 final class HeadToHeadFixtures {
     private HeadToHeadFixtures() {}
+
+    static final String SINGLES_SHARD = "/singles-index-v1/13.json";
+    static final String REFRESH_DATE = "Mənbənin yenilənmə tarixi: 19.11.2026";
 
     static final String ASHRAF = "Əşrəf Səfərov";
     static final String ILQAR = "İlqar Həsənov";
@@ -35,6 +41,7 @@ final class HeadToHeadFixtures {
     static void publishEmptySingles(Map<String, String> website) {
         publishPlayer(website, "s%C9%99f", 15, ASHRAF);
         publishPlayer(website, "ilq", 13, ILQAR);
+        website.put(SINGLES_SHARD, shard(13));
         website.put("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.put("/matches/duellos", history(""));
     }
@@ -45,6 +52,8 @@ final class HeadToHeadFixtures {
         website.put("/matches/results/player/15", history(row(513, "18 Nov. 2026", ASHRAF, ASHRAF, "3-1", "Liqa")));
         website.put("/matches/results/player/115", history(""));
         website.put("/matches/513", details(15, ASHRAF, 115, ASHRAF, "18 Nov. 2026", 3, 1, "Liqa"));
+        website.put("/singles-index-v1/15.json", shard(15, indexed(513, 15, ASHRAF, 115, ASHRAF,
+                "18 Nov. 2026", "3-1", "Liqa", false)));
     }
 
     static void publish(Map<String, String> website) {
@@ -76,9 +85,11 @@ final class HeadToHeadFixtures {
         website.put("/matches/507", details(player(15, ASHRAF) + player(7, "Əli Məmmədov"),
                 player(13, ILQAR) + player(8, "Şəms Quliyeva"), "14 Nov. 2026", 3, 2, "Duello"));
         website.put("/matches/508", details(15, ASHRAF, 13, ILQAR, "15 Nov. 2026", 3, 0, "Duello"));
+        website.put(SINGLES_SHARD, singlesShard(false));
     }
 
     static void publishTournamentArchive(Map<String, String> website) {
+        website.put(SINGLES_SHARD, singlesShard(true));
         website.put("/matches/results", "<div id='center'><div class='tournament-list'>"
                 + "<a href='/matches/results/event/911'><div class='tournament-title'>Liqa</div></a>"
                 + "<a href='/matches/results/event/912'><div class='tournament-title'>Klub turniri</div></a></div></div>");
@@ -100,7 +111,43 @@ final class HeadToHeadFixtures {
                 player(7, ALIKHAN) + player(70, KHAYAL), "10 Nov. 2026", 3, 0, "Komanda Liqası"));
     }
 
-    static String laterPage() {
+    private static String singlesShard(boolean tournamentArchive) {
+        JSONObject older = indexed(46, 13, ILQAR, 15, ASHRAF, "10 Aug. 2021", "3-2", "Shua Open Cup #1", false);
+        JSONObject newer = indexed(502, 15, ASHRAF, 13, ILQAR, "16 Nov. 2026", "1-3", "Duello", true);
+        JSONObject middle = indexed(402, 13, ILQAR, 15, ASHRAF, "14 Nov. 2026", "3-0", "Liqa", false);
+        JSONObject laterDuel = indexed(508, 15, ASHRAF, 13, ILQAR, "15 Nov. 2026", "3-0", "Duello", true);
+        JSONObject finalDuel = indexed(506, 13, ILQAR, 15, ASHRAF, "13 Nov. 2026", "3-1", "Duello", true);
+        JSONObject namesake = indexed(503, 115, ASHRAF, 13, ILQAR, "17 Nov. 2026", "4-2", "Liqa", false);
+        if (!tournamentArchive) return shard(13, older, newer, middle, laterDuel, finalDuel, namesake);
+        return shard(13, older, newer, middle, laterDuel, finalDuel, namesake,
+                indexed(610, 15, ASHRAF, 13, ILQAR, "18 Nov. 2026", "3-1", "Liqa", false),
+                indexed(612, 13, ILQAR, 15, ASHRAF, "12 Nov. 2026", "2-3", "Komanda Liqası", false));
+    }
+
+    private static String shard(int bucket, JSONObject... matches) {
+        try {
+            JSONArray rows = new JSONArray();
+            for (JSONObject match : matches) rows.put(match);
+            return new JSONObject().put("schema", 1).put("bucket", bucket)
+                    .put("refreshedAt", "2026-11-19T04:23:00.123456Z").put("matches", rows).toString();
+        } catch (JSONException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    private static JSONObject indexed(int id, int leftId, String left, int rightId, String right,
+                                      String date, String score, String event, boolean duel) {
+        try {
+            return new JSONObject().put("id", id)
+                    .put("left", new JSONObject().put("id", leftId).put("name", left))
+                    .put("right", new JSONObject().put("id", rightId).put("name", right))
+                    .put("date", date).put("score", score).put("event", event).put("eventId", 0).put("duel", duel);
+        } catch (JSONException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    private static String laterPage() {
         return history(overlappingDuelRow());
     }
 

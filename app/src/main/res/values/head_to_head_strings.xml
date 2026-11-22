@@ -16,5 +16,6 @@
     <string name="head_to_head_interrupted">Axtarış tamamlanmadı</string>
     <string name="head_to_head_wins">Qələbə sayı</string>
     <string name="head_to_head_win_score">%1$d–%2$d</string>
+    <string name="head_to_head_source_refresh">Mənbənin yenilənmə tarixi: %1$s</string>
     <string name="head_to_head_empty">Matç tapılmadı</string>
 </resources>

@@ -8,10 +8,12 @@ on:
     paths:
       - 'docs/**'
       - 'scripts/tournament-catalogue/**'
+      - 'scripts/singles-index/**'
       - '.github/workflows/tournament-catalogue.yml'
   pull_request:
     paths:
       - 'scripts/tournament-catalogue/**'
+      - 'scripts/singles-index/**'
       - '.github/workflows/tournament-catalogue.yml'
 
 permissions:
@@ -31,14 +33,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt
+      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt -r scripts/singles-index/requirements.txt
       - run: python -m unittest discover -s scripts/tournament-catalogue -v
+      - run: python -m unittest discover -s scripts/singles-index -v
 
   build:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: fixtures
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,7 +51,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt
+      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt -r scripts/singles-index/requirements.txt
       - name: Generate the catalogue for the existing site
         env:
           CATALOGUE_URL: ${{ steps.pages.outputs.base_url }}/tournaments-v1.json
@@ -59,6 +62,8 @@ jobs:
           cp -a docs pages-source
           python scripts/tournament-catalogue/generate.py --previous "$RUNNER_TEMP/previous-catalogue.json" \
             pages-source/tournaments-v1.json
+      - name: Generate the complete singles index
+        run: python scripts/singles-index/generate.py pages-source/singles-index-v1
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./pages-source
