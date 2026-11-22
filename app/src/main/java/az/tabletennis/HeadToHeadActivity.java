@@ -381,8 +381,8 @@ public final class HeadToHeadActivity extends Activity {
                 addPair(2, R.id.head_to_head_right_first, R.id.head_to_head_right_second);
             } else {
                 duplicateMessage = R.string.head_to_head_distinct_players;
-                players.add(new PlayerField(inputs, R.id.head_to_head_first, R.string.head_to_head_first));
-                players.add(new PlayerField(inputs, R.id.head_to_head_second, R.string.head_to_head_second));
+                players.add(new PlayerField(inputs, R.id.head_to_head_first, R.string.head_to_head_first, null));
+                players.add(new PlayerField(inputs, R.id.head_to_head_second, R.string.head_to_head_second, null));
             }
         }
 
@@ -396,8 +396,10 @@ public final class HeadToHeadActivity extends Activity {
             TextView title = Presentation.label(HeadToHeadActivity.this, getString(R.string.head_to_head_pair, side), 16);
             if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
             pair.addView(title);
-            players.add(new PlayerField(pair, firstId, R.string.head_to_head_first));
-            players.add(new PlayerField(pair, secondId, R.string.head_to_head_second));
+            players.add(new PlayerField(pair, firstId, R.string.head_to_head_first,
+                    getString(R.string.head_to_head_pair_player, side, getString(R.string.head_to_head_first))));
+            players.add(new PlayerField(pair, secondId, R.string.head_to_head_second,
+                    getString(R.string.head_to_head_pair_player, side, getString(R.string.head_to_head_second))));
         }
 
         List<HeadToHeadSearch.Player> selections() {
@@ -428,11 +430,12 @@ public final class HeadToHeadActivity extends Activity {
         HeadToHeadSearch.Player selected;
         boolean settingText;
 
-        PlayerField(LinearLayout form, int id, int label) {
+        PlayerField(LinearLayout form, int id, int label, String accessibleLabel) {
             LinearLayout group = column();
             form.addView(group);
             TextView name = Presentation.label(HeadToHeadActivity.this, getString(label), 14);
             name.setLabelFor(id);
+            name.setContentDescription(accessibleLabel);
             group.addView(name);
             input = new EditText(HeadToHeadActivity.this);
             input.setId(id);

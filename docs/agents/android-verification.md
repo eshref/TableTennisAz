@@ -24,7 +24,7 @@ its own evidence.
 | Şəxsi turnirlər, Qoşa turnirlər, tournament results, and Duellər | `results` | `ResultsDeviceTest` |
 | Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
-| Üz-üzə singles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
+| Üz-üzə singles and doubles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
 
 On the run page, open **Run installed preflight and saved-fixture journey** for
 live progress. Download `android-api36-<journey>` from **Artifacts** on the same
