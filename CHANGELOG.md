@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-11-22
+
+- Üz-üzə player suggestions show profile photos when available, making it easier
+  to choose the right player.
+- Singles and doubles searches show the full published match history and win
+  totals faster, along with the date the results were last refreshed.
+- Reopen a completed Üz-üzə search offline, even after restarting the app.
+  Suggestions help you select the players from saved searches.
+
 ## 0.7.0 - 2026-11-22
 
 - Open Üz-üzə from the app menu to find past matches between two singles
