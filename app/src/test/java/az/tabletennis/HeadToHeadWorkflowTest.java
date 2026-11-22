@@ -48,6 +48,7 @@ import okhttp3.EventListener;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okio.Buffer;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -418,10 +419,12 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
     }
 
-    @Test public void aVerifiedEmptyDoublesComparisonShowsZeroWins() throws Exception {
+    @Test public void aMalformedDoublesShardFailsAndAVerifiedEmptyComparisonShowsZeroWins() throws Exception {
         // arrange
         HeadToHeadFixtures.publishDoubles(website);
-        HeadToHeadFixtures.publishEmptyDoubles(website);
+        JSONObject shard = new JSONObject(website.get(DOUBLES_SHARD));
+        shard.getJSONArray("matches").getJSONObject(1).getJSONArray("right").remove(1);
+        website.put(DOUBLES_SHARD, shard.toString());
         openScreen();
 
         // act
@@ -431,6 +434,17 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         pickPlayer(R.id.head_to_head_right_first, "Əli", ALIKHAN);
         pickPlayer(R.id.head_to_head_right_second, "Xəy", KHAYAL);
         clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlanmadı");
+        assertThat(visibleText()).contains("Yenidən cəhd et").doesNotContain("Qələbə sayı", "Matç tapılmadı", REFRESH_DATE);
+        assertThat(matchCards()).isEmpty();
+
+        // arrange
+        HeadToHeadFixtures.publishEmptyDoubles(website);
+
+        // act
+        clickText("Yenidən cəhd et");
 
         // assert
         awaitText("Matç tapılmadı");

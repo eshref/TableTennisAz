@@ -215,7 +215,7 @@ class DailySinglesIndexTest(unittest.TestCase):
                                         + row(33, team=True, doubles=True) + row(34, team=True, doubles=True)
                                         + '</div></div>'),
             history: results(row(31, doubles=True)),
-            older_player: results(row(32, doubles=True), pages=pagination(older_player, 2)),
+            older_player: results(row(31, doubles=True), pages=pagination(older_player, 2)),
             older_player + "?page=2": results(row(35, doubles=True)),
             "/matches/results/player/20": results(),
             "/matches/results/player/21": results(),

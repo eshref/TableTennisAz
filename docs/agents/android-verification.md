@@ -67,8 +67,8 @@ After standard light, the runner disables networking and restarts the app
 process. The match, profile, doubles profile, rating history, and combined
 journeys reuse saved data. The Results journey prepares its saved fixtures
 for each configuration to check offline rendering.
-The head-to-head journey serves its player directory and history fixtures over
-HTTPS on emulator loopback in each configuration.
+The head-to-head journey serves its player directory, index shards, and match
+details over HTTPS on emulator loopback in each configuration.
 
 For a pinned doubles profile run, set `app_revision` to the full app commit SHA.
 The summary records the app and verifier revisions. To test failure evidence,

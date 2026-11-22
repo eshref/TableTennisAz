@@ -90,6 +90,7 @@ final class HeadToHeadIndex {
             ids.add(id);
             names.add(playerName);
         }
+        // Compare teammates by profile ID and display their names in published order.
         Collections.sort(ids);
         return new Side(ids, names);
     }

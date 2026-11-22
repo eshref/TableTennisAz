@@ -37,20 +37,26 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 public class LiveHeadToHeadIndexTest {
     @Test public void freshInstallShowsThePublishedSinglesScoreWithinFiveSeconds() throws Exception {
+        // arrange
         try (ActivityScenario<HeadToHeadActivity> scenario = ActivityScenario.launch(HeadToHeadActivity.class)) {
             selectPlayer(R.id.head_to_head_first, "Səfərov", "Əşrəf Səfərov", 15);
             selectPlayer(R.id.head_to_head_second, "Etibar", "Etibar Yunusov", 20);
+
+            // act & assert
             verifyPublishedScore("singles");
         }
     }
 
     @Test public void freshInstallShowsThePublishedDoublesScoreWithinFiveSeconds() throws Exception {
+        // arrange
         try (ActivityScenario<HeadToHeadActivity> scenario = ActivityScenario.launch(HeadToHeadActivity.class)) {
             onView(withId(R.id.head_to_head_doubles)).perform(click());
             selectPlayer(R.id.head_to_head_left_first, "Mustafayev", "Elçin Mustafayev", 22);
             selectPlayer(R.id.head_to_head_left_second, "Erhan", "Erhan Əliyev", 14);
             selectPlayer(R.id.head_to_head_right_first, "Həşimli", "Xəyal Həşimli", 70);
             selectPlayer(R.id.head_to_head_right_second, "Əlixan", "Əlixan Əlizadə", 7);
+
+            // act & assert
             verifyPublishedScore("doubles");
         }
     }
