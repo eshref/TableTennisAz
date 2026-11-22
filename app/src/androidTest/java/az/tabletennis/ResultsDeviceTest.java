@@ -26,6 +26,8 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.ActivityOptions;
+import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.UiAutomation;
 import android.content.Context;
@@ -36,7 +38,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
 import android.os.SystemClock;
-import android.text.TextUtils;
+import android.service.notification.StatusBarNotification;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -56,7 +58,6 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -130,7 +131,14 @@ public class ResultsDeviceTest {
             }
 
             // act
-            deliverAlert(application, system, singlesId, singles);
+            deliverAlert(application, singlesId, singles);
+
+            // assert
+            Notification singlesAlert = awaitPostedAlert(notifications, singlesId);
+            assertEquals(singles, singlesAlert.extras.getString(Notification.EXTRA_TITLE));
+
+            // act
+            openPostedAlert(application, system, singlesAlert);
 
             // assert
             awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq A — Sınaq B · 3-0 · " + singles + " · Tək · Turnir"));
@@ -139,7 +147,14 @@ public class ResultsDeviceTest {
 
             // act
             androidx.test.espresso.Espresso.pressBackUnconditionally();
-            deliverAlert(application, system, doublesId, doubles);
+            deliverAlert(application, doublesId, doubles);
+
+            // assert
+            Notification doublesAlert = awaitPostedAlert(notifications, doublesId);
+            assertEquals(doubles, doublesAlert.extras.getString(Notification.EXTRA_TITLE));
+
+            // act
+            openPostedAlert(application, system, doublesAlert);
 
             // assert
             awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq C / Sınaq D — Sınaq E / Sınaq F · 3-2 · "
@@ -180,16 +195,34 @@ public class ResultsDeviceTest {
         application.hostWebsiteFixtures(server);
     }
 
-    private void deliverAlert(FixtureTestRunner.FixtureApplication application, UiAutomation system,
-                              long id, String name) throws Exception {
+    private void deliverAlert(FixtureTestRunner.FixtureApplication application, long id, String name) {
         application.tournamentAlerts().receive(Map.of("eventId", Long.toString(id), "name", name,
                 "publishedAt", Long.toString(application.clock().millis())));
-        try (var output = new ParcelFileDescriptor.AutoCloseInputStream(
-                system.executeShellCommand("cmd statusbar expand-notifications"))) {
-            output.readAllBytes();
+    }
+
+    private Notification awaitPostedAlert(NotificationManager manager, long id) {
+        String tag = Long.toString(id);
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        while (SystemClock.uptimeMillis() < deadline) {
+            for (StatusBarNotification entry : manager.getActiveNotifications()) {
+                if (tag.equals(entry.getTag())) return entry.getNotification();
+            }
+            SystemClock.sleep(100);
         }
-        tapSystemNode(system, name, root -> root.findAccessibilityNodeInfosByText(name).stream()
-                .filter(node -> TextUtils.equals(name, node.getText())).collect(Collectors.toList()));
+        throw new AssertionError("Android did not post the notification for event " + id);
+    }
+
+    private void openPostedAlert(Context context, UiAutomation system, Notification notification) throws Exception {
+        // The Android Test Device image uses a placeholder System UI without a notification shade.
+        // Invoke the posted notification's pending intent with the system's background-start privilege.
+        ActivityOptions options = ActivityOptions.makeBasic()
+                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+        system.adoptShellPermissionIdentity("android.permission.START_ACTIVITIES_FROM_BACKGROUND");
+        try {
+            notification.contentIntent.send(context, 0, null, null, null, null, options.toBundle());
+        } finally {
+            system.dropShellPermissionIdentity();
+        }
     }
 
     private void tapSystemNode(UiAutomation system, String description,

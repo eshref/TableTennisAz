@@ -123,8 +123,9 @@ heading and match results appear. Record the workflow URL, the notification
 and results screenshots, and the device or emulator image.
 [Tournament catalogue Actions](https://github.com/eshref/TableTennisAz/actions/workflows/tournament-catalogue.yml)
 
-The installed `results` fixture journey exercises opt-in and taps both formats'
-Android notifications while the catalogue endpoint is unavailable. The
+The installed `results` fixture journey exercises opt-in and opens both formats
+through the actions on their posted Android notifications while the catalogue
+endpoint is unavailable. The
 `tournament-alerts-setting`, `singles-alert-results`, and
 `doubles-alert-results` checkpoints show the corresponding screens.
 
