@@ -1,0 +1,967 @@
+<!doctype html>
+<!-- Throwaway Android UI prototype for approving the Üz-üzə search flow.
+     Open directly. The bottom switcher and ?view= links set up review scenarios. -->
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Üz-üzə · Prototip</title>
+<style>
+  :root {
+    color-scheme: light;
+    --background: #f5f9f6;
+    --surface: #fff;
+    --text: #183125;
+    --secondary: #536b5d;
+    --primary: #006b50;
+    --soft: #dcefe2;
+    --line: #dbe6de;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    padding: 30px 16px 96px;
+    background: #eaf1ec;
+    color: var(--text);
+    font: 15px/1.45 system-ui, sans-serif;
+  }
+  button, input, select { font: inherit; }
+  button, select { cursor: pointer; }
+  button:disabled { cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid #007b5b;
+    outline-offset: 3px;
+  }
+  h1, h2, h3, p { margin: 0; }
+  .preview, .phone { max-width: 430px; margin-inline: auto; }
+  .preview {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .preview h1 { font-size: 15px; }
+  .preview p { color: var(--secondary); font-size: 13px; }
+  .example {
+    min-height: 42px;
+    border: 1px solid #a9c6b5;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: var(--background);
+    color: var(--primary);
+    font-weight: 650;
+  }
+  .phone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: clamp(370px, calc(100dvh - 160px), 770px);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    background: var(--background);
+    box-shadow: 0 12px 34px #153f2512;
+  }
+  .app-bar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 10px;
+    min-height: 68px;
+    padding: 8px 18px 8px 12px;
+  }
+  .app-bar h2 { flex: 1; font-size: 22px; font-weight: 650; }
+  .icon-button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--primary);
+  }
+  .icon-button:hover { background: var(--soft); }
+  .back-arrow { font-size: 24px; }
+  .hamburger, .hamburger::before, .hamburger::after {
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .hamburger { position: relative; }
+  .hamburger::before, .hamburger::after { content: ""; position: absolute; left: 0; }
+  .hamburger::before { top: -6px; }
+  .hamburger::after { top: 6px; }
+  .sport-icon {
+    position: relative;
+    width: 42px;
+    height: 36px;
+    flex: 0 0 auto;
+    color: var(--primary);
+  }
+  .paddle {
+    position: absolute;
+    top: 8px;
+    width: 12px;
+    height: 15px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+  }
+  .paddle::after {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 8px;
+    left: 2.5px;
+    top: 12px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .paddle:first-child { left: 6px; transform: rotate(35deg); }
+  .paddle:nth-child(2) { right: 6px; transform: rotate(-35deg); }
+  .ball { position: absolute; left: 19px; top: 5px; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
+  .screen {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #b2c9ba transparent;
+  }
+  .content { padding: 3px 18px 24px; }
+  .modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px;
+    gap: 3px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: #eaf1ec;
+    margin-bottom: 18px;
+  }
+  .modes button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+  }
+  .modes button[aria-pressed="true"] { background: var(--primary); color: #fff; font-weight: 650; }
+  .fields { display: grid; gap: 14px; }
+  fieldset {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    min-width: 0;
+    padding: 8px 12px 12px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+  }
+  legend { padding: 0 5px; font-weight: 650; }
+  .picker { position: relative; min-width: 0; }
+  .picker label { display: block; margin: 0 0 5px; font-size: 14px; font-weight: 650; }
+  fieldset .picker label { color: var(--secondary); font-size: 13px; font-weight: 550; }
+  .picker input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 10px 11px;
+    border: 1px solid #a9bfb0;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 16px;
+    text-overflow: ellipsis;
+  }
+  .picker input::placeholder { color: var(--secondary); }
+  .suggestions {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 4px);
+    inset-inline: 0;
+    display: grid;
+    max-height: 200px;
+    overflow: auto;
+    padding: 4px;
+    border: 1px solid #a9bfb0;
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: 0 5px 18px #153f2524;
+  }
+  .suggestions button, .suggestions p {
+    min-height: 42px;
+    padding: 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    text-align: start;
+  }
+  .suggestions button:hover, .suggestions button:focus-visible { background: var(--soft); }
+  .suggestions p { color: var(--secondary); }
+  .form-message { margin-top: 10px; color: #8e2e28; }
+  .submit {
+    width: 100%;
+    min-height: 46px;
+    margin-top: 16px;
+    padding: 8px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 650;
+  }
+  .submit:disabled { background: var(--soft); color: #4c6457; }
+  .results { margin-top: 22px; }
+  .results h3 { font-size: 17px; }
+  .results-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .result-count { color: var(--secondary); font-size: 13px; }
+  .win-summary {
+    padding: 14px 12px;
+    margin-bottom: 16px;
+    border: 1px solid #bddbc9;
+    border-radius: 15px;
+    background: var(--soft);
+    text-align: center;
+  }
+  .win-summary h3, .win-number { color: var(--primary); }
+  .win-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: start; }
+  .win-number { display: block; font-size: 32px; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .win-divider { padding-top: 8px; color: var(--secondary); }
+  .win-names { display: grid; gap: 1px; font-size: 13px; overflow-wrap: anywhere; }
+  .notice {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    margin: 0 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--secondary);
+    font-size: 13px;
+  }
+  .notice-title { color: var(--text); font-size: 14px; }
+  .notice[data-phase="interrupted"] { background: #fff3dd; color: #664a16; border-color: #ecd6ac; }
+  .notice[data-phase="interrupted"] .notice-title { color: inherit; }
+  .retry {
+    justify-self: start;
+    min-height: 44px;
+    margin-top: 3px;
+    padding: 6px 10px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-weight: 650;
+  }
+  progress { width: 100%; height: 6px; accent-color: var(--primary); }
+  .empty { padding: 14px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
+  .empty p { margin-top: 4px; color: var(--secondary); font-size: 13px; }
+  .matches { display: grid; gap: 8px; list-style: none; padding: 0; margin: 10px 0 0; }
+  .match {
+    display: block;
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface);
+    color: var(--text);
+    text-align: start;
+  }
+  .match:hover { border-color: #76a78e; }
+  .match time, .event { display: block; font-size: 12px; color: var(--secondary); }
+  .match-meta { display: flex; flex-wrap: wrap; gap: 3px 8px; justify-content: space-between; align-items: baseline; }
+  .match-type { border-radius: 6px; background: var(--soft); color: var(--primary); padding: 2px 6px; font-size: 11px; }
+  .event { margin-top: 7px; padding-top: 5px; border-top: 1px solid var(--line); }
+  .match-side { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 3px; }
+  .match-names { display: grid; }
+  .match-side strong { font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .winner { font-weight: 650; }
+  .detail-meta { display: grid; gap: 5px; margin-bottom: 16px; }
+  .detail-meta h3 { font-size: 21px; line-height: 1.3; }
+  .detail-meta time, .detail-meta p { color: var(--secondary); font-size: 13px; }
+  .scoreboard { border: 1px solid var(--line); border-radius: 18px; background: var(--surface); padding: 0 15px; }
+  .scoreboard .match-side { margin: 0; align-items: center; min-height: 86px; padding: 15px 0; }
+  .scoreboard .match-side + .match-side { border-top: 1px solid var(--line); }
+  .scoreboard .match-side strong { font-size: 36px; }
+  .winner-label { display: block; margin-bottom: 3px; color: var(--primary); font-size: 12px; }
+  .switcher {
+    position: fixed;
+    z-index: 5;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(398px, calc(100% - 24px));
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    padding: 4px;
+    border-radius: 24px;
+    background: #193b2b;
+    color: #fff;
+    box-shadow: 0 4px 20px #1123183d;
+  }
+  .switcher button, .switcher select {
+    min-height: 42px;
+    border: 0;
+    border-radius: 20px;
+    background: transparent;
+    color: inherit;
+  }
+  .switcher button { font-size: 20px; }
+  .switcher select { min-width: 0; padding: 0 8px; }
+  .switcher button:hover, .switcher select:hover { background: #fff2; }
+  .switcher :focus-visible { outline-color: #edfff6; outline-offset: -2px; }
+  .switcher option { background: #193b2b; }
+  .drawer-shade { position: absolute; z-index: 3; inset: 0; border: 0; background: #14291d99; }
+  .drawer {
+    position: absolute;
+    z-index: 4;
+    inset: 0 auto 0 0;
+    width: min(300px, 85%);
+    height: 100%;
+    margin: 0;
+    padding: 18px 14px;
+    border: 0;
+    background: var(--background);
+    color: var(--text);
+    border-radius: 0 20px 20px 0;
+  }
+  .drawer header { display: flex; justify-content: space-between; align-items: center; padding-left: 10px; }
+  .drawer ol { list-style: none; padding: 0; margin: 14px 0 0; }
+  .drawer li { display: flex; align-items: center; min-height: 49px; padding-left: 12px; }
+  .drawer .current {
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px 0 2px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--soft);
+    color: var(--primary);
+    font-weight: 650;
+  }
+  .drawer li:has(.current) { padding-left: 0; }
+  @media (max-width: 450px) {
+    body { padding: 14px 10px 84px; }
+    .phone { border-radius: 19px; }
+    .content { padding-inline: 14px; }
+  }
+</style>
+</head>
+<body>
+<header class="preview">
+  <div>
+    <h1>Üz-üzə prototipi</h1>
+    <p>Nümunə matçları · önizləmə</p>
+  </div>
+  <button type="button" class="example" id="example">Nümunəni doldur</button>
+</header>
+
+<main class="phone">
+  <header class="app-bar">
+    <button type="button" class="icon-button" id="open-menu" aria-label="Menyu" aria-haspopup="dialog"><span class="hamburger" aria-hidden="true"></span></button>
+    <button type="button" class="icon-button back-arrow" id="back" aria-label="Geri" hidden>←</button>
+    <h2 id="screen-title">Üz-üzə</h2>
+    <span class="sport-icon" id="head-to-head-icon" aria-hidden="true"><span class="paddle"></span><span class="paddle"></span><span class="ball"></span></span>
+  </header>
+  <div class="screen" id="screen">
+    <div class="content" id="search-view">
+      <div class="modes" role="group" aria-label="Matç növü">
+        <button type="button" data-mode="singles" aria-pressed="false">Tək</button>
+        <button type="button" data-mode="doubles" aria-pressed="true">Qoşalar</button>
+      </div>
+      <form id="search-form">
+        <div class="fields" id="fields"></div>
+        <p class="form-message" id="form-message" aria-live="polite" hidden></p>
+        <button type="submit" class="submit" id="search" disabled>Axtar</button>
+      </form>
+      <section class="results" id="results" aria-labelledby="result-title" hidden>
+        <div class="notice" id="notice" hidden>
+          <strong class="notice-title" id="notice-title" role="status"></strong>
+          <p id="notice-message"></p>
+          <progress aria-label="Axtarış davam edir" id="progress"></progress>
+          <button type="button" class="retry" id="retry" hidden>Yenidən cəhd et</button>
+        </div>
+        <div class="win-summary" id="win-summary" hidden>
+          <h3>Qələbə sayı</h3>
+          <div class="win-sides">
+            <div><strong class="win-number" id="wins-first"></strong><div class="win-names" id="win-first-names"></div></div>
+            <span class="win-divider" aria-hidden="true">–</span>
+            <div><strong class="win-number" id="wins-second"></strong><div class="win-names" id="win-second-names"></div></div>
+          </div>
+        </div>
+        <div class="results-header" id="results-header">
+          <h3 id="result-title">Matçlar</h3>
+          <span class="result-count" id="result-count" role="status"></span>
+        </div>
+        <div class="empty" id="no-matches" hidden>
+          <strong>Matç tapılmadı</strong>
+          <p>Bu seçim üzrə nəticə yoxdur.</p>
+        </div>
+        <ul class="matches" id="matches"></ul>
+      </section>
+    </div>
+    <section class="content" id="match-view" aria-labelledby="screen-title" hidden>
+      <header class="detail-meta">
+        <p id="detail-kind"></p>
+        <h3 id="detail-event"></h3>
+        <time id="detail-date"></time>
+      </header>
+      <div class="scoreboard" id="scoreboard"></div>
+    </section>
+  </div>
+  <button type="button" class="drawer-shade" id="drawer-shade" aria-label="Menyunu bağla" tabindex="-1" hidden></button>
+  <dialog class="drawer" id="drawer" aria-labelledby="drawer-title">
+    <header>
+      <strong id="drawer-title">TableTennisAz</strong>
+      <form method="dialog"><button class="icon-button" aria-label="Menyunu bağla">×</button></form>
+    </header>
+    <ol>
+      <li>Reytinq</li>
+      <li>Şəxsi turnirlər</li>
+      <li>Qoşa turnirlər</li>
+      <li>Duellər</li>
+      <li><form method="dialog" style="width:100%"><button class="current" aria-current="page"><span class="sport-icon" aria-hidden="true"><span class="paddle"></span><span class="paddle"></span><span class="ball"></span></span>Üz-üzə</button></form></li>
+    </ol>
+  </dialog>
+</main>
+
+<nav class="switcher" aria-label="Prototip görünüşü">
+  <button type="button" data-cycle="-1" aria-label="Əvvəlki görünüş">←</button>
+  <select id="preview-view" aria-label="Prototip görünüşü"></select>
+  <button type="button" data-cycle="1" aria-label="Növbəti görünüş">→</button>
+</nav>
+
+<script>
+  const playerNames = {
+    ashraf: 'Əşrəf Səfərov',
+    ilqar: 'İlqar Həsənov',
+    erhan: 'Erhan Əliyev',
+    elchin: 'Elçin Mustafayev',
+    elikhan: 'Əlixan Əlizadə',
+    khayal: 'Xəyal Həşimli',
+    firdovsi: 'Firdovsi Kərimov',
+    vaqif: 'Vaqif Babayev',
+    shakir: 'Şakir Qədirov',
+    ugur: 'Uğur Nəzərli',
+    toghrul: 'Toğrul Məhəmmədov',
+    mahdi: 'Mahdi Davari',
+    marina: 'Marina Kuvayeva',
+    maryam: 'Məryəm İmanova'
+  };
+  const players = Object.entries(playerNames).sort((a, b) => a[1].localeCompare(b[1], 'az'));
+  const erhanElchin = ['erhan', 'elchin'];
+  const elikhanKhayal = ['elikhan', 'khayal'];
+  const olderPairs = ['khayal', 'firdovsi', 'vaqif', 'shakir'];
+  const examples = {singles: ['ashraf', 'ilqar'], doubles: [...erhanElchin, ...elikhanKhayal]};
+
+  function fixture(id, date, event, sides, score, type = 'Turnir', time = '') {
+    return {id, date, event, sides, score, type, time};
+  }
+
+  // A sample of public result rows. The preview uses no live connection.
+  const matches = [
+    fixture(7999, '2023-06-19', 'Table Tennis Baku Cup #121', [['ilqar'], ['ashraf']], [3, 1]),
+    fixture(4867, '2022-10-10', 'Duel', [['ilqar'], ['ashraf']], [4, 3], 'Duel', '18:00'),
+    fixture(24316, '2026-04-11', 'Baku Open', [['ilqar'], ['ashraf']], [3, 1]),
+    fixture(21195, '2025-12-06', 'Champions Cup by BTTC', [['ilqar'], ['ashraf']], [3, 2]),
+    fixture(7379, '2023-05-08', 'Table Tennis Baku Team Cup #8', [['ashraf'], ['ilqar']], [0, 3], 'Komanda turniri', '19:00'),
+    fixture(4764, '2022-09-26', 'Duel', [['ilqar'], ['ashraf']], [4, 2], 'Duel', '18:30'),
+    fixture(46, '2021-08-10', 'Shua Open Cup #1', [['ilqar'], ['ashraf']], [3, 1], 'Turnir', '21:50'),
+    fixture(30173, '2026-10-30', 'Təhsil Qoşa Reytinq Turniri', [elikhanKhayal, erhanElchin], [3, 1]),
+    fixture(29693, '2026-10-19', 'Ping Pong Club Qoşa Reytinq Turniri', [elikhanKhayal, erhanElchin], [3, 1]),
+    fixture(30583, '2026-11-09', 'Ping Pong Club Qoşa Reytinq Turniri', [erhanElchin, elikhanKhayal], [3, 2]),
+    fixture(29955, '2026-10-24', 'Təhsil Qoşa Reytinq Turniri', [elikhanKhayal, erhanElchin], [3, 2]),
+    fixture(30405, '2026-11-02', 'Ping Pong Club Qoşa Reytinq Turniri', [erhanElchin, elikhanKhayal], [3, 1]),
+    fixture(23924, '2026-03-25', 'BTTC Qoşa Reytinq Turniri #105', [olderPairs.slice(0, 2), olderPairs.slice(2)], [3, 1], 'Turnir', '19:00'),
+    fixture(20006, '2025-11-04', 'Duel', [elikhanKhayal, ['ugur', 'toghrul']], [3, 1], 'Duel', '13:00'),
+    fixture(25052, '2026-05-11', 'League 2026', [['mahdi', 'ilqar'], ['marina', 'maryam']], [2, 3], 'Komanda turniri', '19:00')
+  ];
+
+  const scenes = {
+    menu: {label: 'Menyu · Üz-üzə', mode: 'singles'},
+    'singles-search': {label: 'Tək · Oyunçu seçimi', mode: 'singles'},
+    'singles-results': {label: 'Tək · Nəticələr', mode: 'singles', phase: 'complete'},
+    'doubles-search': {label: 'Qoşalar · Oyunçu seçimi', mode: 'doubles'},
+    'doubles-results': {label: 'Qoşalar · Nəticələr', mode: 'doubles', phase: 'complete'},
+    'older-pair': {label: 'Reytinqdə olmayan qoşalar', mode: 'doubles', phase: 'complete', picks: olderPairs},
+    searching: {label: 'Axtarış davam edir', mode: 'doubles', phase: 'running'},
+    interrupted: {label: 'Yarımçıq axtarış · Yenidən cəhd', mode: 'doubles', phase: 'interrupted'},
+    empty: {label: 'Matç tapılmadı', mode: 'singles', phase: 'complete', picks: ['ashraf', 'erhan']},
+    duplicate: {label: 'Qoşalar · Təkrarlanan oyunçu', mode: 'doubles', picks: ['erhan', 'elchin', 'erhan', 'khayal']},
+    match: {label: 'Matç haqqında · Geri', mode: 'doubles', phase: 'complete'}
+  };
+
+  function searchState() {
+    return {picked: [], typed: [], phase: 'idle', found: [], pending: [], timer: 0, manual: false};
+  }
+
+  const views = {singles: searchState(), doubles: searchState()};
+  let mode = 'singles';
+  const current = () => views[mode];
+  let openMatchId = null;
+  let savedScroll = 0;
+
+  const byId = id => document.getElementById(id);
+  const screen = byId('screen');
+  const form = byId('search-form');
+  const fields = byId('fields');
+  const submit = byId('search');
+  const message = byId('form-message');
+  const resultsSection = byId('results');
+  const matchList = byId('matches');
+  const drawer = byId('drawer');
+  const menu = byId('open-menu');
+  const drawerShade = byId('drawer-shade');
+  const exampleButton = byId('example');
+  const previewView = byId('preview-view');
+  const tabs = [...document.querySelectorAll('[data-mode]')];
+  const monthNames = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avqust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr'];
+
+  function searchText(value) {
+    return value.toLocaleLowerCase('az').replaceAll('ə', 'e').replaceAll('ı', 'i')
+      .normalize('NFD').replace(/\p{M}/gu, '').trim();
+  }
+
+  function sideKey(side) {
+    return side.slice().sort().join('/');
+  }
+
+  function comparisonKey(sides) {
+    return sides.map(sideKey).sort().join(':');
+  }
+
+  function selectedSides(state) {
+    return state.picked.length === 2 ? state.picked.map(id => [id]) : [state.picked.slice(0, 2), state.picked.slice(2)];
+  }
+
+  function findMatches(sides) {
+    const key = comparisonKey(sides);
+    return matches.filter(match => comparisonKey(match.sides) === key);
+  }
+
+  function newestFirst(rows) {
+    return rows.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  }
+
+  function winTotals(sides, rows) {
+    const firstSide = sideKey(sides[0]);
+    const totals = [0, 0];
+    for (const row of rows) {
+      const [left, right] = row.score;
+      if (left === right) continue;
+      const winner = row.sides[left > right ? 0 : 1];
+      totals[sideKey(winner) === firstSide ? 0 : 1]++;
+    }
+    return totals;
+  }
+
+  function clearResults(state) {
+    clearTimeout(state.timer);
+    Object.assign(state, {phase: 'idle', found: [], pending: [], timer: 0, manual: false});
+  }
+
+  function fillPicks(state, picks) {
+    clearResults(state);
+    state.picked = [...picks];
+    state.typed = picks.map(id => playerNames[id]);
+  }
+
+  function picker(index, labelText) {
+    const state = current();
+    const field = document.createElement('div');
+    field.className = 'picker';
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    label.htmlFor = 'choice-' + index;
+    const input = document.createElement('input');
+    input.id = label.htmlFor;
+    input.placeholder = 'Oyunçunun adını yazın';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.value = state.typed[index] || '';
+    input.setAttribute('aria-controls', 'suggestions-' + index);
+    const suggestions = document.createElement('div');
+    suggestions.id = 'suggestions-' + index;
+    suggestions.className = 'suggestions';
+    suggestions.setAttribute('role', 'group');
+    suggestions.setAttribute('aria-label', labelText + ' · Təkliflər');
+    suggestions.hidden = true;
+    field.append(label, input, suggestions);
+
+    function showChoices() {
+      const tokens = searchText(input.value).split(/\s+/).filter(Boolean);
+      suggestions.replaceChildren();
+      suggestions.hidden = false;
+      for (const [id, name] of players) {
+        if (!tokens.every(token => searchText(name).includes(token))) continue;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = name;
+        button.addEventListener('click', () => {
+          state.picked[index] = id;
+          state.typed[index] = input.value = name;
+          clearResults(state);
+          input.focus({preventScroll: true});
+          suggestions.hidden = true;
+          updateSearch();
+          renderResults();
+        });
+        suggestions.append(button);
+      }
+      if (!suggestions.children.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'Uyğun oyunçu tapılmadı.';
+        suggestions.append(empty);
+      }
+    }
+
+    input.addEventListener('focus', () => {
+      if (!state.picked[index]) showChoices();
+    });
+    input.addEventListener('click', showChoices);
+    input.addEventListener('input', () => {
+      state.typed[index] = input.value;
+      state.picked[index] = null;
+      clearResults(state);
+      showChoices();
+      updateSearch();
+      renderResults();
+    });
+    field.addEventListener('focusout', event => {
+      if (!field.contains(event.relatedTarget)) suggestions.hidden = true;
+    });
+    field.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !suggestions.hidden) {
+        input.focus({preventScroll: true});
+        suggestions.hidden = true;
+        return;
+      }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      if (suggestions.hidden) showChoices();
+      const buttons = [...suggestions.querySelectorAll('button')];
+      const focused = buttons.indexOf(document.activeElement);
+      const next = event.key === 'ArrowDown' ? focused + 1 : focused - 1;
+      if (next < 0) input.focus();
+      else buttons[Math.min(next, buttons.length - 1)]?.focus();
+    });
+    return field;
+  }
+
+  function renderFields() {
+    fields.replaceChildren();
+    if (mode === 'singles') {
+      fields.append(picker(0, 'Oyunçu 1'), picker(1, 'Oyunçu 2'));
+      return;
+    }
+    for (let side = 0; side < 2; side++) {
+      const group = document.createElement('fieldset');
+      const legend = document.createElement('legend');
+      legend.textContent = 'Qoşa ' + (side + 1);
+      group.append(legend, picker(side * 2, 'Oyunçu 1'), picker(side * 2 + 1, 'Oyunçu 2'));
+      fields.append(group);
+    }
+  }
+
+  function updateSearch() {
+    const state = current();
+    const picks = state.picked.filter(Boolean);
+    const complete = picks.length === examples[mode].length;
+    const duplicate = new Set(picks).size !== picks.length;
+    submit.disabled = !complete || duplicate || state.phase === 'running' || state.phase === 'interrupted';
+    message.hidden = !duplicate;
+    message.textContent = duplicate ? 'Hər oyunçunu yalnız bir dəfə seçin.' : '';
+    exampleButton.hidden = openMatchId !== null || drawer.open;
+    exampleButton.textContent = state.manual ? 'Növbəti nəticələr' : 'Nümunəni doldur';
+  }
+
+  function namesOf(side) {
+    return side.map(id => {
+      const name = document.createElement('span');
+      name.textContent = playerNames[id];
+      return name;
+    });
+  }
+
+  function matchSide(side, score, winner, detailed) {
+    const row = document.createElement('div');
+    row.className = winner ? 'match-side winner' : 'match-side';
+    const names = document.createElement('div');
+    names.className = 'match-names';
+    if (winner && detailed) {
+      const label = document.createElement('span');
+      label.className = 'winner-label';
+      label.textContent = 'Qalib';
+      names.append(label);
+    }
+    names.append(...namesOf(side));
+    const points = document.createElement('strong');
+    points.textContent = score;
+    row.append(names, points);
+    return row;
+  }
+
+  function formattedDate(match) {
+    const [year, month, day] = match.date.split('-');
+    return Number(day) + ' ' + monthNames[Number(month) - 1] + ' ' + year;
+  }
+
+  function matchKind(match) {
+    return match.sides[0].length === 2 ? 'Qoşalar' : 'Tək';
+  }
+
+  function matchCard(match) {
+    const item = document.createElement('li');
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'match';
+    card.dataset.match = match.id;
+    card.addEventListener('click', () => openDetails(match));
+    const meta = document.createElement('div');
+    meta.className = 'match-meta';
+    const time = document.createElement('time');
+    time.dateTime = match.date;
+    time.textContent = formattedDate(match);
+    const kind = document.createElement('span');
+    kind.className = 'match-type';
+    kind.textContent = matchKind(match) + ' · ' + match.type;
+    meta.append(time, kind);
+    card.append(meta, ...match.sides.map((side, index) => matchSide(side, match.score[index], match.score[index] > match.score[1 - index], false)));
+    const event = document.createElement('span');
+    event.className = 'event';
+    event.textContent = match.event;
+    card.append(event);
+    item.append(card);
+    return item;
+  }
+
+  function renderResults() {
+    const state = current();
+    const complete = state.phase === 'complete';
+    const interrupted = state.phase === 'interrupted';
+    const visibleRows = newestFirst(state.found);
+    const focusedMatch = document.activeElement?.dataset.match;
+    resultsSection.hidden = state.phase === 'idle';
+    matchList.replaceChildren(...visibleRows.map(matchCard));
+    const notice = byId('notice');
+    notice.hidden = !interrupted && state.phase !== 'running';
+    notice.dataset.phase = state.phase;
+    byId('notice-title').textContent = interrupted ? 'Axtarış tamamlanmadı' : 'Axtarış davam edir';
+    byId('notice-message').textContent = interrupted
+      ? 'Bağlantı kəsildi. Tapılan matçlar saxlanıldı.'
+      : 'Tarixçə yoxlanılır. Tapılan matçlar siyahıya əlavə olunur.';
+    byId('progress').hidden = interrupted;
+    byId('retry').hidden = !interrupted;
+
+    byId('results-header').hidden = !visibleRows.length;
+    byId('result-count').textContent = visibleRows.length + ' matç';
+    byId('no-matches').hidden = !(complete && !visibleRows.length);
+    byId('win-summary').hidden = !complete;
+    if (complete) {
+      const sides = selectedSides(state);
+      const [first, second] = winTotals(sides, visibleRows);
+      byId('wins-first').textContent = first;
+      byId('wins-second').textContent = second;
+      byId('win-first-names').replaceChildren(...namesOf(sides[0]));
+      byId('win-second-names').replaceChildren(...namesOf(sides[1]));
+    }
+    if (focusedMatch) matchList.querySelector('[data-match="' + focusedMatch + '"]')?.focus({preventScroll: true});
+  }
+
+  function renderSearch() {
+    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.mode === mode));
+    renderFields();
+    updateSearch();
+    renderResults();
+  }
+
+  function showResults() {
+    screen.scrollTop += resultsSection.getBoundingClientRect().top - screen.getBoundingClientRect().top - 5;
+  }
+
+  function openDetails(match) {
+    openMatchId = match.id;
+    savedScroll = screen.scrollTop;
+    byId('detail-kind').textContent = matchKind(match);
+    byId('detail-event').textContent = match.event;
+    const date = byId('detail-date');
+    date.dateTime = match.date;
+    date.textContent = formattedDate(match) + (match.time ? ' · ' + match.time : '');
+    byId('scoreboard').replaceChildren(...match.sides.map((side, index) =>
+      matchSide(side, match.score[index], match.score[index] > match.score[1 - index], true)));
+    showDetails(true);
+    byId('back').focus({preventScroll: true});
+    screen.scrollTop = 0;
+  }
+
+  function showDetails(detail) {
+    byId('search-view').hidden = detail;
+    byId('match-view').hidden = !detail;
+    byId('screen-title').textContent = detail ? 'Matç haqqında' : 'Üz-üzə';
+    byId('back').hidden = !detail;
+    menu.hidden = detail;
+    byId('head-to-head-icon').hidden = detail;
+    updateSearch();
+  }
+
+  function backToResults() {
+    const matchId = openMatchId;
+    openMatchId = null;
+    showDetails(false);
+    matchList.querySelector('[data-match="' + matchId + '"]')?.focus({preventScroll: true});
+    screen.scrollTop = savedScroll;
+  }
+
+  function advanceSearch(state) {
+    state.timer = 0;
+    state.found.push(...state.pending.splice(0, 2));
+    if (!state.pending.length) {
+      state.phase = 'complete';
+      state.manual = false;
+    } else if (!state.manual) scheduleSearch(state);
+    if (state === current()) {
+      updateSearch();
+      renderResults();
+    }
+  }
+
+  function scheduleSearch(state) {
+    state.timer = setTimeout(() => advanceSearch(state), 850);
+  }
+
+  function beginSearch(state, retry) {
+    if (!retry) {
+      clearResults(state);
+      state.pending = findMatches(selectedSides(state));
+    }
+    state.phase = 'running';
+    scheduleSearch(state);
+    updateSearch();
+    renderResults();
+    showResults();
+  }
+
+  function openDrawer() {
+    drawer.show();
+    drawerShade.hidden = false;
+    screen.inert = true;
+    menu.inert = true;
+    updateSearch();
+  }
+
+  function closeDrawer(restoreFocus) {
+    if (drawer.open) drawer.close();
+    drawerShade.hidden = true;
+    screen.inert = false;
+    menu.inert = false;
+    updateSearch();
+    if (restoreFocus) menu.focus({preventScroll: true});
+  }
+
+  function rememberScene(key) {
+    const url = new URL(location.href);
+    url.searchParams.set('view', key);
+    url.hash = '';
+    try {
+      history.replaceState(null, '', url);
+    } catch {
+      location.hash = key;
+    }
+  }
+
+  function showScene(key, remember = true) {
+    const scene = scenes[key];
+    if (!scene) return;
+    closeDrawer(false);
+    openMatchId = null;
+    showDetails(false);
+    for (const state of Object.values(views)) {
+      clearResults(state);
+      state.picked = [];
+      state.typed = [];
+    }
+    mode = scene.mode;
+    const state = current();
+    if (scene.picks || scene.phase) fillPicks(state, scene.picks || examples[mode]);
+    if (scene.phase) {
+      state.phase = scene.phase;
+      state.pending = findMatches(selectedSides(state));
+      state.found = state.phase === 'complete' ? state.pending.splice(0) : state.pending.splice(0, 2);
+      state.manual = state.phase === 'running';
+    }
+    previewView.value = key;
+    if (remember) rememberScene(key);
+    renderSearch();
+    screen.scrollTop = 0;
+    if (scene.phase) showResults();
+    if (key === 'match') openDetails(newestFirst(state.found)[0]);
+    if (key === 'menu') openDrawer();
+  }
+
+  for (const [key, scene] of Object.entries(scenes)) {
+    previewView.add(new Option(scene.label, key));
+  }
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!submit.disabled) beginSearch(current(), false);
+  });
+  byId('retry').addEventListener('click', () => beginSearch(current(), true));
+  byId('back').addEventListener('click', backToResults);
+  exampleButton.addEventListener('click', () => {
+    const state = current();
+    if (state.manual) {
+      advanceSearch(state);
+      return;
+    }
+    fillPicks(state, examples[mode]);
+    renderSearch();
+    screen.scrollTop = 0;
+  });
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.mode === mode) return;
+      mode = tab.dataset.mode;
+      renderSearch();
+      screen.scrollTop = 0;
+    });
+  }
+  previewView.addEventListener('change', () => showScene(previewView.value));
+
+  function cycle(direction) {
+    const keys = Object.keys(scenes);
+    const index = keys.indexOf(previewView.value);
+    showScene(keys[(index + direction + keys.length) % keys.length]);
+  }
+
+  for (const arrow of document.querySelectorAll('[data-cycle]')) {
+    arrow.addEventListener('click', () => cycle(Number(arrow.dataset.cycle)));
+  }
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && drawer.open) closeDrawer(true);
+    else if (event.key === 'Escape' && openMatchId !== null) backToResults();
+    else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+        !event.target.closest('input, select, textarea, [contenteditable]')) {
+      cycle(event.key === 'ArrowLeft' ? -1 : 1);
+    }
+  });
+  menu.addEventListener('click', openDrawer);
+  drawerShade.addEventListener('click', () => closeDrawer(true));
+  drawer.addEventListener('close', () => {
+    if (!drawer.open && !drawerShade.hidden) closeDrawer(true);
+  });
+
+  const url = new URL(location.href);
+  const requestedScene = url.hash.slice(1) || url.searchParams.get('view');
+  showScene(Object.hasOwn(scenes, requestedScene) ? requestedScene : 'singles-results', false);
+</script>
+</body>
+</html>
