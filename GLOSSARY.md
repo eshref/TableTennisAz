@@ -49,6 +49,9 @@ A tournament in which team lineups compete for the tournament standings. A fixtu
 **New tournament**:
 A completed singles or doubles tournament first listed in the website’s Results index after the index snapshot used for the device’s initial successful tournament refresh. Once it appears in its category, it stays new until the user opens that list.
 
+**Tournament results publication**:
+The first time a completed singles or doubles tournament appears in the app with its match results available to open.
+
 **Tournament podium**:
 The medal placements and their finishers published by the website for a completed tournament.
 
