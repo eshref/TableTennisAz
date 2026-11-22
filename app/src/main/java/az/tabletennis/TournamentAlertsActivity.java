@@ -82,6 +82,7 @@ public final class TournamentAlertsActivity extends Activity {
             render();
         } else if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            alerts.clearEligibility();
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
         } else {
             observe(alerts.enable());

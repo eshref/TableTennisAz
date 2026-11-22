@@ -85,8 +85,6 @@ public class ResultsDeviceTest {
     private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
 
-    private record TopicUpdate(boolean subscribe, TaskCompletionSource<Void> completion) { }
-
     @Test public void controlsWhichPublicationsAlertAndOpensSinglesAndDoublesResults() throws Exception {
         // arrange
         var instrumentation = InstrumentationRegistry.getInstrumentation();
@@ -97,14 +95,17 @@ public class ResultsDeviceTest {
                 | AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
         system.setServiceInfo(accessibility);
         NotificationManager notifications = application.getSystemService(NotificationManager.class);
-        BlockingQueue<TopicUpdate> topicUpdates = new LinkedBlockingQueue<>();
-        application.fixtureAlertTopic = subscribe -> {
-            var completion = new TaskCompletionSource<Void>();
-            topicUpdates.add(new TopicUpdate(subscribe, completion));
-            return completion.getTask();
-        };
         boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED;
+        if (!prompts && !"true".equals(InstrumentationRegistry.getArguments().getString("reuseSaved")))
+            throw new IllegalStateException("Install the app with notification permission ungranted to verify denial");
+        BlockingQueue<TaskCompletionSource<Void>> subscriptions = new LinkedBlockingQueue<>();
+        BlockingQueue<TaskCompletionSource<Void>> unsubscriptions = new LinkedBlockingQueue<>();
+        application.fixtureAlertTopic = subscribe -> {
+            var completion = new TaskCompletionSource<Void>();
+            (subscribe ? subscriptions : unsubscriptions).add(completion);
+            return completion.getTask();
+        };
         String singles = "Bakı Şəxsi Sınaq Kuboku";
         String doubles = "Bakı Qoşa Sınaq Kuboku";
         long singlesId = application.clock().millis();
@@ -133,7 +134,11 @@ public class ResultsDeviceTest {
                     // act
                     onView(withId(R.id.tournament_alerts_switch)).perform(click());
                     tapPermissionButton(system, "permission_deny_button");
+
+                    // assert
                     awaitAlertView(withText(R.string.tournament_alert_permission_required));
+
+                    // act
                     pressBack();
                     openAlertsSetting();
                     deliverAlert(earlierId, earlier, singlesId);
@@ -148,19 +153,22 @@ public class ResultsDeviceTest {
                 // act
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
                 if (prompts) tapPermissionButton(system, "permission_allow_button");
-                TopicUpdate subscribe = awaitTopicUpdate(topicUpdates);
+                var subscribe = awaitTopicUpdate(subscriptions, "subscription");
                 long pendingPublication = application.clock().millis();
                 deliverAlert(earlierId, earlier, pendingPublication);
 
                 // assert
-                assertEquals(true, subscribe.subscribe());
                 awaitAlertView(withText(R.string.tournament_alert_subscribing));
                 onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
                 assertEquals(0, notifications.getActiveNotifications().length);
 
                 // act
-                subscribe.completion().setResult(null);
+                subscribe.setResult(null);
+
+                // assert
                 awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
+
+                // act
                 deliverAlert(earlierId, earlier, pendingPublication);
 
                 // assert
@@ -168,19 +176,18 @@ public class ResultsDeviceTest {
 
                 // act
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
-                TopicUpdate unsubscribe = awaitTopicUpdate(topicUpdates);
+                var unsubscribe = awaitTopicUpdate(unsubscriptions, "unsubscription");
                 // This publication would have qualified under the preceding opt-in.
                 long offPublication = application.clock().millis();
                 deliverAlert(901, EVENT, offPublication);
 
                 // assert
-                assertEquals(false, unsubscribe.subscribe());
                 onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
                 assertEquals(0, notifications.getActiveNotifications().length);
                 capture("tournament-alerts-off");
 
                 // arrange
-                unsubscribe.completion().setResult(null);
+                unsubscribe.setResult(null);
                 givenSavedTournaments();
 
                 // act
@@ -196,14 +203,12 @@ public class ResultsDeviceTest {
                 pressBack();
                 openAlertsSetting();
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
-                TopicUpdate resubscribe = awaitTopicUpdate(topicUpdates);
+                awaitTopicUpdate(subscriptions, "resubscription").setResult(null);
 
                 // assert
-                assertEquals(true, resubscribe.subscribe());
+                awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
 
                 // act
-                resubscribe.completion().setResult(null);
-                awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
                 deliverAlert(901, EVENT, offPublication);
 
                 // assert
@@ -267,9 +272,10 @@ public class ResultsDeviceTest {
                 root -> root.findAccessibilityNodeInfosByViewId(root.getPackageName() + ":id/" + id));
     }
 
-    private TopicUpdate awaitTopicUpdate(BlockingQueue<TopicUpdate> updates) throws InterruptedException {
-        TopicUpdate update = updates.poll(15, TimeUnit.SECONDS);
-        if (update == null) throw new AssertionError("The app did not request a Firebase topic update");
+    private TaskCompletionSource<Void> awaitTopicUpdate(BlockingQueue<TaskCompletionSource<Void>> updates,
+                                                       String operation) throws InterruptedException {
+        var update = updates.poll(15, TimeUnit.SECONDS);
+        if (update == null) throw new IllegalStateException("No Firebase topic " + operation + " to complete");
         return update;
     }
 
