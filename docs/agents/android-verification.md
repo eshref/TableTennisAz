@@ -26,6 +26,12 @@ its own evidence.
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 | Üz-üzə singles and doubles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
 
+The `head-to-head` journey completes comparisons and retries an unavailable
+index in standard light. It then disables networking and force-stops the app
+before a second instrumentation run reopens the saved comparisons through
+the search form. The evidence contains this second run under
+`captures/light-offline/`.
+
 On the run page, open **Run installed preflight and saved-fixture journey** for
 live progress. Download `android-api36-<journey>` from **Artifacts** on the same
 page, including after failure. The archive contains the exact installed

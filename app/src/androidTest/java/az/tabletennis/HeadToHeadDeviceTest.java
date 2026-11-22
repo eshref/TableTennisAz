@@ -50,6 +50,7 @@ import java.net.InetAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
@@ -68,16 +69,20 @@ import org.junit.runner.RunWith;
 public class HeadToHeadDeviceTest {
     private static final String ILQAR_PHOTO = "/portraits/ilqar.png";
     private static final String ALIKHAN_PHOTO = "/portraits/elixan.png";
+    private static final String ASHRAF_PROFILE = ASHRAF + " · Profil 15";
+    private static final String ASHRAF_NAMESAKE = ASHRAF + " · Profil 115";
     private static final String ILQAR_PROFILE = ILQAR + " · Profil 13";
     private static final String ILQAR_NAMESAKE = ILQAR + " · Profil 113";
 
     @Test public void menuSearchAndDetailsReturnWorkWithTheInstalledApp() throws Exception {
         // arrange
         var application = ApplicationProvider.<FixtureTestRunner.FixtureApplication>getApplicationContext();
+        boolean reuseSaved = Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("reuseSaved"));
+        AtomicBoolean doublesUnavailable = new AtomicBoolean(!reuseSaved);
         Map<String, ByteString> portraits = Map.of(ILQAR_PHOTO, portraitFixture(ILQAR_PHOTO),
                 ALIKHAN_PHOTO, portraitFixture(ALIKHAN_PHOTO));
         try (MockWebServer server = new MockWebServer()) {
-            givenPublishedResults(server, application, portraits);
+            givenPublishedResults(server, application, portraits, doublesUnavailable);
 
             // act
             try (ActivityScenario<RankingsActivity> rankings = ActivityScenario.launch(RankingsActivity.class)) {
@@ -90,7 +95,7 @@ public class HeadToHeadDeviceTest {
 
                 // act
                 onView(withId(R.id.destination_head_to_head)).perform(click());
-                selectPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+                selectPlayer(R.id.head_to_head_first, "Səf", ASHRAF_PROFILE);
                 showSuggestions(R.id.head_to_head_second, "İlq");
                 awaitView(suggestion(ILQAR_PROFILE));
                 onView(suggestion(ILQAR_PROFILE)).perform(scrollTo());
@@ -146,6 +151,14 @@ public class HeadToHeadDeviceTest {
                 onView(withContentDescription(ARCHIVE_TEAM_GAME)).check(matches(withId(R.id.match_card)));
 
                 // act
+                selectPlayer(R.id.head_to_head_first, "Səf", ASHRAF_NAMESAKE);
+                onView(withText("Axtar")).perform(scrollTo(), click());
+
+                // assert
+                awaitView(withText("Axtarış tamamlandı"));
+                onView(withText("1–0")).perform(scrollTo()).check(matches(isDisplayed()));
+
+                // act
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo(), click());
                 selectPlayer(R.id.head_to_head_left_first, "Erh", ERHAN);
                 selectPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
@@ -163,6 +176,18 @@ public class HeadToHeadDeviceTest {
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo());
                 capture("head-to-head-doubles-form");
                 onView(withText("Axtar")).perform(scrollTo(), click());
+                if (!reuseSaved) {
+                    // assert
+                    awaitView(withText("Axtarış tamamlanmadı"));
+                    onView(withText("Yenidən cəhd et")).perform(scrollTo()).check(matches(isDisplayed()));
+                    capture("head-to-head-retry");
+
+                    // arrange
+                    doublesUnavailable.set(false);
+
+                    // act
+                    onView(withText("Yenidən cəhd et")).perform(click());
+                }
 
                 // assert
                 awaitView(withText("Axtarış tamamlandı"));
@@ -201,12 +226,55 @@ public class HeadToHeadDeviceTest {
         }
     }
 
+    // The verifier disables networking and force-stops the app between these two instrumentation runs.
+    @Test public void reopensSavedComparisonsAfterAnOfflineRestart() throws Exception {
+        // arrange
+        try (ActivityScenario<HeadToHeadActivity> screen = ActivityScenario.launch(HeadToHeadActivity.class)) {
+            // act
+            selectPlayer(R.id.head_to_head_first, "İlq", ILQAR);
+            showSuggestions(R.id.head_to_head_second, "Səf");
+
+            // assert
+            awaitView(suggestion(ASHRAF_PROFILE));
+            awaitView(suggestion(ASHRAF_NAMESAKE));
+            onView(suggestion(ASHRAF_NAMESAKE)).perform(scrollTo()).check(matches(isDisplayed()));
+            capture("head-to-head-offline-namesakes");
+
+            // act
+            onView(suggestion(ASHRAF_PROFILE)).perform(scrollTo(), click());
+            onView(withText("Axtar")).perform(scrollTo(), click());
+
+            // assert
+            awaitView(withText("Axtarış tamamlandı"));
+            onView(withText("4–3")).perform(scrollTo()).check(matches(isDisplayed()));
+            onView(withText(REFRESH_DATE)).perform(scrollTo()).check(matches(isDisplayed()));
+            onView(withContentDescription(ARCHIVE_TEAM_GAME)).check(matches(withId(R.id.match_card)));
+            capture("head-to-head-offline-singles");
+
+            // act
+            onView(withId(R.id.head_to_head_doubles)).perform(scrollTo(), click());
+            selectPlayer(R.id.head_to_head_left_first, "Xəy", KHAYAL);
+            selectPlayer(R.id.head_to_head_left_second, "Əli", ALIKHAN);
+            selectPlayer(R.id.head_to_head_right_first, "Elç", ELCHIN);
+            selectPlayer(R.id.head_to_head_right_second, "Erh", ERHAN);
+            onView(withText("Axtar")).perform(scrollTo(), click());
+
+            // assert
+            awaitView(withText("Axtarış tamamlandı"));
+            onView(withText("1–2")).perform(scrollTo()).check(matches(isDisplayed()));
+            onView(withText(REFRESH_DATE)).perform(scrollTo()).check(matches(isDisplayed()));
+            onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
+            capture("head-to-head-offline-doubles");
+        }
+    }
+
     private void givenPublishedResults(MockWebServer server, FixtureTestRunner.FixtureApplication application,
-                                       Map<String, ByteString> portraits) throws Exception {
+                                       Map<String, ByteString> portraits, AtomicBoolean doublesUnavailable) throws Exception {
         Map<String, String> pages = new HashMap<>();
         HeadToHeadFixtures.publish(pages);
         HeadToHeadFixtures.publishDoubles(pages);
         HeadToHeadFixtures.publishTournamentArchive(pages);
+        pages.put("/search?query=s%C9%99f", directory(directoryPlayer(15, ASHRAF, null), directoryPlayer(115, ASHRAF, null)));
         pages.put("/search?query=ilq", directory(directoryPlayer(13, ILQAR, ILQAR_PHOTO),
                 directoryPlayer(113, ILQAR, "/portraits/unavailable.png")));
         pages.put("/search?query=%C9%99li", directory(directoryPlayer(7, ALIKHAN, ALIKHAN_PHOTO)));
@@ -214,6 +282,8 @@ public class HeadToHeadDeviceTest {
                 Collections.singletonList(new RankingSnapshot.Player(13, ILQAR, 894)), application.clock().millis()));
         server.setDispatcher(new Dispatcher() {
             @Override public MockResponse dispatch(RecordedRequest request) {
+                if (HeadToHeadFixtures.DOUBLES_SHARD.equals(request.getPath()) && doublesUnavailable.get())
+                    return new MockResponse().setResponseCode(503);
                 ByteString portrait = portraits.get(request.getPath());
                 if (portrait != null) return new MockResponse().setHeader("Content-Type", "image/png")
                         .setBody(new Buffer().write(portrait));

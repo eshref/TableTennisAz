@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
@@ -38,7 +39,7 @@ final class HeadToHeadSearch {
     List<Suggestion> findPlayers(String query) throws IOException {
         // The public directory matches a dotted capital İ only when sent as lowercase i.
         HttpUrl url = client.websiteUrl().newBuilder().encodedPath("/search")
-                .addQueryParameter("query", query.toLowerCase(AZERBAIJANI)).build();
+                .addQueryParameter("query", normalizeName(query)).build();
         Element center = Jsoup.parse(client.get(url.toString())).selectFirst("#center");
         if (center == null) throw new IOException("Missing player directory");
         Element list = center.selectFirst(".ranking-page-list");
@@ -62,6 +63,12 @@ final class HeadToHeadSearch {
             }
         }
         return new ArrayList<>(suggestions.values());
+    }
+
+    static String normalizeName(String name) { return name.toLowerCase(AZERBAIJANI); }
+
+    static List<Long> profileIds(List<Player> players) {
+        return players.stream().map(Player::id).sorted().collect(Collectors.toCollection(ArrayList::new));
     }
 
     static Winner winner(String score, boolean firstSideOnLeft) {

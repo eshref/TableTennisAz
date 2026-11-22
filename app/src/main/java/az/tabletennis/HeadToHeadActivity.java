@@ -50,9 +50,11 @@ public final class HeadToHeadActivity extends Activity {
             .withZone(ZoneId.of("Asia/Baku"));
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private RankingsApplication application;
     private MainScreenChrome chrome;
     private HeadToHeadSearch source;
     private HeadToHeadIndex index;
+    private HeadToHeadArchive archive;
     private ScrollView scroll;
     private SearchForm singles;
     private SearchForm doubles;
@@ -82,9 +84,10 @@ public final class HeadToHeadActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        RankingsApplication application = (RankingsApplication) getApplication();
+        application = (RankingsApplication) getApplication();
         source = new HeadToHeadSearch(application.websiteClient());
         index = new HeadToHeadIndex(application.headToHeadIndexClient());
+        archive = new HeadToHeadArchive(application);
         chrome = new MainScreenChrome(this, MainScreenChrome.Destination.HEAD_TO_HEAD, null);
 
         scroll = new ScrollView(this);
@@ -219,7 +222,7 @@ public final class HeadToHeadActivity extends Activity {
         int version = directoryVersion;
         pendingQuery = () -> directoryRequest = worker.submit(() -> {
             try {
-                List<Suggestion> suggestions = source.findPlayers(query);
+                List<Suggestion> suggestions = findSuggestions(query);
                 main.post(() -> {
                     if (isDestroyed() || version != directoryVersion) return;
                     showSuggestions(field, suggestions);
@@ -234,6 +237,17 @@ public final class HeadToHeadActivity extends Activity {
             }
         });
         main.postDelayed(pendingQuery, 250);
+    }
+
+    private List<Suggestion> findSuggestions(String query) throws IOException {
+        if (!application.isOnline()) return archive.suggestions(query);
+        try {
+            return source.findPlayers(query);
+        } catch (IOException failure) {
+            List<Suggestion> saved = archive.suggestions(query);
+            if (saved.isEmpty()) throw failure;
+            return saved;
+        }
     }
 
     private void showSuggestions(PlayerField field, List<Suggestion> suggestions) {
@@ -283,7 +297,6 @@ public final class HeadToHeadActivity extends Activity {
     private record SuggestionPortrait(PlayerPortraitView view, Suggestion suggestion) {}
 
     private void loadVisibleSuggestionPortraits(List<SuggestionPortrait> pending) {
-        RankingsApplication application = (RankingsApplication) getApplication();
         Rect visible = new Rect();
         pendingPortraits = () -> {
             pending.removeIf(portrait -> {
@@ -330,21 +343,37 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     private void searchIndex(List<Player> left, List<Player> right) {
+        HeadToHeadIndex.Comparison comparison = findComparison(left, right);
+        main.post(() -> {
+            if (isDestroyed()) return;
+            if (comparison == null) {
+                finishSearch(SearchStatus.INTERRUPTED);
+                return;
+            }
+            active.refreshedAt = comparison.refreshedAt();
+            active.meetings.addAll(comparison.meetings());
+            active.meetings.sort(NEWEST_FIRST);
+            for (Meeting meeting : active.meetings) results.addView(matchCard(meeting));
+            finishSearch(SearchStatus.COMPLETE);
+            if (active == doubles) revealDoublesSummary();
+        });
+    }
+
+    private HeadToHeadIndex.Comparison findComparison(List<Player> left, List<Player> right) {
+        if (!application.isOnline()) return archive.comparison(left, right);
+        HeadToHeadIndex.Comparison comparison;
         try {
-            HeadToHeadIndex.Comparison comparison = index.findMeetings(left, right);
-            main.post(() -> {
-                if (isDestroyed()) return;
-                active.refreshedAt = comparison.refreshedAt();
-                active.meetings.addAll(comparison.meetings());
-                active.meetings.sort(NEWEST_FIRST);
-                for (Meeting meeting : active.meetings) results.addView(matchCard(meeting));
-                finishSearch(SearchStatus.COMPLETE);
-                if (active == doubles) revealDoublesSummary();
-            });
+            comparison = index.findMeetings(left, right);
         } catch (IOException failure) {
             Log.w("HeadToHead", "Could not load the head-to-head index", failure);
-            main.post(() -> finishSearch(SearchStatus.INTERRUPTED));
+            return archive.comparison(left, right);
         }
+        try {
+            archive.save(left, right, comparison);
+        } catch (IOException failure) {
+            Log.w("HeadToHead", "Could not save the head-to-head comparison", failure);
+        }
+        return comparison;
     }
 
     private void revealDoublesSummary() {

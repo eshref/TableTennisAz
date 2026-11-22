@@ -311,6 +311,62 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
     }
 
+    @Test public void reopensCompletedSinglesWithTheirOriginalDateAndReversedTallyOffline() throws Exception {
+        // arrange
+        publish(website);
+        openDirect(HeadToHeadActivity.class, "", 0);
+
+        // act
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+        awaitText("Axtarış tamamlandı");
+        closeProductScreens();
+        FixtureApplication.online = false;
+        website.clear();
+        openDirect(HeadToHeadActivity.class, "", 0);
+        pickPlayer(R.id.head_to_head_first, "İlq", ILQAR);
+        pickPlayer(R.id.head_to_head_second, "Səf", ASHRAF);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlandı");
+        assertThat(visibleText()).contains(REFRESH_DATE).containsSequence("Qələbə sayı", "4–1", ILQAR, ASHRAF);
+        assertThat(matchCards()).containsExactly(NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE, ARCHIVE_FINAL_DUEL, OLDER);
+    }
+
+    @Test public void unavailableIndexReopensTheLatestCompletedSearchForTheMatchup() throws Exception {
+        // arrange
+        publish(website);
+        openDirect(HeadToHeadActivity.class, "", 0);
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+        awaitText(REFRESH_DATE);
+
+        HeadToHeadFixtures.publishTournamentArchive(website);
+        String updatedShard = new JSONObject(website.get(SINGLES_SHARD))
+                .put("refreshedAt", "2026-11-20T04:23:00Z").toString();
+        website.put(SINGLES_SHARD, updatedShard);
+        clickText("Axtar");
+        String updatedDate = "Mənbənin yenilənmə tarixi: 20.11.2026";
+        awaitText(updatedDate);
+        closeProductScreens();
+        responses.put(SINGLES_SHARD, () -> new MockResponse().setResponseCode(503));
+        openDirect(HeadToHeadActivity.class, "", 0);
+
+        // act
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlandı");
+        assertThat(visibleText()).contains(updatedDate).containsSequence("Qələbə sayı", "3–4", ASHRAF, ILQAR);
+        assertThat(matchCards()).containsExactly(ARCHIVE_TOURNAMENT, NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE,
+                ARCHIVE_FINAL_DUEL, ARCHIVE_TEAM_GAME, OLDER);
+    }
+
     @Test public void showsAnEmptyScoreOnlyAfterTheSearchCompletes() throws Exception {
         // arrange
         HeadToHeadFixtures.publishEmptySingles(website);
@@ -348,6 +404,16 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         awaitText("Matç tapılmadı");
         assertThat(visibleText()).contains(REFRESH_DATE).containsSubsequence("Qələbə sayı", "0–0", "Matç tapılmadı");
         assertThat(matchCards()).isEmpty();
+
+        // arrange
+        FixtureApplication.online = false;
+
+        // act
+        clickText("Axtar");
+
+        // assert
+        awaitText("Matç tapılmadı");
+        assertThat(visibleText()).contains(REFRESH_DATE).containsSubsequence("Qələbə sayı", "0–0", "Matç tapılmadı");
     }
 
     @Test public void doublesSearchFindsTheSameMeetingsAcrossTeammateAndSideOrders() throws Exception {
