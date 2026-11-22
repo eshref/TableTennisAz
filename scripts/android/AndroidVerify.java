@@ -708,7 +708,11 @@ class AndroidVerify {
         String command = (releaseCandidate == null ? "" : "su 0 ")
                 + "am instrument -w -r -e class '" + classes + "' -e capturePrefix " + prefix
                 + (smoke ? " -e preflight true" : "") + (reuse ? " -e reuseSaved true" : "");
-        String runner = " az.tabletennis.test/androidx.test.runner.AndroidJUnitRunner";
+        String instrumentation = shell(prefix + "-instrumentation", 15, true, "pm list instrumentation az.tabletennis");
+        var registered = Pattern.compile("(?m)^instrumentation:(az[.]tabletennis[.]test/[\\w.]+) [(]target=az[.]tabletennis[)]$")
+                .matcher(instrumentation);
+        require(registered.find(), "Missing installed TableTennisAz test runner");
+        String runner = " " + registered.group(1);
         String name = "tests-" + prefix;
         Set<String> missing = new LinkedHashSet<>(checkpoints);
         String output = checkpoints.isEmpty() ? shell(name, seconds, true, command + runner)

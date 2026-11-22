@@ -24,6 +24,7 @@ its own evidence.
 | Şəxsi turnirlər, Qoşa turnirlər, tournament results, and Duellər | `results` | `ResultsDeviceTest` |
 | Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
+| Üz-üzə singles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
 
 On the run page, open **Run installed preflight and saved-fixture journey** for
 live progress. Download `android-api36-<journey>` from **Artifacts** on the same
@@ -66,6 +67,8 @@ After standard light, the runner disables networking and restarts the app
 process. The match, profile, doubles profile, rating history, and combined
 journeys reuse saved data. The Results journey prepares its saved fixtures
 for each configuration to check offline rendering.
+The head-to-head journey serves its player directory and history fixtures over
+HTTPS on emulator loopback in each configuration.
 
 For a pinned doubles profile run, set `app_revision` to the full app commit SHA.
 The summary records the app and verifier revisions. To test failure evidence,
@@ -91,7 +94,7 @@ check with downloadable partial evidence. [Protect main ruleset](https://github.
 After the workflow is merged to `main`, dispatch **Publish Android release**
 from `main`. Leave **verify_only** enabled for a verification run. The
 protected `android-release` environment provides the production-signed
-candidate. Six parallel jobs each download the
+candidate. Seven parallel jobs each download the
 same APK, check its SHA-256, and install it on a KVM-accelerated API 36 emulator.
 Each job runs preflight and one saved-fixture journey from the table above
 through all four configurations, with the same fixture and restart behavior.
@@ -102,7 +105,7 @@ on a newer commit and skips publication.
 [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
 
 Open **Summarize signed fixture matrix** for the candidate identity and all
-24 configuration outcomes. A complete run reports nonzero passing
+28 configuration outcomes. A complete run reports nonzero passing
 instrumentation and all required PNGs for every configuration. Download
 `android-signed-fixture-matrix` for `verification.md`, validated screenshots
 by journey and configuration, and the recorded APK checksums.

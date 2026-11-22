@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Read the NUL-delimited paths from the PR's diff against its base.
-journeys=(match profile rating-history results doubles-profile native-acceptance)
+journeys=(match profile rating-history results doubles-profile native-acceptance head-to-head)
 declare -A selected=()
 while IFS= read -r -d '' path; do
     case "$path" in
@@ -26,8 +26,15 @@ while IFS= read -r -d '' path; do
             screens=(doubles-profile) ;;
         app/src/main/java/az/tabletennis/ChartObservationRow.java)
             screens=(rating-history doubles-profile) ;;
+        app/src/main/java/az/tabletennis/HeadToHead*.java|app/src/main/res/drawable/ic_head_to_head.xml|\
+        app/src/main/res/values/head_to_head_strings.xml|app/src/androidTest/java/az/tabletennis/HeadToHeadDeviceTest.java|\
+        app/src/sharedTest/java/az/tabletennis/HeadToHeadFixtures.java)
+            screens=(head-to-head) ;;
+        app/src/main/java/az/tabletennis/WebsiteClient.java|app/src/main/java/az/tabletennis/WebsiteSource.java|\
+        app/src/main/java/az/tabletennis/MainScreenChrome.java|app/src/androidTest/java/az/tabletennis/FixtureTestRunner.java)
+            screens=(native-acceptance head-to-head) ;;
         app/src/main/java/az/tabletennis/MatchCard.java)
-            screens=(profile results doubles-profile) ;;
+            screens=(profile results doubles-profile head-to-head) ;;
         app/src/main/res/values*/strings.xml|app/src/debug/res/values*/strings.xml|scripts/android/fixture-captures.properties)
             screens=("${journeys[@]}") ;;
         app/src/main/*|app/src/debug/*|app/src/androidTest/*|app/src/androidTestDebug/*|app/build.gradle|build.gradle|settings.gradle|gradle.properties|gradle/*|gradlew|gradlew.bat|\

@@ -47,4 +47,7 @@
     <item name="main_scroll" type="id" />
     <item name="retry" type="id" />
     <item name="clear_search" type="id" />
+    <item name="destination_head_to_head" type="id" />
+    <item name="head_to_head_first" type="id" />
+    <item name="head_to_head_second" type="id" />
 </resources>

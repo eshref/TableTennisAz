@@ -29,7 +29,8 @@ final class MainScreenChrome {
                 R.drawable.ic_trophy, SinglesTournamentsActivity.class),
         DOUBLES_TOURNAMENTS(R.string.doubles_tournaments, R.id.destination_doubles_tournaments,
                 R.drawable.ic_pair, DoublesTournamentsActivity.class),
-        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_crossed_swords, DuelsActivity.class);
+        DUELS(R.string.duel_results, R.id.destination_duels, R.drawable.ic_crossed_swords, DuelsActivity.class),
+        HEAD_TO_HEAD(R.string.head_to_head, R.id.destination_head_to_head, R.drawable.ic_head_to_head, HeadToHeadActivity.class);
 
         final int title;
         final int id;
@@ -93,13 +94,13 @@ final class MainScreenChrome {
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         refresh = action("↻", R.string.refresh, refreshAction);
         refresh.setId(R.id.refresh);
-        bar.addView(refresh, new LinearLayout.LayoutParams(dp(48), -2));
+        if (refreshAction != null) bar.addView(refresh, new LinearLayout.LayoutParams(dp(48), -2));
         page.addView(bar);
         updated = Presentation.label(activity, "", 12);
         updated.setId(R.id.updated);
         updated.setTextColor(activity.getColor(R.color.secondary));
         updated.setPadding(dp(20), 0, dp(20), dp(8));
-        page.addView(updated);
+        if (refreshAction != null) page.addView(updated);
         body = new LinearLayout(activity);
         body.setId(R.id.main_body);
         body.setOrientation(LinearLayout.VERTICAL);

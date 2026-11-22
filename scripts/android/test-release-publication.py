@@ -472,10 +472,11 @@ esac
                          f'{NOTES}\n<!-- APK for {sha}: sha256:{apk_digest}; evidence sha256:{hashlib.sha256(evidence).hexdigest()} -->\n')
         with ZipFile(BytesIO(evidence)) as archive:
             summary = archive.read('verification.md').decode()
-            for detail in (f'`{name}.apk`', sha, apk_digest, '24/24', 'In-place Android upgrade', '`v0.4.0`'):
+            for detail in (f'`{name}.apk`', sha, apk_digest, '28/28', 'In-place Android upgrade', '`v0.4.0`'):
                 self.assertIn(detail, summary)
             first_capture = {'match': '501', 'profile': 'profile', 'rating-history': 'chart', 'results': 'results',
-                             'doubles-profile': 'profile', 'native-acceptance': 'players'}
+                             'doubles-profile': 'profile', 'native-acceptance': 'players',
+                             'head-to-head': 'head-to-head-results'}
             for journey, screen in first_capture.items():
                 for mode in ('light', 'dark-offline', 'narrow-large', 'landscape-large'):
                     fixture = self.source / 'fixture-screenshots' / f'{mode}-501.png'
@@ -600,13 +601,14 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         journeys = {'match': ('Match', '501'), 'profile': ('Profile', 'profile'),
                     'rating-history': ('RatingHistory', 'chart'), 'results': ('Results', 'results'),
-                    'doubles-profile': ('DoublesProfile', 'profile'), 'native-acceptance': ('NativeAcceptance', 'players')}
+                    'doubles-profile': ('DoublesProfile', 'profile'), 'native-acceptance': ('NativeAcceptance', 'players'),
+                    'head-to-head': ('HeadToHead', 'head-to-head-results')}
         bundle = evidence / 'android-signed-fixture-matrix'
         summary = (bundle / 'verification.md').read_text()
         self.assertIn(f'TableTennisAz-0.4.0.apk', summary)
         self.assertIn(sha, summary)
         self.assertIn(hashlib.sha256(apk.read_bytes()).hexdigest(), summary)
-        self.assertIn('24/24', summary)
+        self.assertIn('28/28', summary)
         for journey, (class_prefix, screen) in journeys.items():
             run = evidence / f'android-signed-api36-{journey}' / 'run-fixture'
             self.assertEqual((run / 'app-release.apk').read_bytes(), apk.read_bytes())
@@ -642,7 +644,7 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
                 self.assertNotEqual(result.returncode, 0)
                 bundle = evidence / 'android-signed-fixture-matrix'
                 summary = (bundle / 'verification.md').read_text()
-                self.assertIn('23/24', summary)
+                self.assertIn('27/28', summary)
                 self.assertRegex(summary, rf'(?m)^\| results \| landscape-large \| .*{outcome}')
                 self.assertTrue((bundle / 'screenshots/results/light/light-results.png').is_file())
                 self.assertFalse((bundle / 'screenshots/results/landscape-large/landscape-large-empty.png').exists())
@@ -667,7 +669,7 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
         upgrade = evidence / 'android-signed-upgrade'
         self.assertIn('installed=failure', (upgrade / 'job.properties').read_text())
         self.assertIn('upgrade-before.instrumentation=passed', (upgrade / 'verification.md').read_text())
-        self.assertIn('24/24', (evidence / 'android-signed-fixture-matrix' / 'verification.md').read_text())
+        self.assertIn('28/28', (evidence / 'android-signed-fixture-matrix' / 'verification.md').read_text())
         self.assertEqual(self.api('/releases'), [released_version])
         with self.assertRaisesRegex(error.HTTPError, '404'):
             self.api('/git/ref/tags/v0.5.0')

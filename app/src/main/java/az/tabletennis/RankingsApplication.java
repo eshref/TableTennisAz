@@ -68,6 +68,8 @@ public class RankingsApplication extends Application {
         return HttpUrl.get("https://tabletennis.az/");
     }
 
+    WebsiteClient websiteClient() { return new WebsiteClient(websiteUrl()); }
+
     protected HttpUrl tournamentCatalogueUrl() {
         return HttpUrl.get("https://eshref.github.io/TableTennisAz/tournaments-v1.json");
     }
