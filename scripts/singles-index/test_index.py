@@ -151,3 +151,15 @@ class DailySinglesIndexTest(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn(event + "?page=2", failed.stderr)
             self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, snapshot)
+
+            # arrange
+            pages[event + "?page=2"] = results(row(15, team=True), row(16, team=True))
+            pages[history] = results("<div>The player history is unavailable</div>")
+
+            # act
+            malformed = refresh()
+
+            # assert
+            self.assertNotEqual(malformed.returncode, 0)
+            self.assertIn(history + ": unrecognized result list", malformed.stderr)
+            self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, snapshot)

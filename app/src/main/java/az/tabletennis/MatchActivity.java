@@ -28,7 +28,7 @@ public class MatchActivity extends SavedScreen<MatchDetails> {
 
     @Override protected CompletableFuture<SavedData<MatchDetails>> request(MatchDetails previous, boolean more) {
         application.photos().refreshed();
-        return fetch(() -> new WebsiteSource(application.websiteUrl()).match(matchId), more);
+        return fetch(() -> new WebsiteSource(application.websiteClient()).match(matchId), more);
     }
 
     @Override protected void render(MatchDetails match) {

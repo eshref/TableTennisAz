@@ -123,7 +123,12 @@ class Website:
             boxes = select(page, ".matches-box")
             if not boxes:
                 raise ValueError(f"{path}: missing result list")
-            published = [row for box in boxes for row in select(box, RESULT_ROWS)]
+            published = []
+            for box in boxes:
+                rows_in_box = select(box, RESULT_ROWS)
+                if not rows_in_box and content(box) and not select(box, ".no-info, .team-match-box"):
+                    raise ValueError(f"{path}: unrecognized result list")
+                published.extend(rows_in_box)
             if not published and path != feed.path and not select(page, ".team-match-box"):
                 raise ValueError(f"{path}: advertised result page has no rows")
             identities = tuple(linked_id(row.getparent().get("href"), MATCH_LINK) for row in published)
