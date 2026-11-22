@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import android.content.Context;
 import android.app.NotificationManager;
 import android.app.UiAutomation;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.pm.PackageManager;
 import android.os.ParcelFileDescriptor;
 import android.content.res.Configuration;
@@ -35,6 +36,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
 import android.os.SystemClock;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -53,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -82,6 +85,10 @@ public class ResultsDeviceTest {
         var instrumentation = InstrumentationRegistry.getInstrumentation();
         var application = (FixtureTestRunner.FixtureApplication) instrumentation.getTargetContext().getApplicationContext();
         UiAutomation system = instrumentation.getUiAutomation();
+        AccessibilityServiceInfo accessibility = system.getServiceInfo();
+        accessibility.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                | AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+        system.setServiceInfo(accessibility);
         NotificationManager notifications = application.getSystemService(NotificationManager.class);
         application.fixtureAlertTopic = subscribe -> Tasks.forResult(null);
         if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
@@ -111,7 +118,8 @@ public class ResultsDeviceTest {
 
                 // act
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
-                if (prompts) tapSystemText(system, "Allow");
+                if (prompts) tapSystemNode(system, "notification permission",
+                        root -> root.findAccessibilityNodeInfosByViewId(root.getPackageName() + ":id/permission_allow_button"));
 
                 // assert
                 awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
@@ -180,16 +188,22 @@ public class ResultsDeviceTest {
                 system.executeShellCommand("cmd statusbar expand-notifications"))) {
             output.readAllBytes();
         }
-        tapSystemText(system, name);
+        tapSystemNode(system, name, root -> root.findAccessibilityNodeInfosByText(name).stream()
+                .filter(node -> TextUtils.equals(name, node.getText())).toList());
     }
 
-    private void tapSystemText(UiAutomation system, String text) throws Exception {
+    private void tapSystemNode(UiAutomation system, String description,
+                               Function<AccessibilityNodeInfo, List<AccessibilityNodeInfo>> find) throws Exception {
         long deadline = SystemClock.uptimeMillis() + 15_000;
+        List<CharSequence> packages = new ArrayList<>();
         while (SystemClock.uptimeMillis() < deadline) {
-            AccessibilityNodeInfo root = system.getRootInActiveWindow();
-            if (root != null) {
-                for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText(text)) {
-                    if (!node.isVisibleToUser() || !text.contentEquals(node.getText())) continue;
+            packages.clear();
+            for (var window : system.getWindows()) {
+                AccessibilityNodeInfo root = window.getRoot();
+                if (root == null) continue;
+                packages.add(root.getPackageName());
+                for (AccessibilityNodeInfo node : find.apply(root)) {
+                    if (!node.isVisibleToUser()) continue;
                     Rect bounds = new Rect();
                     node.getBoundsInScreen(bounds);
                     try (var output = new ParcelFileDescriptor.AutoCloseInputStream(
@@ -201,7 +215,7 @@ public class ResultsDeviceTest {
             }
             SystemClock.sleep(100);
         }
-        throw new AssertionError("Android did not show " + text);
+        throw new AssertionError("Android did not show " + description + "; visible windows: " + packages);
     }
 
     private void awaitAlertView(Matcher<View> matcher) {

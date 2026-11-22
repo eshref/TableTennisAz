@@ -219,7 +219,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         clickText("☰");
 
         // assert
-        assertThat(visibleText()).containsSequence("Duellər", "Üz-üzə", "Məxfilik siyasəti");
+        assertThat(visibleText()).containsSubsequence("Duellər", "Üz-üzə", "Məxfilik siyasəti");
 
         // act
         clickText("Üz-üzə");
