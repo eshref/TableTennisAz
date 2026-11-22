@@ -77,10 +77,12 @@ public final class TournamentAlertsActivity extends Activity {
         boolean shouldEnable = toggle.isChecked();
         toggle.setChecked(alerts.isEnabled());
         if (!shouldEnable) {
+            observed = null;
             alerts.disable();
             render();
         } else if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            alerts.clearEligibility();
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
         } else {
             observe(alerts.enable());
@@ -90,25 +92,21 @@ public final class TournamentAlertsActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(requestCode, permissions, grants);
-        if (requestCode != NOTIFICATION_PERMISSION || grants.length == 0) return;
-        if (grants[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode != NOTIFICATION_PERMISSION) return;
+        if (grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED) {
             observe(alerts.enable());
-            render();
-        } else {
-            status.setText(R.string.tournament_alert_permission_required);
         }
+        render();
     }
 
     private void observe(Task<Boolean> task) {
         if (task == null || task == observed) return;
         observed = task;
         task.addOnCompleteListener(result -> {
-            if (isDestroyed() || isFinishing()) return;
+            if (task != observed || isDestroyed() || isFinishing()) return;
             render();
-            if (!result.isSuccessful() || !result.getResult()) {
-                status.setText(alerts.isAllowed() ? R.string.tournament_alert_subscribe_failed
-                        : R.string.tournament_alert_permission_required);
-            }
+            if (alerts.isAllowed() && (!result.isSuccessful() || !result.getResult()))
+                status.setText(R.string.tournament_alert_subscribe_failed);
         });
     }
 
@@ -117,6 +115,7 @@ public final class TournamentAlertsActivity extends Activity {
         toggle.setChecked(alerts.isEnabled());
         toggle.setEnabled(alerts.isAvailable() && !pending);
         if (!alerts.isAvailable()) status.setText(R.string.tournament_alert_unavailable);
+        else if (!alerts.isAllowed()) status.setText(R.string.tournament_alert_permission_required);
         else if (pending) status.setText(R.string.tournament_alert_subscribing);
         else status.setText("");
     }

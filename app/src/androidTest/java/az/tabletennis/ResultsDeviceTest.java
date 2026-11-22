@@ -49,13 +49,16 @@ import androidx.test.espresso.ViewAction;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import com.google.android.gms.tasks.Tasks;
+import com.google.android.gms.tasks.TaskCompletionSource;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import okhttp3.mockwebserver.Dispatcher;
@@ -82,7 +85,7 @@ public class ResultsDeviceTest {
     private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
 
-    @Test public void optInAndTapSinglesAndDoublesAlertsWithoutACatalogue() throws Exception {
+    @Test public void controlsWhichPublicationsAlertAndOpensSinglesAndDoublesResults() throws Exception {
         // arrange
         var instrumentation = InstrumentationRegistry.getInstrumentation();
         var application = (FixtureTestRunner.FixtureApplication) instrumentation.getTargetContext().getApplicationContext();
@@ -92,38 +95,124 @@ public class ResultsDeviceTest {
                 | AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
         system.setServiceInfo(accessibility);
         NotificationManager notifications = application.getSystemService(NotificationManager.class);
-        application.fixtureAlertTopic = subscribe -> Tasks.forResult(null);
-        if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
         boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED;
+        if (!prompts && !"true".equals(InstrumentationRegistry.getArguments().getString("reuseSaved")))
+            throw new IllegalStateException("Install the app with notification permission ungranted to verify denial");
+        BlockingQueue<TaskCompletionSource<Void>> subscriptions = new LinkedBlockingQueue<>();
+        BlockingQueue<TaskCompletionSource<Void>> unsubscriptions = new LinkedBlockingQueue<>();
+        application.fixtureAlertTopic = subscribe -> {
+            var completion = new TaskCompletionSource<Void>();
+            (subscribe ? subscriptions : unsubscriptions).add(completion);
+            return completion.getTask();
+        };
         String singles = "Bakı Şəxsi Sınaq Kuboku";
         String doubles = "Bakı Qoşa Sınaq Kuboku";
         long singlesId = application.clock().millis();
         long doublesId = singlesId + 1;
+        long earlierId = singlesId + 2;
+        String earlier = "Əvvəlki Sınaq Kuboku";
         String singlesPath = "/matches/results/event/" + singlesId;
         String doublesPath = "/matches/results/event/" + doublesId;
         Map<String, String> pages = Map.of(
                 singlesPath, alertResults(1801, "Sınaq A", "Sınaq B", "3-0", singles),
                 doublesPath, alertResults(1802, "Sınaq C</div><div>Sınaq D", "Sınaq E</div><div>Sınaq F", "3-2", doubles));
         List<String> resultRequests = new CopyOnWriteArrayList<>();
+        new SavedDataStore<>(application, TournamentCatalogue.STORE_KEY, TournamentCatalogue.class)
+                .write(new SavedData<>(TournamentCatalogue.parse("{\"version\":1,\"tournaments\":[]}"), singlesId));
 
         try (MockWebServer website = new MockWebServer()) {
             givenAlertResults(website, application, pages, resultRequests);
             try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
                 // act
-                onView(withId(R.id.open_menu)).perform(click());
-                onView(withId(R.id.tournament_alerts)).perform(scrollTo(), click());
+                openAlertsSetting();
 
                 // assert
                 onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
 
+                if (prompts) {
+                    // act
+                    onView(withId(R.id.tournament_alerts_switch)).perform(click());
+                    tapPermissionButton(system, "permission_deny_button");
+
+                    // assert
+                    awaitAlertView(withText(R.string.tournament_alert_permission_required));
+
+                    // act
+                    pressBack();
+                    openAlertsSetting();
+                    deliverAlert(earlierId, earlier, singlesId);
+
+                    // assert
+                    awaitAlertView(withText(R.string.tournament_alert_permission_required));
+                    onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
+                    assertEquals(0, notifications.getActiveNotifications().length);
+                    capture("tournament-alerts-denied");
+                }
+
                 // act
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
-                if (prompts) tapSystemNode(system, "notification permission",
-                        root -> root.findAccessibilityNodeInfosByViewId(root.getPackageName() + ":id/permission_allow_button"));
+                if (prompts) tapPermissionButton(system, "permission_allow_button");
+                var subscribe = awaitTopicUpdate(subscriptions, "subscription");
+                long pendingPublication = application.clock().millis();
+                deliverAlert(earlierId, earlier, pendingPublication);
+
+                // assert
+                awaitAlertView(withText(R.string.tournament_alert_subscribing));
+                onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
+                assertEquals(0, notifications.getActiveNotifications().length);
+
+                // act
+                subscribe.setResult(null);
 
                 // assert
                 awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
+
+                // act
+                deliverAlert(earlierId, earlier, pendingPublication);
+
+                // assert
+                assertEquals(0, notifications.getActiveNotifications().length);
+
+                // act
+                onView(withId(R.id.tournament_alerts_switch)).perform(click());
+                var unsubscribe = awaitTopicUpdate(unsubscriptions, "unsubscription");
+                // This publication would have qualified under the preceding opt-in.
+                long offPublication = application.clock().millis();
+                deliverAlert(901, EVENT, offPublication);
+
+                // assert
+                onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
+                assertEquals(0, notifications.getActiveNotifications().length);
+                capture("tournament-alerts-off");
+
+                // arrange
+                unsubscribe.setResult(null);
+                givenSavedTournaments();
+
+                // act
+                pressBack();
+                onView(withId(R.id.open_menu)).perform(click());
+                onView(withId(R.id.destination_singles_tournaments)).perform(scrollTo(), click());
+
+                // assert
+                onData(anything()).inAdapterView(withId(R.id.tournament_cards)).atPosition(0)
+                        .check(matches(hasDescendant(withText(EVENT))));
+
+                // act
+                pressBack();
+                openAlertsSetting();
+                onView(withId(R.id.tournament_alerts_switch)).perform(click());
+                awaitTopicUpdate(subscriptions, "resubscription").setResult(null);
+
+                // assert
+                awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
+
+                // act
+                deliverAlert(901, EVENT, offPublication);
+
+                // assert
+                assertEquals(0, notifications.getActiveNotifications().length);
                 capture("tournament-alerts-setting");
 
                 // act
@@ -131,11 +220,12 @@ public class ResultsDeviceTest {
             }
 
             // act
-            deliverAlert(application, singlesId, singles);
+            deliverAlert(singlesId, singles, application.clock().millis());
 
             // assert
             Notification singlesAlert = awaitPostedAlert(notifications, singlesId);
             assertEquals(singles, singlesAlert.extras.getString(Notification.EXTRA_TITLE));
+            assertEquals(1, notifications.getActiveNotifications().length);
 
             // act
             openPostedAlert(application, system, singlesAlert);
@@ -147,7 +237,7 @@ public class ResultsDeviceTest {
 
             // act
             androidx.test.espresso.Espresso.pressBackUnconditionally();
-            deliverAlert(application, doublesId, doubles);
+            deliverAlert(doublesId, doubles, application.clock().millis());
 
             // assert
             Notification doublesAlert = awaitPostedAlert(notifications, doublesId);
@@ -170,6 +260,23 @@ public class ResultsDeviceTest {
             application.fixtureAlertTopic = null;
             application.fixtureClient = null;
         }
+    }
+
+    private void openAlertsSetting() {
+        onView(withId(R.id.open_menu)).perform(click());
+        onView(withId(R.id.tournament_alerts)).perform(scrollTo(), click());
+    }
+
+    private void tapPermissionButton(UiAutomation system, String id) throws Exception {
+        tapSystemNode(system, "notification permission button " + id,
+                root -> root.findAccessibilityNodeInfosByViewId(root.getPackageName() + ":id/" + id));
+    }
+
+    private TaskCompletionSource<Void> awaitTopicUpdate(BlockingQueue<TaskCompletionSource<Void>> updates,
+                                                       String operation) throws InterruptedException {
+        var update = updates.poll(15, TimeUnit.SECONDS);
+        if (update == null) throw new IllegalStateException("No Firebase topic " + operation + " to complete");
+        return update;
     }
 
     private String alertResults(int match, String left, String right, String score, String tournament) {
@@ -195,9 +302,11 @@ public class ResultsDeviceTest {
         application.hostWebsiteFixtures(server);
     }
 
-    private void deliverAlert(FixtureTestRunner.FixtureApplication application, long id, String name) {
+    private void deliverAlert(long id, String name, long publishedAt) {
+        var application = (RankingsApplication) InstrumentationRegistry.getInstrumentation()
+                .getTargetContext().getApplicationContext();
         application.tournamentAlerts().receive(Map.of("eventId", Long.toString(id), "name", name,
-                "publishedAt", Long.toString(application.clock().millis())));
+                "publishedAt", Long.toString(publishedAt)));
     }
 
     private Notification awaitPostedAlert(NotificationManager manager, long id) {
