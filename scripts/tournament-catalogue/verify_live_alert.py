@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-from threading import Thread
+from threading import Event, Thread
 from time import monotonic, sleep, time_ns
 from xml.etree import ElementTree
 
@@ -128,14 +128,25 @@ def main():
     with TemporaryDirectory() as directory:
         catalogue = Path(directory) / CATALOGUE
         publish(catalogue, {"version": 1, "tournaments": [], "firstListed": {}, PUBLICATIONS: {}})
-        handler = partial(SimpleHTTPRequestHandler, directory=directory)
+        device_read = Event()
+
+        class CatalogueHandler(SimpleHTTPRequestHandler):
+            def copyfile(self, source, output):
+                super().copyfile(source, output)
+                if self.path == f"/{CATALOGUE}":
+                    device_read.set()
+
+        handler = partial(CatalogueHandler, directory=directory)
         with ThreadingHTTPServer(("127.0.0.1", PORT), handler) as server:
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
                 adb("reverse", f"tcp:{PORT}", f"tcp:{PORT}")
+                adb("shell", "setprop", "log.tag.FirebaseMessaging", "DEBUG")
                 print("Opting in from Android and closing the app to the launcher", flush=True)
                 opt_in_and_return_home()
+                if not device_read.wait(15):
+                    raise RuntimeError("The emulator did not load the isolated baseline catalogue")
                 print(f"Publishing event {EVENT_ID} to the isolated catalogue and sending through Firebase", flush=True)
                 publish_and_send(catalogue, tournament)
                 verify_notification_and_results(evidence)
@@ -143,6 +154,13 @@ def main():
             except Exception:
                 capture(evidence / "failure.png")
                 ElementTree.ElementTree(screen()).write(evidence / "failure-ui.xml", encoding="utf-8")
+                logs = adb("logcat", "-d", "-s", "FirebaseMessaging:D", "Firebase-Installations:D", "GCM:D", "AndroidRuntime:E").decode()
+                signals = re.findall(r"SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
+                                     r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|DEVELOPER_ERROR|"
+                                     r"INTERNAL_SERVER_ERROR|UnknownHostException|SocketTimeoutException|SSLHandshakeException|"
+                                     r"HTTP response: \[\d+|No trusted implementation|No GMS Core|Scheduling sync|"
+                                     r"topic sync succeeded|Topic operation failed[^:]*|FATAL EXCEPTION", logs)
+                print(f"[DEBUG-firebase-121] Firebase client signals: {', '.join(signals) or 'none'}", flush=True)
                 raise
             finally:
                 server.shutdown()

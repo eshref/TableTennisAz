@@ -35,6 +35,9 @@ class BatchAlertPublisher(unittest.TestCase):
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
+                if not fixture.live.exists():
+                    self.send_error(503)
+                    return
                 self.send_response(200)
                 self.send_header("Last-Modified", format_datetime(fixture.modified, usegmt=True))
                 self.end_headers()
@@ -227,3 +230,20 @@ class BatchAlertPublisher(unittest.TestCase):
                 "publishedAt": str(int(first_publication.timestamp()) * 1000),
             }),
         ])
+
+    def test_unavailable_deployment_cannot_send_alerts(self):
+        # arrange
+        self.set_index(941, 944)
+        self.build(track_alerts=False)
+        self.deploy(self.modified - timedelta(minutes=1))
+        self.set_index(941)
+        self.build()
+        self.live.unlink()
+
+        # act
+        unavailable = self.send()
+
+        # assert
+        self.assertNotEqual(unavailable.returncode, 0)
+        self.assertIn("does not match this run's build", unavailable.stderr)
+        self.assertEqual(self.requests, [])
