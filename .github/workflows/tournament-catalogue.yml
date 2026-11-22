@@ -1,12 +1,9 @@
 name: Tournament catalogue
 on:
   schedule:
-    - cron: '23,53 * * * *'
+    - cron: '0 0,8,12,16,20 * * *'
+      timezone: Asia/Baku
   workflow_dispatch:
-    inputs:
-      firebase_test_event_id:
-        description: Results index ID to alert on the Firebase test topic after deployment
-        type: string
   push:
     branches: [main]
     paths:
@@ -24,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tournament-catalogue-${{ github.ref }}
+  group: tournament-catalogue-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +39,7 @@ jobs:
       - run: python -m unittest discover -s scripts/singles-index -v
 
   build:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     needs: fixtures
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -117,19 +114,11 @@ jobs:
         run: |
           sha256sum _site/tournaments-v1.json | awk '{print "sha256=" $1}' >> "$GITHUB_OUTPUT"
           sha256sum "$RUNNER_TEMP/previous-catalogue.json" | awk '{print "previous_sha256=" $1}' >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' && inputs.firebase_test_event_id != ''
-        with:
-          name: previous-tournament-catalogue
-          path: ${{ runner.temp }}/previous-catalogue.json
-          if-no-files-found: error
       - uses: actions/upload-pages-artifact@v3
 
   publish:
     needs: build
     runs-on: ubuntu-latest
-    outputs:
-      page_url: ${{ needs.build.outputs.page_url }}
     permissions:
       pages: write
       id-token: write
@@ -157,7 +146,7 @@ jobs:
         if: steps.catalogue.outputs.deploy == 'true'
 
   firebase-alerts:
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.TOURNAMENT_ALERTS_ENABLED == 'true' }}
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && vars.TOURNAMENT_ALERTS_ENABLED == 'true' }}
     needs: [build, publish]
     runs-on: ubuntu-latest
     permissions:
@@ -211,36 +200,3 @@ jobs:
           path: ${{ runner.temp }}/tournament-alert-receipts.json
           if-no-files-found: ignore
           retention-days: 2
-
-  firebase-test-alert:
-    if: github.event_name == 'workflow_dispatch' && inputs.firebase_test_event_id != ''
-    needs: [build, publish]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v4
-        with:
-          name: previous-tournament-catalogue
-          path: ${{ runner.temp }}
-      - uses: google-github-actions/auth@v3
-        id: firebase
-        with:
-          credentials_json: ${{ secrets.FIREBASE_TEST_SERVICE_ACCOUNT }}
-          token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/firebase.messaging
-          create_credentials_file: false
-          export_environment_variables: false
-      - name: Confirm the live catalogue and send the test alert
-        env:
-          EVENT_ID: ${{ inputs.firebase_test_event_id }}
-          PAGES_URL: ${{ needs.publish.outputs.page_url }}
-          CATALOGUE_SHA256: ${{ needs.build.outputs.catalogue_sha256 }}
-          FIREBASE_PROJECT: ${{ steps.firebase.outputs.project_id }}
-          FCM_ACCESS_TOKEN: ${{ steps.firebase.outputs.access_token }}
-        run: |
-          python3 scripts/tournament-catalogue/send_test_alert.py \
-            --catalogue "${PAGES_URL%/}/tournaments-v1.json" --sha256 "$CATALOGUE_SHA256" \
-            --previous "$RUNNER_TEMP/previous-catalogue.json" \
-            --project "$FIREBASE_PROJECT" -- "$EVENT_ID"

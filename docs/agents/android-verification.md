@@ -101,27 +101,26 @@ includes the result screenshot.
 ## Live Firebase test alert
 
 Register `az.tabletennis` in a Firebase test project with the Cloud Messaging
-API enabled. Put the downloaded `google-services.json` in `app/src/debug/` and build the
-debug APK. Add the test project's service account JSON to the repository's
-`FIREBASE_TEST_SERVICE_ACCOUNT` Actions secret. The service account needs
+API enabled. Store its `google-services.json` in the
+`FIREBASE_TEST_ANDROID_CONFIG` Actions secret and its service account JSON in
+`FIREBASE_TEST_SERVICE_ACCOUNT`. The service account needs
 `cloudmessaging.messages.create` and permission to mint its own access token
 (`roles/iam.serviceAccountTokenCreator` on the account).
 
-Install the APK on a Google Play compatible phone or a Google APIs emulator.
-Open **Turnir bildirişləri** from the app menu, turn the switch on, and grant
-notification permission if prompted. Wait for the switch to show that the
-subscription is active, then leave the app with Home or Back.
+Dispatch **Android** with `live_firebase_alert` enabled. The check installs the
+test-configured app on an API 36 Google APIs emulator, opts in through **Turnir
+bildirişləri**, and leaves the app at the launcher. It publishes completed
+singles tournament 944 for the first time in a catalogue served on runner
+loopback. The regular publisher confirms the published catalogue and sends to
+`tournament-results-test` in the test project. The check opens the Android
+notification shade, taps the tournament alert, and verifies the heading and a
+published match score on the results screen.
 
-Dispatch **Tournament catalogue** on `main` with a completed singles or doubles
-Results index ID in `firebase_test_event_id`. Pick an event whose match results
-are on tabletennis.az and whose entry has yet to appear in the live catalogue.
-The workflow deploys Pages, confirms the exact catalogue is live, and sends
-the newly verified event to `tournament-results-test`. The message uses the
-time the workflow confirms that deployment. Tap the Android notification and
-verify that the tournament
-heading and match results appear. Record the workflow URL, the notification
-and results screenshots, and the device or emulator image.
-[Tournament catalogue Actions](https://github.com/eshref/TableTennisAz/actions/workflows/tournament-catalogue.yml)
+Record the workflow URL, result, and the emulator image from the run summary.
+Download the `live-firebase-alert` artifact for `notification.png` and
+`match-results.png`, or the available diagnostics on failure. The live check
+uses the test catalogue and leaves the public Pages deployment untouched.
+[Android Actions](https://github.com/eshref/TableTennisAz/actions/workflows/android.yml)
 
 The installed `results` fixture journey declines Android permission on a fresh
 install and holds Firebase topic confirmations to exercise opt-in and opt-out.
@@ -145,8 +144,9 @@ upload key. Both release distributions subscribe to `tournament-results`.
 
 Add the production sender as `FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT`
 in repository secrets. It needs the Cloud Messaging and token permissions
-described for the test sender. After verifying live delivery and the signed
-candidate, set the repository variable `TOURNAMENT_ALERTS_ENABLED` to `true`.
+described for the test sender. After verifying live delivery and publishing the
+Firebase-configured signed GitHub APK, set the repository variable
+`TOURNAMENT_ALERTS_ENABLED` to `true`.
 The next catalogue build seeds already published tournaments and subsequent
 publications are eligible for alerts. Clear the variable to pause sending.
 [Live privacy policy](https://eshref.github.io/TableTennisAz/privacy-policy.html)

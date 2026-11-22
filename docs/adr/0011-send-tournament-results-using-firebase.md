@@ -9,11 +9,10 @@ phone and supports installations from GitHub Releases and Google Play.
 [Firebase Android requirements](https://firebase.google.com/docs/cloud-messaging/android/get-started)
 · [Firebase topic messaging](https://firebase.google.com/docs/cloud-messaging/topic-messaging)
 
-Check for new results every 30 minutes and aim to deliver alerts within about
-an hour of results becoming available on tabletennis.az. Send one alert when a
-completed singles or doubles tournament first appears in the live catalogue with
-results available to open. Tapping the alert opens that tournament's match
-results. Alerts expire 24 hours after the catalogue publication. GitHub can
+Send one alert when a completed singles or doubles tournament first appears in
+the live catalogue with results available to open. Tapping the alert opens
+that tournament's match results. Alerts expire 24 hours after the catalogue
+publication. GitHub can
 delay scheduled runs and disables the schedule after 60 days of repository
 inactivity. [GitHub Actions scheduling](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
 
@@ -55,7 +54,7 @@ Releases first. Enable production sending after live verification and APK
 publication. Use the same production Firebase project in the next Google Play
 build to make alerts available to Play users.
 
-## Planned catalogue schedule
+## Catalogue schedule
 
 Run five automatic catalogue scans each day at 08:00, 12:00, 16:00, 20:00,
 and midnight Baku time. The next scan after midnight is at 08:00. Keep manual

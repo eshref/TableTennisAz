@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 TOPIC = "tournament-results"
+TEST_TOPIC = "tournament-results-test"
 WINDOW_MS = 24 * 60 * 60 * 1000
 PUBLICATIONS = "alertPublications"
 
@@ -81,6 +82,7 @@ def publish_alerts(arguments, token):
     now = time_ns() // 1_000_000
     receipts = {event_id: expires for event_id, expires in stored.items() if expires > now}
     failures = []
+    topic = TEST_TOPIC if arguments.test_topic else TOPIC
     for event_id, publication in history.items():
         if publication is None or event_id in receipts:
             continue
@@ -91,7 +93,7 @@ def publish_alerts(arguments, token):
         try:
             send_message(arguments.fcm_origin, arguments.project, token,
                          {**publication, "eventId": event_id}, min(remaining, WINDOW_MS) // 1000,
-                         topic=TOPIC)
+                         topic=topic)
         except (OSError, ValueError) as error:
             failures.append(event_id)
             print(f"Firebase alert for event {event_id} is pending: {error}", file=sys.stderr)
@@ -112,6 +114,7 @@ def main():
     parser.add_argument("--receipts", type=Path, required=True)
     parser.add_argument("--accepted", type=Path, required=True)
     parser.add_argument("--project", required=True)
+    parser.add_argument("--test-topic", action="store_true", help="send to the Android debug topic")
     parser.add_argument("--fcm-origin", default="https://fcm.googleapis.com")
     parser.add_argument("--wait", type=int, default=120)
     arguments = parser.parse_args()
