@@ -13,7 +13,12 @@ final class WebsiteSource {
     private final WebsiteClient client;
     private final HttpUrl website;
 
-    WebsiteSource(HttpUrl website) { this.website = website; client = new WebsiteClient(website); }
+    WebsiteSource(HttpUrl website) { this(new WebsiteClient(website)); }
+
+    WebsiteSource(WebsiteClient client) {
+        this.client = client;
+        website = client.websiteUrl();
+    }
 
     EventCatalog events() throws IOException {
         Document document = Jsoup.parse(client.get("/matches/results"));
@@ -125,7 +130,11 @@ final class WebsiteSource {
         }
     }
 
-    private static final class ResultPage {
+    ResultPage playerHistory(String path) throws IOException {
+        return resultPage(new ResultsFeed.Page(path, 0, "", false));
+    }
+
+    static final class ResultPage {
         final List<MatchSummary> matches;
         final ResultsFeed.Page next;
         ResultPage(List<MatchSummary> matches, ResultsFeed.Page next) { this.matches = matches; this.next = next; }
@@ -211,7 +220,7 @@ final class WebsiteSource {
         List<MatchDetails> verified = new ArrayList<>();
         String next = previous == null ? null : previous.nextHistoryPage;
         for (String path : requested) {
-            ResultPage page = resultPage(new ResultsFeed.Page(path, 0, "", false));
+            ResultPage page = playerHistory(path);
             List<MatchSummary> owned = new ArrayList<>();
             for (MatchSummary summary : page.matches) {
                 if (!summary.teamChild) owned.add(summary);

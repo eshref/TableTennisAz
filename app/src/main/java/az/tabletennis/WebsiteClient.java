@@ -12,10 +12,17 @@ import okhttp3.Response;
 final class WebsiteClient {
     private static final String DEFAULT_PHOTO = "/assets/img/person.png";
     private final HttpUrl website;
-    private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build();
+    private final OkHttpClient client;
 
-    WebsiteClient(HttpUrl website) { this.website = website; }
+    WebsiteClient(HttpUrl website) { this(website, new OkHttpClient.Builder()); }
+
+    WebsiteClient(HttpUrl website, OkHttpClient.Builder transport) {
+        this.website = website;
+        client = transport.connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS)
+                .callTimeout(30, TimeUnit.SECONDS).build();
+    }
+
+    HttpUrl websiteUrl() { return website; }
 
     String photoUrl(String value) {
         if (value == null || value.trim().isEmpty()) return null;

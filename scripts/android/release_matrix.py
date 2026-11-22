@@ -16,6 +16,7 @@ JOURNEYS = {
     'results': 'ResultsDeviceTest',
     'doubles-profile': 'DoublesProfileDeviceTest',
     'native-acceptance': 'NativeAcceptanceDeviceTest',
+    'head-to-head': 'HeadToHeadDeviceTest',
 }
 CONFIGURATIONS = {
     'light': 'Standard light, 412×891, 100% text',

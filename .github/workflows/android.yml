@@ -20,6 +20,7 @@ on:
           - results
           - doubles-profile
           - native-acceptance
+          - head-to-head
       app_revision:
         description: Optional full app commit SHA for the pinned doubles profile pilot
         type: string
@@ -111,6 +112,7 @@ jobs:
             results) test=ResultsDeviceTest ;;
             doubles-profile) test=DoublesProfileDeviceTest ;;
             native-acceptance) test=NativeAcceptanceDeviceTest ;;
+            head-to-head) test=HeadToHeadDeviceTest ;;
             *) echo '::error::Unknown installed journey.'; exit 1 ;;
           esac
           if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then

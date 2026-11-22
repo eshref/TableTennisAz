@@ -13,6 +13,7 @@
         <activity android:name=".DoublesTournamentsActivity" android:exported="false" />
         <activity android:name=".TournamentResultsActivity" android:exported="false" />
         <activity android:name=".DuelsActivity" android:exported="false" />
+        <activity android:name=".HeadToHeadActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".PairResultsActivity" android:exported="false" />
         <activity android:name=".RankingsActivity" android:exported="true">
             <intent-filter>

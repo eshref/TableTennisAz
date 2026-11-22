@@ -1,0 +1,15 @@
+<resources>
+    <string name="head_to_head">Üz-üzə</string>
+    <string name="head_to_head_first">1-ci oyunçu</string>
+    <string name="head_to_head_second">2-ci oyunçu</string>
+    <string name="head_to_head_name_hint">Ad və ya soyad</string>
+    <string name="head_to_head_named_profile">%1$s · Profil %2$d</string>
+    <string name="head_to_head_short_query">Ən azı 3 simvol yazın.</string>
+    <string name="head_to_head_directory_failed">Oyunçu siyahısı yüklənmədi.</string>
+    <string name="head_to_head_distinct_players">İki fərqli oyunçu seçin.</string>
+    <string name="head_to_head_search">Axtar</string>
+    <string name="head_to_head_running">Axtarış davam edir</string>
+    <string name="head_to_head_complete">Axtarış tamamlandı</string>
+    <string name="head_to_head_interrupted">Axtarış tamamlanmadı</string>
+    <string name="head_to_head_empty">Matç tapılmadı</string>
+</resources>
