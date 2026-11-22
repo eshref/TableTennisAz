@@ -71,6 +71,7 @@ class DailySinglesIndexTest(unittest.TestCase):
         history = "/matches/results/player/15"
         directory = ('<main id="center"><div class="ranking-page-list">'
                      '<a href="/players/15">Əşrəf Səfərov</a></div></main>')
+        not_found = '<div class="not-found-page"><div class="page-not-found-div">Səhifə mövcud deyil</div></div>'
         pages = {
             "/players?level=amateur": directory,
             "/players?level=pro": directory,
@@ -85,8 +86,9 @@ class DailySinglesIndexTest(unittest.TestCase):
             event + "?page=3": results('<div class="team-match-box"><div class="child-matches-group"></div></div>'),
             history: results(row(11), pages=pagination(history, 2)),
             history + "?page=2": results(row(17)),
-            "/matches/results/player/20": results(),
-            "/matches/results/player/115": results(),
+            "/matches/results/player/20": results(row(19)),
+            "/matches/results/player/115": not_found,
+            "/players/115": not_found,
             "/matches/11": details(event="Duello"),
             "/matches/12": details(event="Duello"),
             "/matches/13": details(event="Duello"),
@@ -94,6 +96,7 @@ class DailySinglesIndexTest(unittest.TestCase):
             "/matches/15": details(),
             "/matches/16": details(left=115),
             "/matches/17": details(),
+            "/matches/19": details(),
         }
 
         with tempfile.TemporaryDirectory() as temporary, website(pages) as source:
@@ -110,8 +113,8 @@ class DailySinglesIndexTest(unittest.TestCase):
             # assert
             self.assertEqual(first.returncode, 0, first.stderr)
             published = json.loads(shard.read_text())
-            self.assertEqual(set(row["id"] for row in published["matches"]), {11, 12, 13, 14, 15, 17})
-            self.assertEqual(len(published["matches"]), 6)
+            self.assertEqual(set(row["id"] for row in published["matches"]), {11, 12, 13, 14, 15, 17, 19})
+            self.assertEqual(len(published["matches"]), 7)
             team_game = next(row for row in published["matches"] if row["id"] == 15)
             self.assertEqual((team_game["date"], team_game["eventId"], team_game["event"]), (DAY, 7, "Liqa"))
             self.assertTrue(all(row["left"]["id"] == 15 and row["right"]["id"] == 20
@@ -135,7 +138,7 @@ class DailySinglesIndexTest(unittest.TestCase):
             updated = json.loads(shard.read_text())
             self.assertGreater(updated["refreshedAt"], published["refreshedAt"])
             self.assertEqual({row["id"]: row["score"] for row in updated["matches"]},
-                             {11: "3-1", 12: "3-1", 13: "3-1", 14: "3-1", 15: "2-3", 17: "3-1", 18: "3-1"})
+                             {11: "3-1", 12: "3-1", 13: "3-1", 14: "3-1", 15: "2-3", 17: "3-1", 18: "3-1", 19: "3-1"})
             snapshot = {path.name: path.read_bytes() for path in output.iterdir()}
             self.assertEqual(len(snapshot), 256)
             self.assertEqual({json.loads(shard)["refreshedAt"] for shard in snapshot.values()},
@@ -162,4 +165,17 @@ class DailySinglesIndexTest(unittest.TestCase):
             # assert
             self.assertNotEqual(malformed.returncode, 0)
             self.assertIn(history + ": unrecognized result list", malformed.stderr)
+            self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, snapshot)
+
+            # arrange
+            pages[history] = results(row(11))
+            pages["/matches/results/player/20"] = not_found
+            pages["/players/20"] = '<main id="center">Etibar Yunusov</main>'
+
+            # act
+            missing_history = refresh()
+
+            # assert
+            self.assertNotEqual(missing_history.returncode, 0)
+            self.assertIn("/matches/results/player/20: source page not found", missing_history.stderr)
             self.assertEqual({path.name: path.read_bytes() for path in output.iterdir()}, snapshot)

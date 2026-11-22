@@ -286,20 +286,10 @@ jobs:
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
-          target: default
+          target: google_apis
           arch: x86_64
           profile: pixel_7
-          script: |
-            mkdir -p singles-evidence
-            if adb shell pm path az.tabletennis | grep -q '^package:'; then adb uninstall az.tabletennis; fi
-            adb logcat -c
-            result=0
-            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=az.tabletennis.LiveSinglesIndexTest || result=$?
-            adb logcat -d -s SinglesIndexLive:I '*:S' | tee singles-evidence/timing.txt >> "$GITHUB_STEP_SUMMARY"
-            if adb shell run-as az.tabletennis test -s files/live-singles-index.png; then
-              adb exec-out run-as az.tabletennis cat files/live-singles-index.png > singles-evidence/result.png
-            fi
-            exit "$result"
+          script: bash scripts/android/live-singles-index
       - uses: actions/upload-artifact@v4
         if: always()
         with:

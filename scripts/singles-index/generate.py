@@ -48,6 +48,10 @@ def linked_id(link, pattern):
     return int(match[1])
 
 
+class MissingPage(ValueError):
+    pass
+
+
 class Website:
     def __init__(self, source):
         self.source = source.rstrip("/")
@@ -63,16 +67,21 @@ class Website:
             self.connection.session = session
         try:
             response = self.connection.session.get(self.source + path, timeout=(10, 25))
+            if response.status_code in (404, 410):
+                raise MissingPage(f"{path}: HTTP {response.status_code}")
             response.raise_for_status()
             document = html.fromstring(response.content, parser=html.HTMLParser(encoding="utf-8"))
-            center = select(document, "#center")
-            if len(center) != 1:
-                raise ValueError("Missing page content")
-            return center[0]
-        except (RequestException, ParserError, ValueError) as error:
+        except (RequestException, ParserError) as error:
             raise ValueError(f"{path}: {error}") from error
+        # Removed profiles serve the website's standard not-found page with HTTP 200.
+        if select(document, ".not-found-page .page-not-found-div"):
+            raise MissingPage(f"{path}: source page not found")
+        center = select(document, "#center")
+        if len(center) != 1:
+            raise ValueError(f"{path}: missing page content")
+        return center[0]
 
-    def pages(self, path):
+    def pages(self, path, unlisted_profile=0):
         # The last-page link can advertise pages outside the current viewport.
         separator = "&" if "?" in path else "?"
         base = urlsplit(path)
@@ -80,7 +89,12 @@ class Website:
         last = number = 1
         while number <= last:
             current = path if number == 1 else f"{path}{separator}page={number}"
-            page = self.page(current)
+            try:
+                page = self.page(current)
+            except MissingPage:
+                if number == 1 and unlisted_profile and self.profile_removed(unlisted_profile):
+                    return
+                raise
             for link in select(page, ".pagination li:not(.disabled) a[href]"):
                 target = urlsplit(link.get("href"))
                 if target.path.rstrip("/") == base.path.rstrip("/"):
@@ -90,6 +104,13 @@ class Website:
                         last = max(last, int(value))
             yield current, page
             number += 1
+
+    def profile_removed(self, identity):
+        try:
+            self.page(f"/players/{identity}")
+        except MissingPage:
+            return True
+        return False
 
     def players(self, level):
         ids = set()
@@ -119,7 +140,7 @@ class Website:
     def result_rows(self, feed):
         rows = {}
         seen_pages = set()
-        for path, page in self.pages(feed.path):
+        for path, page in self.pages(feed.path, feed.unlisted_profile):
             boxes = select(page, ".matches-box")
             if not boxes:
                 raise ValueError(f"{path}: missing result list")
@@ -186,6 +207,7 @@ class Feed:
     event_id: int = 0
     event: str = ""
     duel: bool = False
+    unlisted_profile: int = 0
 
 
 @dataclass(frozen=True)
@@ -205,9 +227,10 @@ def build(website, workers):
     contexts = {}
     matches = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        players = set().union(*pool.map(website.players, ("amateur", "pro")))
-        if not players:
+        ranked = set().union(*pool.map(website.players, ("amateur", "pro")))
+        if not ranked:
             raise ValueError("The source player directory is empty")
+        players = set(ranked)
         events = website.events()
         feeds = [Feed("/matches/duellos", event="Duello", duel=True)]
         feeds.extend(Feed(f"/matches/results/event/{identity}", identity, name) for identity, name in events.items())
@@ -215,7 +238,9 @@ def build(website, workers):
         while feeds or players - checked_players:
             new_players = players - checked_players
             checked_players.update(new_players)
-            feeds.extend(Feed(f"/matches/results/player/{identity}") for identity in sorted(new_players))
+            feeds.extend(Feed(f"/matches/results/player/{identity}",
+                              unlisted_profile=identity if identity not in ranked else 0)
+                         for identity in sorted(new_players))
             for results in pool.map(website.result_rows, feeds):
                 for identity, context in results.items():
                     previous = contexts.get(identity)
