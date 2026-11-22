@@ -65,6 +65,24 @@ def capture(path):
     path.write_bytes(png)
 
 
+def diagnose_subscription():
+    services = adb("shell", "dumpsys", "package", "com.google.android.gms").decode()
+    print("[DEBUG-firebase-121] Play services: " + ", ".join(re.findall(
+        r"versionName=[\d.]+|com\.google\.android\.c2dm\.permission\.SEND: granted=\w+", services)), flush=True)
+    logs = adb("logcat", "-d", "-v", "raw", "-s", "FirebaseMessaging:D", "Firebase-Installations:D",
+               "FirebaseApp:D", "GCM:D", "GmsClient:D", "AndroidRuntime:E").decode()
+    signals = re.findall(
+        r"SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
+        r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|DEVELOPER_ERROR|INTERNAL_SERVER_ERROR|"
+        r"UnknownHostException|SocketTimeoutException|SSLHandshakeException|HTTP response: \[\d+|"
+        r"Google Play services missing or without correct permission|Failed to resolve IID implementation package|"
+        r"FirebaseApp initialization successful|FirebaseApp initialization unsuccessful|"
+        r"Failed to get FIS auth token|Invoking onNewToken|Couldn't get connection factory client|"
+        r"Connectivity changed\. Starting background sync|Connectivity change received registered|"
+        r"Failed to sync topics|topic sync succeeded|Topic operation failed|FATAL EXCEPTION", logs)
+    print(f"[DEBUG-firebase-121] Firebase client signals: {', '.join(signals) or 'none'}", flush=True)
+
+
 def opt_in_and_return_home():
     adb("install", "app/build/outputs/apk/debug/app-debug.apk")
     adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.RankingsActivity")
@@ -154,13 +172,7 @@ def main():
             except Exception:
                 capture(evidence / "failure.png")
                 ElementTree.ElementTree(screen()).write(evidence / "failure-ui.xml", encoding="utf-8")
-                logs = adb("logcat", "-d", "-s", "FirebaseMessaging:D", "Firebase-Installations:D", "GCM:D", "AndroidRuntime:E").decode()
-                signals = re.findall(r"SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
-                                     r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|DEVELOPER_ERROR|"
-                                     r"INTERNAL_SERVER_ERROR|UnknownHostException|SocketTimeoutException|SSLHandshakeException|"
-                                     r"HTTP response: \[\d+|No trusted implementation|No GMS Core|Scheduling sync|"
-                                     r"topic sync succeeded|Topic operation failed[^:]*|FATAL EXCEPTION", logs)
-                print(f"[DEBUG-firebase-121] Firebase client signals: {', '.join(signals) or 'none'}", flush=True)
+                diagnose_subscription()
                 raise
             finally:
                 server.shutdown()
