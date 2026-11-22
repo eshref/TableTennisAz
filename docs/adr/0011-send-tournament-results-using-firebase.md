@@ -41,3 +41,27 @@ and uses the `FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT` secret.
 Before rollout, update the published [privacy policy](../privacy-policy.html)
 to describe notification processing and controls. Verify live push delivery with
 a Google Play compatible test device or a Google APIs emulator.
+
+Create a dedicated production Firebase project under the maintainer's Google
+account for `az.tabletennis`. Before enabling production alerts, verify live
+delivery from the existing Firebase test project on a Google APIs emulator in
+GitHub Actions. With the app closed, receive the alert and confirm that tapping
+it opens the tournament's match results. Publish an existing completed
+tournament for the first time in a separate test catalogue so verification can
+run when tabletennis.az has no new results.
+
+Release the signed APK with production Firebase configured through GitHub
+Releases first. Enable production sending after live verification and APK
+publication. Use the same production Firebase project in the next Google Play
+build to make alerts available to Play users.
+
+## Planned catalogue schedule
+
+Run five automatic catalogue scans each day at 08:00, 12:00, 16:00, 20:00,
+and midnight Baku time. The next scan after midnight is at 08:00. Keep manual
+runs available for recovery and testing. This replaces the 30-minute schedule
+and the one-hour delivery target. Each scan rechecks all listed tournaments,
+so the new schedule reduces repeated requests to tabletennis.az.
+
+Publish changes to the public site with the next scheduled run. Start a manual
+run when a site update needs to go out sooner.
