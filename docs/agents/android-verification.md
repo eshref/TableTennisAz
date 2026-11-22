@@ -101,7 +101,7 @@ includes the result screenshot.
 ## Live Firebase test alert
 
 Register `az.tabletennis` in a Firebase test project with the Cloud Messaging
-API enabled. Put the downloaded `google-services.json` in `app/` and build the
+API enabled. Put the downloaded `google-services.json` in `app/src/debug/` and build the
 debug APK. Add the test project's service account JSON to the repository's
 `FIREBASE_TEST_SERVICE_ACCOUNT` Actions secret. The service account needs
 `cloudmessaging.messages.create` and permission to mint its own access token
@@ -131,6 +131,25 @@ and opens match results for both formats through their posted notifications.
 The `tournament-alerts-denied`, `tournament-alerts-off`, and
 `tournament-alerts-setting` captures show the setting states.
 The `singles-alert-results` and `doubles-alert-results` captures show the results.
+
+### Production rollout
+
+Confirm the live privacy policy describes Firebase and the alert controls.
+Use a production Firebase project with the Cloud Messaging API enabled and
+an Android app registered as `az.tabletennis`. Add its Android configuration
+as `FIREBASE_TOURNAMENT_ALERTS_ANDROID_CONFIG` in the `android-release`
+environment. For a local Google Play bundle, put the same `google-services.json`
+in `app/src/release/` before building `:app:bundleRelease`. Keep the existing
+production signer for GitHub APKs and Play App Signing, and the separate Play
+upload key. Both release distributions subscribe to `tournament-results`.
+
+Add the production sender as `FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT`
+in repository secrets. It needs the Cloud Messaging and token permissions
+described for the test sender. After verifying live delivery and the signed
+candidate, set the repository variable `TOURNAMENT_ALERTS_ENABLED` to `true`.
+The next catalogue build seeds already published tournaments and subsequent
+publications are eligible for alerts. Clear the variable to pause sending.
+[Live privacy policy](https://eshref.github.io/TableTennisAz/privacy-policy.html)
 
 ## Required check
 

@@ -51,8 +51,8 @@ public class RankingsApplication extends Application {
     protected TournamentAlerts.Topic tournamentAlertTopic() {
         if (FirebaseApp.getApps(this).isEmpty()) return null;
         FirebaseMessaging messaging = FirebaseMessaging.getInstance();
-        return subscribe -> subscribe ? messaging.subscribeToTopic(TournamentAlerts.TOPIC)
-                : messaging.unsubscribeFromTopic(TournamentAlerts.TOPIC);
+        String topic = getString(R.string.tournament_alert_topic);
+        return subscribe -> subscribe ? messaging.subscribeToTopic(topic) : messaging.unsubscribeFromTopic(topic);
     }
 
     PlayerPhotos photos() {

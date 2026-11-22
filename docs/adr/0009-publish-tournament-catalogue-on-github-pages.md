@@ -16,7 +16,9 @@ the existing site from `docs/`, adds `tournaments-v1.json`, and deploys the
 whole site. After merging the workflow, set the repository's **Settings →
 Pages → Source** to **GitHub Actions** and dispatch **Tournament catalogue**
 on `main` for the first publication. The site URL and the privacy policy URL
-are preserved. Later updates run daily and on changes to the site or generator.
+are preserved. Updates run every 30 minutes and on changes to the site or
+generator. The head-to-head indexes refresh daily. Builds reuse the last
+successful indexes between refreshes and when a refresh fails.
 
 The version 1 document contains a `tournaments` array. Each entry includes the
 numeric Results index ID, published name, `singles` or `doubles` format and ISO

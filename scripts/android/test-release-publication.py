@@ -340,7 +340,7 @@ esac
         return apk
 
     def run_workflow(self, apk=None, *, source=None, sha=None, check_status=0, verify_only=None,
-                     fixture_failure='', evidence=None):
+                     fixture_failure='', evidence=None, firebase_config='', alerts_enabled=False):
         source = source or self.source
         if verify_only is None:
             triggers = self.workflow.get('on', self.workflow.get(True))  # PyYAML reads `on` as true.
@@ -352,6 +352,8 @@ esac
         variables = {'github.token': env['GH_TOKEN'], 'github.ref': env['GITHUB_REF'], 'github.sha': env['GITHUB_SHA']}
         variables['github.workspace'] = str(source)
         variables['inputs.verify_only'] = 'true' if verify_only else 'false'
+        variables['secrets.FIREBASE_TOURNAMENT_ALERTS_ANDROID_CONFIG'] = firebase_config
+        variables['vars.TOURNAMENT_ALERTS_ENABLED'] = 'true' if alerts_enabled else ''
         variables.update({f'secrets.{name}': value for name, value in env.items() if name.startswith('ANDROID_RELEASE_')})
         # Run the workflow's shell steps with local per-ref scheduling and artifact transfer.
         concurrency = self.workflow['concurrency']
@@ -875,6 +877,31 @@ printf 'status=passed\\nmatrix=passed\\n' >> "$run/result.properties"
                 self.assertEqual(release['id'], draft['id'])
                 assets = self.assert_release(release, 'v0.5.0', sha, apk if uploaded_names else retry_apk)
                 self.assertEqual({asset['name']: asset for asset in assets if asset['name'] in uploaded}, uploaded)
+
+    def test_retry_keeps_unconfigured_apk_in_draft_after_firebase_is_enabled(self):
+        # arrange
+        previous, _ = self.given_official_apk(self.commit())
+        self.commit('0.5.0', 5)
+        apk = self.apk('0.5.0', code=5)
+        self.install_fixture_verifier()
+        self.github.interruption = 'publish'
+        interrupted = self.run_workflow(apk, verify_only=False)
+        if interrupted.returncode == 0:
+            raise RuntimeError('Expected publication to be interrupted')
+        firebase_config = json.dumps({'client': [{'client_info': {
+            'android_client_info': {'package_name': 'az.tabletennis'},
+            'mobilesdk_app_id': '1:123:android:456',
+        }}]})
+
+        # act
+        retry = self.run_workflow(apk, verify_only=False, firebase_config=firebase_config, alerts_enabled=True)
+
+        # assert
+        self.assertNotEqual(retry.returncode, 0)
+        self.assertIn('The signed APK does not contain the configured Firebase Android app ID.', retry.stderr)
+        self.assertEqual(self.api('/releases/latest'), previous)
+        draft, = (release for release in self.api('/releases') if release['tag_name'] == 'v0.5.0')
+        self.assertTrue(draft['draft'])
 
     def test_retry_rejects_replaced_draft_assets(self):
         # arrange

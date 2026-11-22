@@ -9,6 +9,8 @@ from time import time_ns
 
 from publish_alerts import WINDOW_MS, read_deployment, send_message
 
+TOPIC = "tournament-results-test"
+
 
 def send_test_alert(arguments, token):
     previous = json.loads(arguments.previous.read_bytes())
@@ -22,7 +24,7 @@ def send_test_alert(arguments, token):
     published_at = time_ns() // 1_000_000
     send_message(arguments.fcm_origin, arguments.project, token,
                  {"eventId": tournament["id"], "name": tournament["name"], "publishedAt": published_at},
-                 WINDOW_MS // 1000)
+                 WINDOW_MS // 1000, topic=TOPIC)
     print(f"Firebase accepted test alert for event {arguments.event_id} at {published_at}")
 
 
