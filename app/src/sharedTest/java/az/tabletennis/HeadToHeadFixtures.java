@@ -13,6 +13,9 @@ final class HeadToHeadFixtures {
     static final String ARCHIVE_FINAL_DUEL = "13 Nov. 2026 · İlqar Həsənov — Əşrəf Səfərov · 3-1 · Duello · Tək · Duel";
 
     static final String MIDDLE = "14 Nov. 2026 · İlqar Həsənov — Əşrəf Səfərov · 3-0 · Liqa · Tək · Turnir";
+    static final String ARCHIVE_TOURNAMENT = "18 Nov. 2026 · Əşrəf Səfərov — İlqar Həsənov · 3-1 · Liqa · Tək · Turnir";
+    static final String ARCHIVE_TEAM_GAME = "12 Nov. 2026 · İlqar Həsənov — Əşrəf Səfərov · 2-3 · Komanda Liqası · Tək · Turnir";
+    private static final String EMPTY_TOURNAMENT_ARCHIVE = "<div id='center'><div class='tournament-list'></div></div>";
     static final String ERHAN = "Erhan Əliyev";
     static final String ELCHIN = "Elçin Mustafayev";
     static final String ALIKHAN = "Əlixan Əlizadə";
@@ -24,10 +27,13 @@ final class HeadToHeadFixtures {
             + " · 3-2 · Ping Pong Club Qoşa Reytinq Turniri · Qoşalar · Turnir";
     static final String DOUBLES_NEWER = "20 Nov. 2026 · Əlixan Əlizadə / Xəyal Həşimli — Elçin Mustafayev / Erhan Əliyev"
             + " · 3-1 · Liqa · Qoşalar · Turnir";
+    static final String DOUBLES_TEAM_GAME = "10 Nov. 2026 · Erhan Əliyev / Elçin Mustafayev — Əlixan Əlizadə / Xəyal Həşimli"
+            + " · 3-0 · Komanda Liqası · Qoşalar · Turnir";
     static final String HISTORICAL = "25 Mar. 2026 · Xəyal Həşimli / Firdovsi Kərimov — Vaqif Babayev / Şakir Qədirov"
             + " · 3-1 · BTTC Qoşa Reytinq Turniri #105 · Qoşalar · Turnir";
 
     static void publish(Map<String, String> website) {
+        website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.put("/search?query=s%C9%99f", directory(15, ASHRAF));
         website.put("/search?query=ilq", directory(13, ILQAR));
         String older = row(46, "10 Aug. 2021", ILQAR, ASHRAF, "3-2", "Shua Open Cup #1");
@@ -57,6 +63,28 @@ final class HeadToHeadFixtures {
         website.put("/matches/508", details(15, ASHRAF, 13, ILQAR, "15 Nov. 2026", 3, 0, "Duello"));
     }
 
+    static void publishTournamentArchive(Map<String, String> website) {
+        website.put("/matches/results", "<div id='center'><div class='tournament-list'>"
+                + "<a href='/matches/results/event/911'><div class='tournament-title'>Liqa</div></a>"
+                + "<a href='/matches/results/event/912'><div class='tournament-title'>Klub turniri</div></a></div></div>");
+        website.put("/matches/results/event/911", history(row(610, "18 Nov. 2026", ASHRAF, ILQAR, "3-1", "Liqa")
+                + row(402, "14 Nov. 2026", ILQAR, ASHRAF, "3-0", "Liqa")));
+        website.put("/matches/610", details(15, ASHRAF, 13, ILQAR, "18 Nov. 2026", 3, 1, "Liqa"));
+
+        website.put("/matches/results/event/912", history(teamFixture("17 Nov. 2026", teamGame(611, "Əli Məmmədov", "Şəms Quliyeva", "3-0")))
+                + "<ul class='pagination'><li><a href='/matches/results/event/912?page=2'>2</a></li></ul>");
+        website.put("/matches/results/event/912?page=2", history(teamFixture("13 Nov. 2026",
+                teamGame(612, ASHRAF, ILQAR, "3-2") + teamGame(613, ASHRAF, ILQAR, "3-0")
+                        + teamGame(614, "Əli Məmmədov", "Şəms Quliyeva", "2-3")
+                        + teamGame(615, pair(ERHAN, ELCHIN), pair(ALIKHAN, KHAYAL), "3-0"))));
+        website.put("/matches/611", details(17, "Əli Məmmədov", 18, "Şəms Quliyeva", "17 Nov. 2026", 3, 0, "Komanda Liqası"));
+        website.put("/matches/612", details(13, ILQAR, 15, ASHRAF, "12 Nov. 2026", 2, 3, "Komanda Liqası"));
+        website.put("/matches/613", details(115, ASHRAF, 13, ILQAR, "11 Nov. 2026", 3, 0, "Komanda Liqası"));
+        website.put("/matches/614", details(17, "Əli Məmmədov", 18, "Şəms Quliyeva", "13 Nov. 2026", 2, 3, "Komanda Liqası"));
+        website.put("/matches/615", details(player(14, ERHAN) + player(22, ELCHIN),
+                player(7, ALIKHAN) + player(70, KHAYAL), "10 Nov. 2026", 3, 0, "Komanda Liqası"));
+    }
+
     static String laterPage() {
         return history(overlappingDuelRow());
     }
@@ -64,6 +92,7 @@ final class HeadToHeadFixtures {
     private static String overlappingDuelRow() { return row(502, "16 Nov. 2026", ASHRAF, ILQAR, "1-3", "Duello"); }
 
     static void publishDoubles(Map<String, String> website) {
+        website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "erh", 14, ERHAN);
         publishPlayer(website, "el%C3%A7", 22, ELCHIN);
@@ -86,6 +115,7 @@ final class HeadToHeadFixtures {
     }
 
     static void publishHistoricalDoubles(Map<String, String> website) {
+        website.putIfAbsent("/matches/results", EMPTY_TOURNAMENT_ARCHIVE);
         website.putIfAbsent("/matches/duellos", history(""));
         publishPlayer(website, "x%C9%99y", 70, KHAYAL);
         publishPlayer(website, "fir", 32, FIRDOVSI);
@@ -133,6 +163,19 @@ final class HeadToHeadFixtures {
         return "<div><div class='divs-header'>" + day + "</div><div><a href='/matches/" + id + "'><div class='match-box'>"
                 + "<div class='col-3'><div>" + left + "</div></div><div class='col-2'><div class='center'>" + score
                 + "</div></div><div class='col-3'><div>" + right + "</div></div><div class='col-4'>" + event + "</div></div></a></div></div>";
+    }
+
+    private static String teamFixture(String day, String games) {
+        return "<div><div class='divs-header'>" + day + "</div><div class='team-match-box'>"
+                + "<div class='team-match-main'><div class='col-3'>Klub A</div><div class='col-3'>Klub B</div>"
+                + "<div class='col-4'>Klub turniri</div></div>"
+                + "<div class='child-matches-group' style='display:none'>" + games + "</div></div></div>";
+    }
+
+    private static String teamGame(int id, String left, String right, String score) {
+        return "<div class='team-matches-matches-box'><a href='/matches/" + id + "'><div class='team-matches-match'>"
+                + "<div class='col-5'><div>" + left + "</div></div><div class='col-2'><div class='center'>" + score
+                + "</div></div><div class='col-5'><div>" + right + "</div></div></div></a></div>";
     }
 
     private static String details(long leftId, String left, long rightId, String right, String day, int leftScore, int rightScore, String event) {

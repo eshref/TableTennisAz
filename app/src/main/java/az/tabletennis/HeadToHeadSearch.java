@@ -75,29 +75,40 @@ final class HeadToHeadSearch {
         firstPages.add(WebsiteSource.FIRST_DUELS_PAGE);
 
         Set<Long> checked = new HashSet<>();
-        for (ResultsFeed.Page next : firstPages) {
-            while (next != null) {
-                checkInterrupted();
-                WebsiteSource.ResultPage page = source.resultPage(next);
-                for (MatchSummary row : page.matches) {
-                    if (!matchesSides(row.left, row.right, firstSide, secondSide,
-                            (name, player) -> name.equalsIgnoreCase(player.name())) || !checked.add(row.id)) continue;
-                    checkInterrupted();
-                    MatchDetails details = source.match(row.id);
-                    if (!matchesSides(details.left, details.right, firstSide, secondSide,
-                            (participant, player) -> participant.id == player.id())) continue;
+        for (ResultsFeed.Page page : firstPages) {
+            findOnPages(page, firstSide, secondSide, checked, found);
+        }
 
-                    try {
-                        MatchSummary.sourceDay(details.date);
-                    } catch (DateTimeParseException failure) {
-                        throw new IOException("Unusable source match date", failure);
-                    }
-                    String event = details.eventName.isEmpty() ? row.eventName : details.eventName;
-                    found.accept(new MatchSummary(row.id, names(details.left), names(details.right), details.date, details.score,
-                            row.eventId, event, row.duel, row.teamChild, row.stage), details);
+        checkInterrupted();
+        for (EventCatalog.Event event : source.events().events) {
+            findOnPages(WebsiteSource.eventResultsPage(event), firstSide, secondSide, checked, found);
+        }
+    }
+
+    private void findOnPages(ResultsFeed.Page next, List<Player> firstSide, List<Player> secondSide, Set<Long> checked,
+                             BiConsumer<MatchSummary, MatchDetails> found) throws IOException {
+        while (next != null) {
+            checkInterrupted();
+            WebsiteSource.ResultPage page = source.resultPage(next);
+            for (MatchSummary row : page.matches) {
+                // Team result rows describe individual games too. Only the match details establish player identity.
+                if (!matchesSides(row.left, row.right, firstSide, secondSide,
+                        (name, player) -> name.equalsIgnoreCase(player.name())) || !checked.add(row.id)) continue;
+                checkInterrupted();
+                MatchDetails details = source.match(row.id);
+                if (!matchesSides(details.left, details.right, firstSide, secondSide,
+                        (participant, player) -> participant.id == player.id())) continue;
+
+                try {
+                    MatchSummary.sourceDay(details.date);
+                } catch (DateTimeParseException failure) {
+                    throw new IOException("Unusable source match date", failure);
                 }
-                next = page.next;
+                String event = details.eventName.isEmpty() ? row.eventName : details.eventName;
+                found.accept(new MatchSummary(row.id, names(details.left), names(details.right), details.date, details.score,
+                        row.eventId, event, row.duel, row.teamChild, row.stage), details);
             }
+            next = page.next;
         }
     }
 

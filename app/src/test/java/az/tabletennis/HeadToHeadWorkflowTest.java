@@ -4,8 +4,11 @@ import static az.tabletennis.HeadToHeadFixtures.ASHRAF;
 import static az.tabletennis.HeadToHeadFixtures.ALIKHAN;
 import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_FINAL_DUEL;
 import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_PAGE_TWO_DUEL;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TEAM_GAME;
+import static az.tabletennis.HeadToHeadFixtures.ARCHIVE_TOURNAMENT;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES;
 import static az.tabletennis.HeadToHeadFixtures.DOUBLES_NEWER;
+import static az.tabletennis.HeadToHeadFixtures.DOUBLES_TEAM_GAME;
 import static az.tabletennis.HeadToHeadFixtures.ELCHIN;
 import static az.tabletennis.HeadToHeadFixtures.ERHAN;
 import static az.tabletennis.HeadToHeadFixtures.FIRDOVSI;
@@ -39,6 +42,35 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 36, qualifiers = "w411dp-h500dp", application = RankingsUiScenario.FixtureApplication.class)
 public class HeadToHeadWorkflowTest extends ProductUiScenario {
+    @Test public void singlesSearchIncludesTournamentResultsAndOnlyTheSelectedPlayersTeamGame() throws Exception {
+        // arrange
+        publish(website);
+        HeadToHeadFixtures.publishTournamentArchive(website);
+        openScreen();
+
+        // act
+        clickText("☰");
+        clickText("Üz-üzə");
+        followNavigation();
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlandı");
+        assertThat(matchCards()).containsExactly(ARCHIVE_TOURNAMENT, NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE,
+                ARCHIVE_FINAL_DUEL, ARCHIVE_TEAM_GAME, OLDER);
+
+        // act
+        clickText(ARCHIVE_TEAM_GAME);
+        followNavigation();
+
+        // assert
+        awaitText("Matç haqqında");
+        awaitText("12 Nov. 2026");
+        assertThat(visibleText()).contains(ASHRAF, ILQAR, "2", "3", "Komanda Liqası");
+    }
+
     @Test public void singlesSearchMergesVerifiedHistoryAndDuelsAndKeepsItsPlaceAfterDetails() throws Exception {
         // arrange
         publish(website);
@@ -166,9 +198,31 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         assertThat(searchButton().isEnabled()).isTrue();
     }
 
+    @Test public void keepsVerifiedMatchesWhenALaterTournamentPageFails() throws Exception {
+        // arrange
+        publish(website);
+        HeadToHeadFixtures.publishTournamentArchive(website);
+        responses.put("/matches/results/event/912?page=2", () -> new MockResponse().setResponseCode(503));
+        openScreen();
+
+        // act
+        clickText("☰");
+        clickText("Üz-üzə");
+        followNavigation();
+        pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        clickText("Axtar");
+
+        // assert
+        awaitText("Axtarış tamamlanmadı");
+        assertThat(matchCards()).containsExactly(ARCHIVE_TOURNAMENT, NEWER, ARCHIVE_PAGE_TWO_DUEL, MIDDLE,
+                ARCHIVE_FINAL_DUEL, OLDER);
+    }
+
     @Test public void doublesSearchFindsTheSameMeetingsAcrossTeammateAndSideOrders() throws Exception {
         // arrange
         HeadToHeadFixtures.publishDoubles(website);
+        HeadToHeadFixtures.publishTournamentArchive(website);
         CountDownLatch laterPage = new CountDownLatch(1);
         responses.put("/matches/results/player/7?page=2", () -> {
             try {
@@ -211,7 +265,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
 
         // act
         pickPlayer(R.id.head_to_head_left_first, "Elç", ELCHIN);
@@ -220,7 +274,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
 
         // act
         pickPlayer(R.id.head_to_head_left_first, "Əli", ALIKHAN);
@@ -231,7 +285,7 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
 
         // assert
         awaitText("Axtarış tamamlandı");
-        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES);
+        assertThat(matchCards()).containsExactly(DOUBLES_NEWER, DOUBLES_TEAM_GAME, DOUBLES);
     }
 
     @Test public void historicalDoublesRequireTheSelectedProfilesOnTheirExactSides() throws Exception {
