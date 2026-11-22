@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tournament_catalogue_url" translatable="false">https://eshref.github.io/TableTennisAz/tournaments-v1.json</string>
+</resources>

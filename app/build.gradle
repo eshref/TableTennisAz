@@ -57,6 +57,10 @@ android {
     sourceSets {
         test.java.srcDir 'src/sharedTest/java'
         androidTest.java.srcDir 'src/sharedTest/java'
+        if (providers.gradleProperty('firebaseLiveCheck').isPresent()) {
+            debug.manifest.srcFile 'src/firebaseLive/AndroidManifest.xml'
+            debug.res.srcDir 'src/firebaseLive/res'
+        }
     }
 }
 

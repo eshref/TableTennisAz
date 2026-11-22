@@ -8,6 +8,10 @@ on:
         description: Run the opt-in live website check on Android 8
         type: boolean
         default: false
+      live_firebase_alert:
+        description: Verify a Firebase test alert and notification tap on Android 16
+        type: boolean
+        default: false
       singles_index_live:
         description: Time a fresh install search against the published singles index
         type: boolean
@@ -40,7 +44,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    if: github.event_name != 'workflow_dispatch' || inputs.fixture_journey == 'none'
+    if: github.event_name != 'workflow_dispatch' || (inputs.fixture_journey == 'none' && !inputs.live_firebase_alert)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -304,3 +308,94 @@ jobs:
         with:
           name: live-${{ matrix.format }}-index
           path: live-${{ matrix.format }}-evidence/
+
+  live-firebase-alert:
+    if: github.event_name == 'workflow_dispatch' && inputs.live_firebase_alert
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: live-firebase-tournament-alert
+    env:
+      FIREBASE_LIVE_EVIDENCE: ${{ github.workspace }}/firebase-live-alert
+      SYSTEM_IMAGE: system-images;android-36;google_apis;x86_64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/tournament-catalogue/requirements.txt
+      - uses: google-github-actions/auth@v3
+        id: firebase
+        with:
+          credentials_json: ${{ secrets.FIREBASE_TEST_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/firebase.messaging
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Build the Android app for the Firebase test project
+        env:
+          FIREBASE_ANDROID_CONFIG: ${{ secrets.FIREBASE_TEST_ANDROID_CONFIG }}
+          FIREBASE_PROJECT: ${{ steps.firebase.outputs.project_id }}
+        run: |
+          config=app/src/debug/google-services.json
+          umask 077
+          trap 'rm -f "$config"' EXIT
+          printf '%s' "$FIREBASE_ANDROID_CONFIG" > "$config"
+          if ! jq -e --arg project "$FIREBASE_PROJECT" '
+            .project_info.project_id == $project and
+            any(.client[]; .client_info.android_client_info.package_name == "az.tabletennis")
+          ' "$config" >/dev/null 2>&1; then
+            echo '::error::The Android configuration must register az.tabletennis in the Firebase test sender project.'
+            exit 1
+          fi
+          unset FIREBASE_ANDROID_CONFIG
+          ./gradlew :app:assembleDebug -PfirebaseLiveCheck
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Receive and open the notification
+        id: device
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FIREBASE_PROJECT: ${{ steps.firebase.outputs.project_id }}
+          FCM_ACCESS_TOKEN: ${{ steps.firebase.outputs.access_token }}
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          script: python scripts/tournament-catalogue/verify_live_alert.py
+      - name: Record live verification evidence
+        if: always()
+        env:
+          OUTCOME: ${{ steps.device.outcome }}
+        run: |
+          mkdir -p "$FIREBASE_LIVE_EVIDENCE"
+          {
+            printf '## Live Firebase tournament alert\n\n'
+            printf 'Emulator image `%s` (Pixel 7)\n\n' "$SYSTEM_IMAGE"
+            printf 'Device check **%s**\n\n' "$OUTCOME"
+            printf '[Run and evidence](%s/%s/actions/runs/%s) in `live-firebase-alert`\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            if [[ "$OUTCOME" == success ]]; then
+              printf '\nThe notification shade and opened match results are shown in `notification.png` and `match-results.png`.\n'
+            fi
+          } | tee "$FIREBASE_LIVE_EVIDENCE/verification.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-firebase-alert
+          path: ${{ env.FIREBASE_LIVE_EVIDENCE }}
+          retention-days: 7
+          if-no-files-found: error
