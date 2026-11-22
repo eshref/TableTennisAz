@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-11-22
+
+- Open Üz-üzə from the app menu to find past matches between two singles
+  players or two doubles pairs. Search for players by name and see matches
+  from player histories, duels, and tournament results.
+- Results appear as they are found. Open a match to see its details, then
+  return to the same results. When the search finishes, see how many matches
+  each side won. If a search is interrupted, retry with the same players and
+  keep the matches already found.
+
 ## 0.6.1 - 2026-11-21
 
 - Singles and doubles tournament cards show dates in Azerbaijani and use icons
