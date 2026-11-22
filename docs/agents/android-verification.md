@@ -121,8 +121,9 @@ on a newer commit and skips publication.
 [Release workflow](https://github.com/eshref/TableTennisAz/actions/workflows/android-release.yml)
 
 Open **Summarize signed fixture matrix** for the candidate identity and all
-28 configuration outcomes. A complete run reports nonzero passing
-instrumentation and all required PNGs for every configuration. Download
+28 display configurations and the additional head-to-head offline restart.
+A complete run reports nonzero passing instrumentation and all required PNGs
+for each. Download
 `android-signed-fixture-matrix` for `verification.md`, validated screenshots
 by journey and configuration, and the recorded APK checksums.
 

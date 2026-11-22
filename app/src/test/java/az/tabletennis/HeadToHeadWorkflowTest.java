@@ -353,11 +353,13 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         awaitText(updatedDate);
         closeProductScreens();
         responses.put(SINGLES_SHARD, () -> new MockResponse().setResponseCode(503));
+        responses.put("/search?query=s%C9%99f", () -> new MockResponse().setResponseCode(503));
+        website.put("/search?query=ilq", directory(directoryPlayer(113, ILQAR, null)));
         openDirect(HeadToHeadActivity.class, "", 0);
 
         // act
         pickPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
-        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR);
+        pickPlayer(R.id.head_to_head_second, "İlq", ILQAR + " · Profil 13");
         clickText("Axtar");
 
         // assert

@@ -204,7 +204,11 @@ class AndroidVerify {
                 result.setProperty("light.historyCheckpoint", "not-run");
             }
         }
-        if (!preflightOnly && tests.equals(HEAD_TO_HEAD_TEST)) initializeConfiguration(HEAD_TO_HEAD_OFFLINE);
+        if (!preflightOnly && tests.equals(HEAD_TO_HEAD_TEST)) {
+            initializeConfiguration(HEAD_TO_HEAD_OFFLINE);
+            result.setProperty(HEAD_TO_HEAD_OFFLINE + ".expectedScreenshots",
+                    String.join(",", requiredScreenshots(HEAD_TO_HEAD_OFFLINE, HEAD_TO_HEAD_OFFLINE_TEST)));
+        }
         result.setProperty("started", Instant.now().toString());
         result.setProperty("sdkCache", sdk.toString());
     }
@@ -703,7 +707,7 @@ class AndroidVerify {
     private List<String> requiredScreenshots(String prefix, String classes) {
         List<String> captures;
         if (classes.equals(HEAD_TO_HEAD_OFFLINE_TEST))
-            captures = List.of("head-to-head-offline-namesakes", "head-to-head-offline-singles", "head-to-head-offline-doubles");
+            captures = List.of(fixtureCaptures.getProperty(HEAD_TO_HEAD_TEST + ".offline").split(","));
         else if (classes.equals(UPGRADE_TEST) || (MATRIX_CONFIGURATIONS.contains(prefix) && (focused || releaseCandidate != null)))
             captures = List.of(fixtureCaptures.getProperty(classes).split(","));
         else

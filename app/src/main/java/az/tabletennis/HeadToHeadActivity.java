@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -240,11 +241,16 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     private List<Suggestion> findSuggestions(String query) throws IOException {
-        if (!application.isOnline()) return archive.suggestions(query);
+        List<Suggestion> saved = archive.suggestions(query);
+        if (!application.isOnline()) return saved;
         try {
-            return source.findPlayers(query);
+            List<Suggestion> published = source.findPlayers(query);
+            if (saved.isEmpty()) return published;
+            var byProfile = new LinkedHashMap<Long, Suggestion>();
+            for (Suggestion suggestion : published) byProfile.put(suggestion.player().id(), suggestion);
+            for (Suggestion suggestion : saved) byProfile.putIfAbsent(suggestion.player().id(), suggestion);
+            return new ArrayList<>(byProfile.values());
         } catch (IOException failure) {
-            List<Suggestion> saved = archive.suggestions(query);
             if (saved.isEmpty()) throw failure;
             return saved;
         }

@@ -31,6 +31,7 @@ import static az.tabletennis.HeadToHeadFixtures.directoryPlayer;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assume.assumeTrue;
 
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
@@ -77,8 +78,9 @@ public class HeadToHeadDeviceTest {
     @Test public void menuSearchAndDetailsReturnWorkWithTheInstalledApp() throws Exception {
         // arrange
         var application = ApplicationProvider.<FixtureTestRunner.FixtureApplication>getApplicationContext();
-        boolean reuseSaved = Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("reuseSaved"));
-        AtomicBoolean doublesUnavailable = new AtomicBoolean(!reuseSaved);
+        var arguments = InstrumentationRegistry.getArguments();
+        boolean exerciseRetry = "light".equals(arguments.getString("capturePrefix"));
+        AtomicBoolean doublesUnavailable = new AtomicBoolean(exerciseRetry);
         Map<String, ByteString> portraits = Map.of(ILQAR_PHOTO, portraitFixture(ILQAR_PHOTO),
                 ALIKHAN_PHOTO, portraitFixture(ALIKHAN_PHOTO));
         try (MockWebServer server = new MockWebServer()) {
@@ -176,7 +178,7 @@ public class HeadToHeadDeviceTest {
                 onView(withId(R.id.head_to_head_doubles)).perform(scrollTo());
                 capture("head-to-head-doubles-form");
                 onView(withText("Axtar")).perform(scrollTo(), click());
-                if (!reuseSaved) {
+                if (exerciseRetry) {
                     // assert
                     awaitView(withText("Axtarış tamamlanmadı"));
                     onView(withText("Yenidən cəhd et")).perform(scrollTo()).check(matches(isDisplayed()));
@@ -229,6 +231,8 @@ public class HeadToHeadDeviceTest {
     // The verifier disables networking and force-stops the app between these two instrumentation runs.
     @Test public void reopensSavedComparisonsAfterAnOfflineRestart() throws Exception {
         // arrange
+        assumeTrue("Requires the verifier's offline restart phase",
+                "light-offline".equals(InstrumentationRegistry.getArguments().getString("capturePrefix")));
         try (ActivityScenario<HeadToHeadActivity> screen = ActivityScenario.launch(HeadToHeadActivity.class)) {
             // act
             selectPlayer(R.id.head_to_head_first, "İlq", ILQAR);
@@ -265,6 +269,15 @@ public class HeadToHeadDeviceTest {
             onView(withText(REFRESH_DATE)).perform(scrollTo()).check(matches(isDisplayed()));
             onView(withContentDescription(DOUBLES_TEAM_GAME)).check(matches(withId(R.id.match_card)));
             capture("head-to-head-offline-doubles");
+
+            // act
+            selectPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
+            selectPlayer(R.id.head_to_head_right_first, "Əli", ALIKHAN);
+            onView(withText("Axtar")).perform(scrollTo(), click());
+
+            // assert
+            awaitView(withText("Axtarış tamamlanmadı"));
+            onView(withText("Yenidən cəhd et")).perform(scrollTo()).check(matches(isDisplayed()));
         }
     }
 
