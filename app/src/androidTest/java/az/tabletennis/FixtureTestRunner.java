@@ -13,6 +13,11 @@ public final class FixtureTestRunner extends AndroidJUnitRunner {
 
     public static final class FixtureApplication extends RankingsApplication {
         volatile WebsiteClient fixtureClient;
+        volatile TournamentAlerts.Topic fixtureAlertTopic;
+
+        @Override protected TournamentAlerts.Topic tournamentAlertTopic() {
+            return fixtureAlertTopic == null ? super.tournamentAlertTopic() : fixtureAlertTopic;
+        }
 
         @Override WebsiteClient websiteClient() {
             WebsiteClient fixture = fixtureClient;

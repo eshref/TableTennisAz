@@ -1,0 +1,9 @@
+<resources>
+    <string name="tournament_alerts">Turnir bildirişləri</string>
+    <string name="tournament_alert_formats">Şəxsi və qoşa turnirlər</string>
+    <string name="tournament_alert_open_results">Matç nəticələrinə bax</string>
+    <string name="tournament_alert_unavailable">Bu quraşdırmada turnir bildirişləri əlçatan deyil.</string>
+    <string name="tournament_alert_permission_required">Android ayarlarında TableTennisAz bildirişlərinə icazə verin.</string>
+    <string name="tournament_alert_subscribing">Bildirişlər aktivləşdirilir…</string>
+    <string name="tournament_alert_subscribe_failed">Bildirişləri aktivləşdirmək mümkün olmadı. Yenidən cəhd edin.</string>
+</resources>

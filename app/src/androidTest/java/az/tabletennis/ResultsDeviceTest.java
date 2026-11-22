@@ -23,8 +23,13 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 
 import android.content.Context;
+import android.app.NotificationManager;
+import android.app.UiAutomation;
+import android.content.pm.PackageManager;
+import android.os.ParcelFileDescriptor;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
@@ -32,6 +37,7 @@ import android.graphics.drawable.VectorDrawable;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.TextView;
 import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.espresso.UiController;
@@ -39,10 +45,22 @@ import androidx.test.espresso.ViewAction;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import com.google.android.gms.tasks.Tasks;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import okhttp3.OkHttpClient;
+import okhttp3.mockwebserver.Dispatcher;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.tls.HandshakeCertificates;
+import okhttp3.tls.HeldCertificate;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,6 +80,159 @@ public class ResultsDeviceTest {
     private static final String OLDER_DOUBLES_EVENT = "Gəncə Qoşa Kuboku";
     private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
+
+    @Test public void optInAndTapSinglesAndDoublesAlertsWithoutACatalogue() throws Exception {
+        // arrange
+        var instrumentation = InstrumentationRegistry.getInstrumentation();
+        var application = (FixtureTestRunner.FixtureApplication) instrumentation.getTargetContext().getApplicationContext();
+        UiAutomation system = instrumentation.getUiAutomation();
+        NotificationManager notifications = application.getSystemService(NotificationManager.class);
+        List<Boolean> subscriptions = new CopyOnWriteArrayList<>();
+        application.fixtureAlertTopic = subscribe -> {
+            subscriptions.add(subscribe);
+            return Tasks.forResult(null);
+        };
+        if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
+        subscriptions.clear();
+        boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED;
+        String singles = "Bakı Şəxsi Sınaq Kuboku";
+        String doubles = "Bakı Qoşa Sınaq Kuboku";
+        long singlesId = application.clock().millis();
+        long doublesId = singlesId + 1;
+        String singlesPath = "/matches/results/event/" + singlesId;
+        String doublesPath = "/matches/results/event/" + doublesId;
+        Map<String, String> pages = Map.of(
+                singlesPath, alertResults(1801, "Sınaq A", "Sınaq B", "3-0", singles),
+                doublesPath, alertResults(1802, "Sınaq C</div><div>Sınaq D", "Sınaq E</div><div>Sınaq F", "3-2", doubles));
+        List<String> resultRequests = new CopyOnWriteArrayList<>();
+
+        try (MockWebServer website = new MockWebServer()) {
+            givenAlertResults(website, application, pages, resultRequests);
+            try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+                // act
+                onView(withId(R.id.open_menu)).perform(click());
+                onView(withId(R.id.tournament_alerts)).perform(scrollTo(), click());
+
+                // assert
+                onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
+                assertEquals(List.of(), subscriptions);
+
+                // act
+                onView(withId(R.id.tournament_alerts_switch)).perform(click());
+                if (prompts) tapSystemText(system, "Allow");
+
+                // assert
+                awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
+                assertEquals(List.of(true), subscriptions);
+                capture("tournament-alerts-setting");
+
+                // act
+                pressBack();
+            }
+
+            // act
+            deliverAlert(application, system, singlesId, singles);
+
+            // assert
+            awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq A — Sınaq B · 3-0 · " + singles + " · Tək · Turnir"));
+            assertEquals(List.of(singlesPath), resultRequests);
+            capture("singles-alert-results");
+
+            // act
+            androidx.test.espresso.Espresso.pressBackUnconditionally();
+            deliverAlert(application, system, doublesId, doubles);
+
+            // assert
+            awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq C / Sınaq D — Sınaq E / Sınaq F · 3-2 · "
+                    + doubles + " · Qoşalar · Turnir"));
+            assertEquals(List.of(singlesPath, doublesPath), resultRequests);
+            capture("doubles-alert-results");
+
+            // act
+            androidx.test.espresso.Espresso.pressBackUnconditionally();
+        } finally {
+            notifications.cancelAll();
+            application.tournamentAlerts().disable();
+            application.fixtureAlertTopic = null;
+            application.fixtureClient = null;
+        }
+    }
+
+    private String alertResults(int match, String left, String right, String score, String tournament) {
+        return """
+                <div id='center'><div class='matches-box'><div><div class='divs-header'>16 Nov. 2026</div>
+                <div><a href='/matches/%d'><div class='match-box'>
+                <div class='col-3'><div>%s</div></div><div class='col-2'><div class='center'>%s</div></div>
+                <div class='col-3'><div>%s</div></div><div class='col-4'>%s</div>
+                </div></a></div></div></div></div>
+                """.formatted(match, left, score, right, tournament);
+    }
+
+    private void givenAlertResults(MockWebServer server, FixtureTestRunner.FixtureApplication application,
+                                   Map<String, String> pages, List<String> requests) throws Exception {
+        server.setDispatcher(new Dispatcher() {
+            @Override public MockResponse dispatch(RecordedRequest request) {
+                String page = pages.get(request.getPath());
+                if (page == null) return new MockResponse().setResponseCode(404);
+                requests.add(request.getPath());
+                return new MockResponse().setBody(page);
+            }
+        });
+        HeldCertificate certificate = new HeldCertificate.Builder().addSubjectAlternativeName("127.0.0.1").build();
+        HandshakeCertificates serverTls = new HandshakeCertificates.Builder().heldCertificate(certificate).build();
+        HandshakeCertificates clientTls = new HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate()).build();
+        server.useHttps(serverTls.sslSocketFactory(), false);
+        server.start(InetAddress.getByName("127.0.0.1"), 0);
+        var url = server.url("/").newBuilder().host("127.0.0.1").build();
+        application.fixtureClient = new WebsiteClient(url, new OkHttpClient.Builder()
+                .sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager()));
+    }
+
+    private void deliverAlert(FixtureTestRunner.FixtureApplication application, UiAutomation system,
+                              long id, String name) throws Exception {
+        application.tournamentAlerts().receive(Map.of("eventId", Long.toString(id), "name", name,
+                "publishedAt", Long.toString(application.clock().millis())));
+        try (var output = new ParcelFileDescriptor.AutoCloseInputStream(
+                system.executeShellCommand("cmd statusbar expand-notifications"))) {
+            output.readAllBytes();
+        }
+        tapSystemText(system, name);
+    }
+
+    private void tapSystemText(UiAutomation system, String text) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        while (SystemClock.uptimeMillis() < deadline) {
+            AccessibilityNodeInfo root = system.getRootInActiveWindow();
+            if (root != null) {
+                for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText(text)) {
+                    if (!node.isVisibleToUser() || !text.contentEquals(node.getText())) continue;
+                    Rect bounds = new Rect();
+                    node.getBoundsInScreen(bounds);
+                    try (var output = new ParcelFileDescriptor.AutoCloseInputStream(
+                            system.executeShellCommand("input tap " + bounds.centerX() + " " + bounds.centerY()))) {
+                        output.readAllBytes();
+                    }
+                    return;
+                }
+            }
+            SystemClock.sleep(100);
+        }
+        throw new AssertionError("Android did not show " + text);
+    }
+
+    private void awaitAlertView(Matcher<View> matcher) {
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        while (true) {
+            try {
+                onView(matcher).check(matches(isDisplayed()));
+                return;
+            } catch (NoMatchingViewException | androidx.test.espresso.NoActivityResumedException missing) {
+                if (SystemClock.uptimeMillis() >= deadline) throw missing;
+                SystemClock.sleep(100);
+            }
+        }
+    }
 
     @Test public void menuAndCategoryDotsClearIndependentlyWhenTheirListsOpen() throws Exception {
         // arrange

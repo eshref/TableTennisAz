@@ -14,8 +14,12 @@ public class TournamentResultsActivity extends MatchFeedActivity {
     private EventCatalog catalog;
 
     static Intent open(Context context, TournamentCatalogue.Tournament tournament) {
+        return open(context, tournament.id, tournament.name);
+    }
+
+    static Intent open(Context context, long id, String name) {
         return new Intent(context, TournamentResultsActivity.class)
-                .putExtra(EVENT_ID, tournament.id).putExtra(EVENT_NAME, tournament.name);
+                .putExtra(EVENT_ID, id).putExtra(EVENT_NAME, name);
     }
 
     @Override public void onCreate(Bundle state) {
@@ -36,7 +40,7 @@ public class TournamentResultsActivity extends MatchFeedActivity {
     @Override protected String detailHeading() { return name == null ? super.detailHeading() : name; }
 
     @Override protected CompletableFuture<SavedData<ResultsFeed>> request(ResultsFeed previous, boolean more) {
-        return fetch(() -> new WebsiteSource(application.websiteUrl()).feed(previous, more, catalog, selection), more);
+        return fetch(() -> new WebsiteSource(application.websiteClient()).feed(previous, more, catalog, selection), more);
     }
 
     @Override protected void render(ResultsFeed feed) {
