@@ -28,6 +28,7 @@ final class TournamentAlerts {
     private final NotificationManager notifications;
     private final SharedPreferences preferences;
     private Task<Boolean> enabling;
+    private long optOutGeneration;
 
     TournamentAlerts(RankingsApplication application, Topic topic) {
         this.application = application;
@@ -54,8 +55,10 @@ final class TournamentAlerts {
         if (enabling != null) return enabling;
         if (!isAvailable() || !isAllowed()) return Tasks.forResult(false);
         if (isEnabled()) return Tasks.forResult(true);
+        long generation = optOutGeneration;
         enabling = topic.update(true).continueWith(result -> {
             synchronized (this) {
+                if (generation != optOutGeneration) return false;
                 enabling = null;
                 return result.isSuccessful() && isAllowed()
                         && preferences.edit().putLong(ENABLED_AT, application.clock().millis()).commit();
@@ -65,6 +68,8 @@ final class TournamentAlerts {
     }
 
     synchronized void disable() {
+        optOutGeneration++;
+        enabling = null;
         preferences.edit().remove(ENABLED_AT).apply();
         if (isAvailable()) topic.update(false);
     }

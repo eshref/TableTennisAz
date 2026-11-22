@@ -6,6 +6,7 @@ import static org.robolectric.Shadows.shadowOf;
 import android.app.Instrumentation;
 import android.app.NotificationManager;
 import android.os.Looper;
+import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.messaging.RemoteMessage;
 import java.time.Clock;
@@ -27,11 +28,33 @@ public class TournamentMessagingTest {
 
     public static class FixtureApplication extends RankingsApplication {
         static Instant now;
+        TournamentAlerts.Topic topic = subscribe -> Tasks.forResult(null);
         @Override protected Clock clock() { return Clock.fixed(now, ZoneOffset.UTC); }
-        @Override protected TournamentAlerts.Topic tournamentAlertTopic() { return subscribe -> Tasks.forResult(null); }
+        @Override protected TournamentAlerts.Topic tournamentAlertTopic() { return topic; }
     }
 
-    @Test public void aQueuedMessageAlertsBeforeExpiryAndCannotAlertAgainAfterRestart() throws Exception {
+    @Test public void aLateSubscriptionConfirmationCannotRestoreAlertsAfterOptOut() {
+        // arrange
+        var application = (FixtureApplication) RuntimeEnvironment.getApplication();
+        var subscription = new TaskCompletionSource<Void>();
+        application.topic = subscribe -> subscribe ? subscription.getTask() : Tasks.forResult(null);
+        FixtureApplication.now = PUBLISHED.minusSeconds(1);
+        var service = Robolectric.buildService(TournamentMessagingService.class).create();
+        application.tournamentAlerts().enable();
+
+        // act
+        application.tournamentAlerts().disable();
+        subscription.setResult(null);
+        shadowOf(Looper.getMainLooper()).idle();
+        FixtureApplication.now = PUBLISHED.plusSeconds(1);
+        service.get().onMessageReceived(message("944", "BTTC Şəxsi Reytinq Turniri"));
+
+        // assert
+        assertThat(application.getSystemService(NotificationManager.class).getActiveNotifications()).isEmpty();
+        service.destroy();
+    }
+
+    @Test public void aQueuedMessageAlertsOnceWithPermissionBeforeExpiryEvenAcrossRestart() throws Exception {
         // arrange
         var original = (FixtureApplication) RuntimeEnvironment.getApplication();
         var manager = original.getSystemService(NotificationManager.class);
@@ -42,8 +65,16 @@ public class TournamentMessagingTest {
         FixtureApplication.now = PUBLISHED.plus(Duration.ofHours(24)).minusMillis(1);
         RemoteMessage queued = message("944", "BTTC Şəxsi Reytinq Turniri");
         var service = Robolectric.buildService(TournamentMessagingService.class).create();
+        shadowOf(manager).setNotificationsEnabled(false);
 
         // act
+        service.get().onMessageReceived(queued);
+
+        // assert
+        assertThat(manager.getActiveNotifications()).isEmpty();
+
+        // act
+        shadowOf(manager).setNotificationsEnabled(true);
         service.get().onMessageReceived(queued);
         service.get().onMessageReceived(queued);
 
