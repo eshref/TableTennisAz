@@ -153,6 +153,8 @@ public class HeadToHeadDeviceTest {
     private void capture(String id) throws Exception {
         var instrumentation = InstrumentationRegistry.getInstrumentation();
         String prefix = InstrumentationRegistry.getArguments().getString("capturePrefix", "local");
-        ScreenshotCheckpoint.captureWindow(new File(instrumentation.getTargetContext().getFilesDir(), prefix + "-" + id + ".png"));
+        File directory = new File(instrumentation.getTargetContext().getExternalFilesDir(null), "head-to-head");
+        if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException("Cannot save screenshots");
+        ScreenshotCheckpoint.captureWindow(new File(directory, prefix + "-" + id + ".png"));
     }
 }
