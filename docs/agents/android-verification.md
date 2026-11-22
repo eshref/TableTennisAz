@@ -112,11 +112,13 @@ Open **Turnir bildirişləri** from the app menu, turn the switch on, and grant
 notification permission if prompted. Wait for the switch to show that the
 subscription is active, then leave the app with Home or Back.
 
-Dispatch **Tournament catalogue** on `main` with a verified singles or doubles
-Results index ID in `firebase_test_event_id`. The workflow deploys Pages,
-confirms the exact catalogue is live, and sends the selected event to
-`tournament-results-test`. The message uses the time the workflow confirms
-that deployment. Tap the Android notification and verify that the tournament
+Dispatch **Tournament catalogue** on `main` with a completed singles or doubles
+Results index ID in `firebase_test_event_id`. Pick an event whose match results
+are on tabletennis.az and whose entry has yet to appear in the live catalogue.
+The workflow deploys Pages, confirms the exact catalogue is live, and sends
+the newly verified event to `tournament-results-test`. The message uses the
+time the workflow confirms that deployment. Tap the Android notification and
+verify that the tournament
 heading and match results appear. Record the workflow URL, the notification
 and results screenshots, and the device or emulator image.
 [Tournament catalogue Actions](https://github.com/eshref/TableTennisAz/actions/workflows/tournament-catalogue.yml)

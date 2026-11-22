@@ -82,7 +82,7 @@ final class TournamentAlerts {
         long now = application.clock().millis();
         if (id <= 0 || name == null || name.trim().isEmpty()
                 || publishedAt <= preferences.getLong(ENABLED_AT, 0)
-                || publishedAt < now - MAX_AGE || publishedAt > now) return;
+                || publishedAt <= now - MAX_AGE) return;
 
         notifications.createNotificationChannel(new NotificationChannel(CHANNEL,
                 application.getString(R.string.tournament_alerts), NotificationManager.IMPORTANCE_DEFAULT));

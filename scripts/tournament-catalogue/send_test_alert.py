@@ -3,6 +3,7 @@ import argparse
 from hashlib import sha256
 import json
 import os
+from pathlib import Path
 import re
 import sys
 from time import monotonic, sleep, time_ns
@@ -33,6 +34,9 @@ def read_deployment(url, expected_digest, wait):
 
 
 def send_test_alert(arguments, token):
+    previous = json.loads(arguments.previous.read_bytes())
+    if any(entry["id"] == arguments.event_id for entry in previous["tournaments"]):
+        raise ValueError(f"Event {arguments.event_id} was already in the live catalogue before this deployment")
     catalogue = read_deployment(arguments.catalogue, arguments.sha256, arguments.wait)
     tournament = next((entry for entry in catalogue["tournaments"]
                        if entry["id"] == arguments.event_id), None)
@@ -59,6 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("event_id", type=int)
     parser.add_argument("--catalogue", required=True)
+    parser.add_argument("--previous", type=Path, required=True)
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--project", required=True)
     parser.add_argument("--fcm-origin", default="https://fcm.googleapis.com")

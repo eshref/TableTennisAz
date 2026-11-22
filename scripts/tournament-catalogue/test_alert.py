@@ -22,14 +22,17 @@ class TestAlertPublisher(unittest.TestCase):
             generated = test_catalogue.CatalogueTest().generate(ROOT / "fixtures", output)
             self.assertEqual(generated.returncode, 0, generated.stderr)
             catalogue = output.read_bytes()
+            previous = output.with_name("previous-catalogue.json")
+            previous.write_text('{"version":1,"tournaments":[{"id":7}]}', encoding="utf-8")
             requests = []
             scenarios = [
-                (944, 200, catalogue, "BTTC Şəxsi Reytinq Turniri"),
-                (941, 200, catalogue, "BTTC Qoşa Reytinq Turniri #120"),
-                (944, 503, b"", None),
-                (944, 200, catalogue + b" ", None),
-                (990, 200, catalogue, None),
-                (805, 200, catalogue, None),
+                (944, 200, catalogue, "BTTC Şəxsi Reytinq Turniri", None),
+                (941, 200, catalogue, "BTTC Qoşa Reytinq Turniri #120", None),
+                (944, 503, b"", None, "does not match this run's build"),
+                (944, 200, catalogue + b" ", None, "does not match this run's build"),
+                (990, 200, catalogue, None, "missing from the verified"),
+                (805, 200, catalogue, None, "missing from the verified"),
+                (7, 200, catalogue, None, "already in the live catalogue"),
             ]
 
             class Handler(BaseHTTPRequestHandler):
@@ -54,7 +57,7 @@ class TestAlertPublisher(unittest.TestCase):
                 thread.start()
                 endpoint = f"http://127.0.0.1:{server.server_port}"
                 try:
-                    for event_id, code, body, name in scenarios:
+                    for event_id, code, body, name, error in scenarios:
                         with self.subTest(event_id=event_id, deployment=code, expected=name):
                             server.deployment = code, body
                             requests.clear()
@@ -65,14 +68,16 @@ class TestAlertPublisher(unittest.TestCase):
                                 [sys.executable, str(ROOT / "send_test_alert.py"), str(event_id),
                                  "--catalogue", f"{endpoint}/tournaments-v1.json",
                                  "--sha256", hashlib.sha256(catalogue).hexdigest(),
+                                 "--previous", str(previous),
                                  "--project", "test", "--fcm-origin", endpoint, "--wait", "0"],
                                 env={**os.environ, "FCM_ACCESS_TOKEN": "test-token"},
                                 capture_output=True, text=True, timeout=10,
                             )
 
                             # assert
-                            if name is None:
+                            if error:
                                 self.assertNotEqual(result.returncode, 0)
+                                self.assertIn(error, result.stderr)
                                 self.assertEqual(requests, [])
                             else:
                                 self.assertEqual(result.returncode, 0, result.stderr)

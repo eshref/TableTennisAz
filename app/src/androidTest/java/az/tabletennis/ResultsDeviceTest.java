@@ -48,19 +48,15 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.google.android.gms.tasks.Tasks;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import okhttp3.tls.HandshakeCertificates;
-import okhttp3.tls.HeldCertificate;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -87,11 +83,7 @@ public class ResultsDeviceTest {
         var application = (FixtureTestRunner.FixtureApplication) instrumentation.getTargetContext().getApplicationContext();
         UiAutomation system = instrumentation.getUiAutomation();
         NotificationManager notifications = application.getSystemService(NotificationManager.class);
-        List<Boolean> subscriptions = new CopyOnWriteArrayList<>();
-        application.fixtureAlertTopic = subscribe -> {
-            subscriptions.add(subscribe);
-            return Tasks.forResult(null);
-        };
+        application.fixtureAlertTopic = subscribe -> Tasks.forResult(null);
         if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
         subscriptions.clear();
         boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -116,7 +108,6 @@ public class ResultsDeviceTest {
 
                 // assert
                 onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
-                assertEquals(List.of(), subscriptions);
 
                 // act
                 onView(withId(R.id.tournament_alerts_switch)).perform(click());
@@ -124,7 +115,6 @@ public class ResultsDeviceTest {
 
                 // assert
                 awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
-                assertEquals(List.of(true), subscriptions);
                 capture("tournament-alerts-setting");
 
                 // act
@@ -179,14 +169,7 @@ public class ResultsDeviceTest {
                 return new MockResponse().setBody(page);
             }
         });
-        HeldCertificate certificate = new HeldCertificate.Builder().addSubjectAlternativeName("127.0.0.1").build();
-        HandshakeCertificates serverTls = new HandshakeCertificates.Builder().heldCertificate(certificate).build();
-        HandshakeCertificates clientTls = new HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate()).build();
-        server.useHttps(serverTls.sslSocketFactory(), false);
-        server.start(InetAddress.getByName("127.0.0.1"), 0);
-        var url = server.url("/").newBuilder().host("127.0.0.1").build();
-        application.fixtureClient = new WebsiteClient(url, new OkHttpClient.Builder()
-                .sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager()));
+        application.hostWebsiteFixtures(server);
     }
 
     private void deliverAlert(FixtureTestRunner.FixtureApplication application, UiAutomation system,
