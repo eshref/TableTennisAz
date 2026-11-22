@@ -25,10 +25,10 @@ import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 
-import android.content.Context;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.NotificationManager;
 import android.app.UiAutomation;
-import android.accessibilityservice.AccessibilityServiceInfo;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.ParcelFileDescriptor;
 import android.content.res.Configuration;
@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -92,7 +93,6 @@ public class ResultsDeviceTest {
         NotificationManager notifications = application.getSystemService(NotificationManager.class);
         application.fixtureAlertTopic = subscribe -> Tasks.forResult(null);
         if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
-        subscriptions.clear();
         boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED;
         String singles = "Bakı Şəxsi Sınaq Kuboku";
@@ -189,7 +189,7 @@ public class ResultsDeviceTest {
             output.readAllBytes();
         }
         tapSystemNode(system, name, root -> root.findAccessibilityNodeInfosByText(name).stream()
-                .filter(node -> TextUtils.equals(name, node.getText())).toList());
+                .filter(node -> TextUtils.equals(name, node.getText())).collect(Collectors.toList()));
     }
 
     private void tapSystemNode(UiAutomation system, String description,
