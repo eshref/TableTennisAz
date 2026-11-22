@@ -1,7 +1,20 @@
-plugins { id 'com.android.application' }
+import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import com.google.gms.googleservices.GoogleServicesTask
 
-if (file('google-services.json').isFile()) {
-    apply plugin: 'com.google.gms.google-services'
+plugins {
+    id 'com.android.application'
+    id 'com.google.gms.google-services'
+}
+
+googleServices {
+    missingGoogleServicesStrategy = MissingGoogleServicesStrategy.IGNORE
+}
+
+tasks.withType(GoogleServicesTask).configureEach {
+    if (name == 'processReleaseGoogleServices') {
+        // Keep an existing debug configuration at app/google-services.json out of shipped builds.
+        googleServicesJsonFiles.set([file('src/release/google-services.json')])
+    }
 }
 
 def versionFile = rootProject.layout.projectDirectory.file('version.properties')

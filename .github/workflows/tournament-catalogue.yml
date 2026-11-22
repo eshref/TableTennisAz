@@ -1,7 +1,7 @@
 name: Tournament catalogue
 on:
   schedule:
-    - cron: '23 4 * * *'
+    - cron: '23,53 * * * *'
   workflow_dispatch:
     inputs:
       firebase_test_event_id:
@@ -76,10 +76,22 @@ jobs:
           cp -a docs pages-source
           python scripts/tournament-catalogue/generate.py --previous "$RUNNER_TEMP/previous-catalogue.json" \
             --previous-modified "$modified" "${alerts[@]}" pages-source/tournaments-v1.json
+      - name: Choose the daily head-to-head refresh date
+        id: head-to-head
+        run: date -u '+date=%F' >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: head-to-head-cache
+        with:
+          path: ${{ runner.temp }}/head-to-head-indexes
+          key: head-to-head-indexes-${{ steps.head-to-head.outputs.date }}-${{ hashFiles('scripts/singles-index/generate.py', 'scripts/singles-index/requirements.txt') }}
       - name: Generate the complete head-to-head indexes
+        if: steps.head-to-head-cache.outputs.cache-hit != 'true'
         run: |
-          python scripts/singles-index/generate.py pages-source/singles-index-v1 \
-            --doubles-output pages-source/doubles-index-v1
+          indexes="$RUNNER_TEMP/head-to-head-indexes"
+          python scripts/singles-index/generate.py "$indexes/singles-index-v1" \
+            --doubles-output "$indexes/doubles-index-v1"
+      - name: Include the head-to-head indexes in Pages
+        run: cp -a "$RUNNER_TEMP/head-to-head-indexes/." pages-source/
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./pages-source

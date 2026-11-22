@@ -69,6 +69,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
         run: python3 scripts/android/release.py reuse-candidate "$RUNNER_TEMP/android-release" "$RELEASE_VERSION_NAME"
+      - name: Configure Firebase for the release variant
+        env:
+          FIREBASE_ANDROID_CONFIG: ${{ secrets.FIREBASE_TOURNAMENT_ALERTS_ANDROID_CONFIG }}
+          ALERTS_ENABLED: ${{ vars.TOURNAMENT_ALERTS_ENABLED }}
+        run: |
+          if [[ -n "$FIREBASE_ANDROID_CONFIG" ]]; then
+            umask 077
+            mkdir -p app/src/release
+            printf '%s' "$FIREBASE_ANDROID_CONFIG" > app/src/release/google-services.json
+          elif [[ "$ALERTS_ENABLED" == true ]]; then
+            echo 'Set FIREBASE_TOURNAMENT_ALERTS_ANDROID_CONFIG for the signed Android release.' >&2
+            exit 1
+          fi
       - name: Build and verify signed APK
         id: signed
         env:

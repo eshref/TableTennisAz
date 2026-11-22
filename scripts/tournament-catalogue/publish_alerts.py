@@ -12,7 +12,7 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-TOPIC = "tournament-results-test"
+TOPIC = "tournament-results"
 WINDOW_MS = 24 * 60 * 60 * 1000
 PUBLICATIONS = "alertPublications"
 
@@ -57,9 +57,9 @@ def publication_history(live, last_modified):
     return history
 
 
-def send_message(origin, project, token, data, ttl):
+def send_message(origin, project, token, data, ttl, *, topic):
     payload = {"message": {
-        "topic": TOPIC,
+        "topic": topic,
         "data": {"eventId": str(data["eventId"]), "name": data["name"], "publishedAt": str(data["publishedAt"])},
         "android": {"priority": "high", "ttl": f"{ttl}s"},
     }}
@@ -90,7 +90,8 @@ def publish_alerts(arguments, token):
             continue
         try:
             send_message(arguments.fcm_origin, arguments.project, token,
-                         {**publication, "eventId": event_id}, min(remaining, WINDOW_MS) // 1000)
+                         {**publication, "eventId": event_id}, min(remaining, WINDOW_MS) // 1000,
+                         topic=TOPIC)
         except (OSError, ValueError) as error:
             failures.append(event_id)
             print(f"Firebase alert for event {event_id} is pending: {error}", file=sys.stderr)

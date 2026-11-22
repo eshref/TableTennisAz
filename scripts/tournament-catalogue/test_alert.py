@@ -231,7 +231,7 @@ class BatchAlertPublisher(unittest.TestCase):
         published_at = str(int(first_publication.timestamp()) * 1000)
         for event_id, name in [("944", "BTTC Şəxsi Reytinq Turniri"), ("941", "BTTC Qoşa Reytinq Turniri #120")]:
             self.assertEqual(by_id[event_id]["data"], {"eventId": event_id, "name": name, "publishedAt": published_at})
-            self.assertEqual(by_id[event_id]["topic"], "tournament-results-test")
+            self.assertEqual(by_id[event_id]["topic"], "tournament-results")
             self.assertEqual(by_id[event_id]["android"]["priority"], "high")
             self.assertAlmostEqual(int(by_id[event_id]["android"]["ttl"][:-1]), 82800, delta=30)
 

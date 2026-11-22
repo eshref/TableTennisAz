@@ -13,7 +13,6 @@ import java.time.Duration;
 import java.util.Map;
 
 final class TournamentAlerts {
-    static final String TOPIC = "tournament-results-test";
     private static final String CHANNEL = "tournament-results";
     private static final String ENABLED_AT = "enabled-at";
     private static final String DELIVERED = "delivered-";
