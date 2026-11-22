@@ -38,32 +38,51 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Call;
+import okhttp3.EventListener;
+import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okio.Buffer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 36, qualifiers = "w411dp-h500dp", application = RankingsUiScenario.FixtureApplication.class)
 public class HeadToHeadWorkflowTest extends ProductUiScenario {
+    private static final String MISSING_PORTRAIT = "/portraits/player-115.png";
+
+    public static class PortraitFixtureApplication extends RankingsUiScenario.FixtureApplication {
+        private final CountDownLatch missingPortraitResponse = new CountDownLatch(1);
+
+        @Override WebsiteClient websiteClient() {
+            return new WebsiteClient(websiteUrl(), new OkHttpClient.Builder().eventListener(new EventListener() {
+                @Override public void callEnd(Call call) {
+                    if (MISSING_PORTRAIT.equals(call.request().url().encodedPath())) missingPortraitResponse.countDown();
+                }
+            }));
+        }
+    }
+
     @Test
+    @Config(application = PortraitFixtureApplication.class)
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     public void namesakeSuggestionsKeepTheirPortraitsAndSelectionsWhenTheQueryChanges() throws Exception {
         // arrange
         HeadToHeadFixtures.publishNamesakeMeeting(website);
         String available = "/portraits/player-15.png";
-        String unavailable = "/portraits/player-115.png";
         String player = directoryPlayer(15, ASHRAF, available);
         String withPhoto = ASHRAF + " · Profil 15";
         String withoutPhoto = ASHRAF + " · Profil 115";
         website.put("/search?query=s%C9%99f", directory(player, directoryPlayer(115, ASHRAF, "/assets/img/person.png")));
-        website.put("/search?query=s%C9%99f%C9%99r", directory(directoryPlayer(115, ASHRAF, unavailable), player));
+        website.put("/search?query=s%C9%99f%C9%99r", directory(directoryPlayer(115, ASHRAF, MISSING_PORTRAIT), player));
         CountDownLatch releasePhoto = new CountDownLatch(1);
         Bitmap portrait = Bitmap.createBitmap(24, 24, Bitmap.Config.ARGB_8888);
         portrait.eraseColor(Color.BLUE);
@@ -72,28 +91,39 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         portrait.recycle();
         responses.put(available, () -> awaitPage(releasePhoto,
                 new MockResponse().setHeader("Content-Type", "image/png").setBody(new Buffer().write(png.toByteArray()))));
-        responses.put(unavailable, () -> new MockResponse().setResponseCode(404));
+        responses.put(MISSING_PORTRAIT, () -> new MockResponse().setResponseCode(404));
+        var application = (PortraitFixtureApplication) RuntimeEnvironment.getApplication();
         openDirect(HeadToHeadActivity.class, "", 0);
 
-        // act & assert
         try {
+            // act
             field(R.id.head_to_head_first).setText("Səf");
             advanceDebounce();
+
+            // assert
             awaitText(withPhoto);
             assertThat(requestTo(available)).isEqualTo(available);
             assertThat(visibleText()).containsSequence(withPhoto, withoutPhoto);
             assertThat(suggestionPortrait(withPhoto).getDrawable()).isInstanceOf(VectorDrawable.class);
+
+            // act
             clickText(withPhoto);
+
+            // assert
             assertThat(field(R.id.head_to_head_first).getText().toString()).isEqualTo(ASHRAF);
 
+            // act
             field(R.id.head_to_head_second).setText("Səf");
             advanceDebounce();
             awaitText(withPhoto);
             field(R.id.head_to_head_second).setText("Səfər");
             advanceDebounce();
+
+            // assert
             awaitText(withoutPhoto);
             assertThat(visibleText()).containsSequence(withoutPhoto, withPhoto);
-            assertThat(requestTo(unavailable)).isEqualTo(unavailable);
+            assertThat(application.missingPortraitResponse.await(5, TimeUnit.SECONDS))
+                    .as("the unavailable portrait HTTP response was received").isTrue();
         } finally {
             releasePhoto.countDown();
         }
@@ -110,6 +140,34 @@ public class HeadToHeadWorkflowTest extends ProductUiScenario {
         awaitText("Axtarış tamamlandı");
         assertThat(visibleText()).containsSequence("Qələbə sayı", "1–0", ASHRAF, ASHRAF);
         assertThat(matchCards()).containsExactly("18 Nov. 2026 · Əşrəf Səfərov — Əşrəf Səfərov · 3-1 · Liqa · Tək · Turnir");
+    }
+
+    @Test public void scrollingToASuggestionRequestsItsPortrait() throws Exception {
+        // arrange
+        String portrait = "/portraits/player-15.png";
+        List<String> directoryRows = new ArrayList<>();
+        for (int id = 101; id <= 120; id++) {
+            directoryRows.add(directoryPlayer(id, "Səfərov " + id, null));
+        }
+        directoryRows.add(directoryPlayer(15, ASHRAF, portrait));
+        website.put("/search?query=s%C9%99f", directory(directoryRows.toArray(String[]::new)));
+        openDirect(HeadToHeadActivity.class, "", 0);
+
+        // act
+        field(R.id.head_to_head_first).setText("Səf");
+        advanceDebounce();
+
+        // assert
+        awaitText(ASHRAF);
+        assertThat(requestTo(portrait)).isNull();
+
+        // act
+        ScrollView scroll = activity().findViewById(R.id.main_scroll);
+        scroll.scrollTo(0, scroll.getChildAt(0).getHeight());
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(32));
+
+        // assert
+        assertThat(requestTo(portrait)).isEqualTo(portrait);
     }
 
     @Test public void singlesSearchIncludesTournamentResultsAndOnlyTheSelectedPlayersTeamGame() throws Exception {

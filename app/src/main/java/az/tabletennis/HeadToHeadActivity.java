@@ -2,6 +2,7 @@ package az.tabletennis;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -67,6 +68,7 @@ public final class HeadToHeadActivity extends Activity {
     private Runnable pendingQuery;
     private Future<?> directoryRequest;
     private int directoryVersion;
+    private ViewTreeObserver.OnPreDrawListener pendingPortraits;
     private enum SearchStatus { IDLE, RUNNING, COMPLETE, INTERRUPTED }
 
     private long openedMatchId;
@@ -154,6 +156,7 @@ public final class HeadToHeadActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        stopLoadingSuggestionPortraits();
         worker.shutdownNow();
         main.removeCallbacksAndMessages(null);
         super.onDestroy();
@@ -228,8 +231,7 @@ public final class HeadToHeadActivity extends Activity {
             field.suggestions.addView(Presentation.label(this, getString(R.string.no_matches), 14));
             return;
         }
-        RankingsApplication application = (RankingsApplication) getApplication();
-        boolean online = application.isOnline();
+        List<SuggestionPortrait> portraits = new ArrayList<>();
         for (Suggestion suggestion : suggestions) {
             Player player = suggestion.player();
             LinearLayout row = new LinearLayout(this);
@@ -263,14 +265,40 @@ public final class HeadToHeadActivity extends Activity {
             row.setOnClickListener(select);
             row.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
             field.suggestions.addView(row, new LinearLayout.LayoutParams(-1, -2));
-            application.photos().bind(portrait, player.id(), suggestion.photoUrl(), online);
+            portraits.add(new SuggestionPortrait(portrait, suggestion));
         }
+        loadVisibleSuggestionPortraits(portraits);
+    }
+
+    private record SuggestionPortrait(PlayerPortraitView view, Suggestion suggestion) {}
+
+    private void loadVisibleSuggestionPortraits(List<SuggestionPortrait> pending) {
+        RankingsApplication application = (RankingsApplication) getApplication();
+        Rect visible = new Rect();
+        pendingPortraits = () -> {
+            pending.removeIf(portrait -> {
+                if (!portrait.view().getLocalVisibleRect(visible)) return false;
+                Suggestion suggestion = portrait.suggestion();
+                application.photos().bind(portrait.view(), suggestion.player().id(), suggestion.photoUrl(), application.isOnline());
+                return true;
+            });
+            if (pending.isEmpty()) stopLoadingSuggestionPortraits();
+            return true;
+        };
+        scroll.getViewTreeObserver().addOnPreDrawListener(pendingPortraits);
+    }
+
+    private void stopLoadingSuggestionPortraits() {
+        if (pendingPortraits == null) return;
+        scroll.getViewTreeObserver().removeOnPreDrawListener(pendingPortraits);
+        pendingPortraits = null;
     }
 
     private void clearSuggestions() {
         directoryVersion++;
         if (pendingQuery != null) main.removeCallbacks(pendingQuery);
         if (directoryRequest != null) directoryRequest.cancel(true);
+        stopLoadingSuggestionPortraits();
         if (activeField != null) activeField.suggestions.removeAllViews();
         activeField = null;
     }

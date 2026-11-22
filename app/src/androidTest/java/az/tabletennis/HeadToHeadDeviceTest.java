@@ -91,11 +91,17 @@ public class HeadToHeadDeviceTest {
                 onView(withId(R.id.destination_head_to_head)).perform(click());
                 selectPlayer(R.id.head_to_head_first, "Səf", ASHRAF);
                 showSuggestions(R.id.head_to_head_second, "İlq");
+                awaitView(suggestion(ILQAR_PROFILE));
+                onView(suggestion(ILQAR_PROFILE)).perform(scrollTo());
 
                 // assert
                 awaitView(suggestionPortrait(ILQAR_PROFILE, true));
-                awaitView(suggestionPortrait(ILQAR_NAMESAKE, false));
+
+                // act
                 onView(suggestion(ILQAR_NAMESAKE)).perform(scrollTo());
+
+                // assert
+                awaitView(suggestionPortrait(ILQAR_NAMESAKE, false));
                 capture("head-to-head-singles-suggestions");
 
                 // act
@@ -142,10 +148,11 @@ public class HeadToHeadDeviceTest {
                 selectPlayer(R.id.head_to_head_left_first, "Erh", ERHAN);
                 selectPlayer(R.id.head_to_head_left_second, "Elç", ELCHIN);
                 showSuggestions(R.id.head_to_head_right_first, "Əli");
+                awaitView(suggestion(ALIKHAN));
+                onView(suggestion(ALIKHAN)).perform(scrollTo());
 
                 // assert
                 awaitView(suggestionPortrait(ALIKHAN, true));
-                onView(suggestion(ALIKHAN)).perform(scrollTo());
                 capture("head-to-head-doubles-suggestions");
 
                 // act

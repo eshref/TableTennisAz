@@ -1,7 +1,7 @@
 # Publish the head-to-head index on GitHub Pages
 
-Üz-üzə originally checked the published match history page by page on each
-phone. That search took about five minutes for a reported singles matchup and
+Üz-üzə checks the published match history page by page on each phone. That
+search took about five minutes for a reported singles matchup and
 doubles matchup. Publish a prebuilt index daily on the project's GitHub Pages
 site so Android can fetch the portion it needs for each matchup.
 
