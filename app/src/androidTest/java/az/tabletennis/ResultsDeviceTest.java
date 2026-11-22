@@ -23,15 +23,25 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.ActivityOptions;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.UiAutomation;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.ParcelFileDescriptor;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.VectorDrawable;
 import android.os.SystemClock;
+import android.service.notification.StatusBarNotification;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.TextView;
 import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.espresso.UiController;
@@ -39,10 +49,19 @@ import androidx.test.espresso.ViewAction;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import com.google.android.gms.tasks.Tasks;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import okhttp3.mockwebserver.Dispatcher;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,6 +81,188 @@ public class ResultsDeviceTest {
     private static final String OLDER_DOUBLES_EVENT = "Gəncə Qoşa Kuboku";
     private static final String DOUBLES_CARD = "15 Nov. 2026 · İlqar Həsənov / Əli Məmmədov — "
             + "Şəms Quliyeva / Işıl Əliyeva · 3-2 · " + DOUBLES_EVENT + " · Qoşalar · Turnir · Final";
+
+    @Test public void optInAndTapSinglesAndDoublesAlertsWithoutACatalogue() throws Exception {
+        // arrange
+        var instrumentation = InstrumentationRegistry.getInstrumentation();
+        var application = (FixtureTestRunner.FixtureApplication) instrumentation.getTargetContext().getApplicationContext();
+        UiAutomation system = instrumentation.getUiAutomation();
+        AccessibilityServiceInfo accessibility = system.getServiceInfo();
+        accessibility.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                | AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+        system.setServiceInfo(accessibility);
+        NotificationManager notifications = application.getSystemService(NotificationManager.class);
+        application.fixtureAlertTopic = subscribe -> Tasks.forResult(null);
+        if (application.tournamentAlerts().isEnabled()) application.tournamentAlerts().disable();
+        boolean prompts = application.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED;
+        String singles = "Bakı Şəxsi Sınaq Kuboku";
+        String doubles = "Bakı Qoşa Sınaq Kuboku";
+        long singlesId = application.clock().millis();
+        long doublesId = singlesId + 1;
+        String singlesPath = "/matches/results/event/" + singlesId;
+        String doublesPath = "/matches/results/event/" + doublesId;
+        Map<String, String> pages = Map.of(
+                singlesPath, alertResults(1801, "Sınaq A", "Sınaq B", "3-0", singles),
+                doublesPath, alertResults(1802, "Sınaq C</div><div>Sınaq D", "Sınaq E</div><div>Sınaq F", "3-2", doubles));
+        List<String> resultRequests = new CopyOnWriteArrayList<>();
+
+        try (MockWebServer website = new MockWebServer()) {
+            givenAlertResults(website, application, pages, resultRequests);
+            try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+                // act
+                onView(withId(R.id.open_menu)).perform(click());
+                onView(withId(R.id.tournament_alerts)).perform(scrollTo(), click());
+
+                // assert
+                onView(withId(R.id.tournament_alerts_switch)).check(matches(not(isChecked())));
+
+                // act
+                onView(withId(R.id.tournament_alerts_switch)).perform(click());
+                if (prompts) tapSystemNode(system, "notification permission",
+                        root -> root.findAccessibilityNodeInfosByViewId(root.getPackageName() + ":id/permission_allow_button"));
+
+                // assert
+                awaitAlertView(allOf(withId(R.id.tournament_alerts_switch), isChecked()));
+                capture("tournament-alerts-setting");
+
+                // act
+                pressBack();
+            }
+
+            // act
+            deliverAlert(application, singlesId, singles);
+
+            // assert
+            Notification singlesAlert = awaitPostedAlert(notifications, singlesId);
+            assertEquals(singles, singlesAlert.extras.getString(Notification.EXTRA_TITLE));
+
+            // act
+            openPostedAlert(application, system, singlesAlert);
+
+            // assert
+            awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq A — Sınaq B · 3-0 · " + singles + " · Tək · Turnir"));
+            assertEquals(List.of(singlesPath), resultRequests);
+            capture("singles-alert-results");
+
+            // act
+            androidx.test.espresso.Espresso.pressBackUnconditionally();
+            deliverAlert(application, doublesId, doubles);
+
+            // assert
+            Notification doublesAlert = awaitPostedAlert(notifications, doublesId);
+            assertEquals(doubles, doublesAlert.extras.getString(Notification.EXTRA_TITLE));
+
+            // act
+            openPostedAlert(application, system, doublesAlert);
+
+            // assert
+            awaitAlertView(withContentDescription("16 Nov. 2026 · Sınaq C / Sınaq D — Sınaq E / Sınaq F · 3-2 · "
+                    + doubles + " · Qoşalar · Turnir"));
+            assertEquals(List.of(singlesPath, doublesPath), resultRequests);
+            capture("doubles-alert-results");
+
+            // act
+            androidx.test.espresso.Espresso.pressBackUnconditionally();
+        } finally {
+            notifications.cancelAll();
+            application.tournamentAlerts().disable();
+            application.fixtureAlertTopic = null;
+            application.fixtureClient = null;
+        }
+    }
+
+    private String alertResults(int match, String left, String right, String score, String tournament) {
+        return """
+                <div id='center'><div class='matches-box'><div><div class='divs-header'>16 Nov. 2026</div>
+                <div><a href='/matches/%d'><div class='match-box'>
+                <div class='col-3'><div>%s</div></div><div class='col-2'><div class='center'>%s</div></div>
+                <div class='col-3'><div>%s</div></div><div class='col-4'>%s</div>
+                </div></a></div></div></div></div>
+                """.formatted(match, left, score, right, tournament);
+    }
+
+    private void givenAlertResults(MockWebServer server, FixtureTestRunner.FixtureApplication application,
+                                   Map<String, String> pages, List<String> requests) throws Exception {
+        server.setDispatcher(new Dispatcher() {
+            @Override public MockResponse dispatch(RecordedRequest request) {
+                String page = pages.get(request.getPath());
+                if (page == null) return new MockResponse().setResponseCode(404);
+                requests.add(request.getPath());
+                return new MockResponse().setBody(page);
+            }
+        });
+        application.hostWebsiteFixtures(server);
+    }
+
+    private void deliverAlert(FixtureTestRunner.FixtureApplication application, long id, String name) {
+        application.tournamentAlerts().receive(Map.of("eventId", Long.toString(id), "name", name,
+                "publishedAt", Long.toString(application.clock().millis())));
+    }
+
+    private Notification awaitPostedAlert(NotificationManager manager, long id) {
+        String tag = Long.toString(id);
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        while (SystemClock.uptimeMillis() < deadline) {
+            for (StatusBarNotification entry : manager.getActiveNotifications()) {
+                if (tag.equals(entry.getTag())) return entry.getNotification();
+            }
+            SystemClock.sleep(100);
+        }
+        throw new AssertionError("Android did not post the notification for event " + id);
+    }
+
+    private void openPostedAlert(Context context, UiAutomation system, Notification notification) throws Exception {
+        // The Android Test Device image uses a placeholder System UI without a notification shade.
+        // Invoke the posted notification's pending intent with the system's background-start privilege.
+        ActivityOptions options = ActivityOptions.makeBasic()
+                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS);
+        system.adoptShellPermissionIdentity("android.permission.START_ACTIVITIES_FROM_BACKGROUND");
+        try {
+            notification.contentIntent.send(context, 0, null, null, null, null, options.toBundle());
+        } finally {
+            system.dropShellPermissionIdentity();
+        }
+    }
+
+    private void tapSystemNode(UiAutomation system, String description,
+                               Function<AccessibilityNodeInfo, List<AccessibilityNodeInfo>> find) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        List<CharSequence> packages = new ArrayList<>();
+        while (SystemClock.uptimeMillis() < deadline) {
+            packages.clear();
+            for (var window : system.getWindows()) {
+                AccessibilityNodeInfo root = window.getRoot();
+                if (root == null) continue;
+                packages.add(root.getPackageName());
+                for (AccessibilityNodeInfo node : find.apply(root)) {
+                    if (!node.isVisibleToUser()) continue;
+                    Rect bounds = new Rect();
+                    node.getBoundsInScreen(bounds);
+                    try (var output = new ParcelFileDescriptor.AutoCloseInputStream(
+                            system.executeShellCommand("input tap " + bounds.centerX() + " " + bounds.centerY()))) {
+                        output.readAllBytes();
+                    }
+                    return;
+                }
+            }
+            SystemClock.sleep(100);
+        }
+        throw new AssertionError("Android did not show " + description + "; visible windows: " + packages);
+    }
+
+    private void awaitAlertView(Matcher<View> matcher) {
+        long deadline = SystemClock.uptimeMillis() + 15_000;
+        while (true) {
+            try {
+                onView(matcher).check(matches(isDisplayed()));
+                return;
+            } catch (NoMatchingViewException | androidx.test.espresso.NoActivityResumedException missing) {
+                if (SystemClock.uptimeMillis() >= deadline) throw missing;
+                SystemClock.sleep(100);
+            }
+        }
+    }
 
     @Test public void menuAndCategoryDotsClearIndependentlyWhenTheirListsOpen() throws Exception {
         // arrange

@@ -160,7 +160,7 @@ public class MainNavigationTest extends DoublesUiScenario {
         // assert
         assertThat(visibleText()).contains("TableTennisAz")
                 .containsSequence("Azərbaycan stolüstü tennis", "Reytinq", "Şəxsi turnirlər",
-                        "Qoşa turnirlər", "Duellər", "Üz-üzə", "Məxfilik siyasəti")
+                        "Qoşa turnirlər", "Duellər", "Üz-üzə", "Turnir bildirişləri", "Məxfilik siyasəti")
                 .doesNotContain("Nəticələr");
 
         // act

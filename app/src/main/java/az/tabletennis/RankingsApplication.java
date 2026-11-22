@@ -3,6 +3,8 @@ package az.tabletennis;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Bundle;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.FirebaseMessaging;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,6 +16,7 @@ import okhttp3.HttpUrl;
 public class RankingsApplication extends Application {
     private PlayerPhotos photos;
     private TournamentCatalogueRepository tournamentCatalogues;
+    private TournamentAlerts tournamentAlerts;
     private final ExecutorService tournamentWorker = Executors.newSingleThreadExecutor();
 
     @Override public void onCreate() {
@@ -38,6 +41,18 @@ public class RankingsApplication extends Application {
     TournamentCatalogueRepository tournamentCatalogues() {
         if (tournamentCatalogues == null) tournamentCatalogues = new TournamentCatalogueRepository(this, tournamentWorker);
         return tournamentCatalogues;
+    }
+
+    synchronized TournamentAlerts tournamentAlerts() {
+        if (tournamentAlerts == null) tournamentAlerts = new TournamentAlerts(this, tournamentAlertTopic());
+        return tournamentAlerts;
+    }
+
+    protected TournamentAlerts.Topic tournamentAlertTopic() {
+        if (FirebaseApp.getApps(this).isEmpty()) return null;
+        FirebaseMessaging messaging = FirebaseMessaging.getInstance();
+        return subscribe -> subscribe ? messaging.subscribeToTopic(TournamentAlerts.TOPIC)
+                : messaging.unsubscribeFromTopic(TournamentAlerts.TOPIC);
     }
 
     PlayerPhotos photos() {

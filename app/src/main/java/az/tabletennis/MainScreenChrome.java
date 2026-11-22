@@ -214,6 +214,7 @@ final class MainScreenChrome {
             destinationSize.bottomMargin = dp(6);
             panel.addView(destinationRow(target), destinationSize);
         }
+        panel.addView(tournamentAlertsLink());
         panel.addView(privacyPolicyLink());
         panel.addView(new View(activity), new LinearLayout.LayoutParams(1, 0, 1));
         TextView footer = Presentation.label(activity, activity.getString(R.string.drawer_footer), 12);
@@ -247,14 +248,28 @@ final class MainScreenChrome {
         return row;
     }
 
-    private Button privacyPolicyLink() {
+    private Button drawerAction(int id, int label) {
         Button link = new Button(activity);
-        link.setId(R.id.privacy_policy);
-        link.setText(R.string.privacy_policy);
+        link.setId(id);
+        link.setText(label);
         link.setTextSize(14);
         link.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         link.setPadding(dp(16), dp(8), dp(16), dp(8));
         Presentation.action(link);
+        return link;
+    }
+
+    private Button tournamentAlertsLink() {
+        Button link = drawerAction(R.id.tournament_alerts, R.string.tournament_alerts);
+        link.setOnClickListener(view -> {
+            closeDrawer();
+            activity.startActivity(new Intent(activity, TournamentAlertsActivity.class));
+        });
+        return link;
+    }
+
+    private Button privacyPolicyLink() {
+        Button link = drawerAction(R.id.privacy_policy, R.string.privacy_policy);
         link.setOnClickListener(view -> {
             closeDrawer();
             Uri policy = Uri.parse(activity.getString(R.string.privacy_policy_url));

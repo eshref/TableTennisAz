@@ -47,18 +47,14 @@ import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
-import java.net.InetAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import okhttp3.tls.HandshakeCertificates;
-import okhttp3.tls.HeldCertificate;
 import okio.Buffer;
 import okio.ByteString;
 import org.hamcrest.Description;
@@ -305,15 +301,7 @@ public class HeadToHeadDeviceTest {
                 return new MockResponse().setHeader("Content-Type", "text/html; charset=utf-8").setBody(page);
             }
         });
-        HeldCertificate certificate = new HeldCertificate.Builder().addSubjectAlternativeName("127.0.0.1").build();
-        HandshakeCertificates serverTls = new HandshakeCertificates.Builder().heldCertificate(certificate).build();
-        HandshakeCertificates clientTls = new HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate()).build();
-        server.useHttps(serverTls.sslSocketFactory(), false);
-        server.start(InetAddress.getByName("127.0.0.1"), 0);
-        // MockWebServer may reverse-resolve its bind address to localhost. Use the certificate's IP identity.
-        var fixtureUrl = server.url("/").newBuilder().host("127.0.0.1").build();
-        application.fixtureClient = new WebsiteClient(fixtureUrl, new OkHttpClient.Builder()
-                .sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager()));
+        application.hostWebsiteFixtures(server);
     }
 
     private void selectPlayer(int id, String query, String name) {

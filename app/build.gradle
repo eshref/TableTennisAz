@@ -1,5 +1,9 @@
 plugins { id 'com.android.application' }
 
+if (file('google-services.json').isFile()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
 def versionFile = rootProject.layout.projectDirectory.file('version.properties')
 def appVersion = new Properties()
 appVersion.load(new StringReader(providers.fileContents(versionFile).asText.get()))
@@ -52,6 +56,7 @@ androidComponents {
 dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'org.jsoup:jsoup:1.18.3'
+    implementation 'com.google.firebase:firebase-messaging:25.0.1'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.16.1'
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'

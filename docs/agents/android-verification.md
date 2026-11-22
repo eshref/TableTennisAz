@@ -21,7 +21,7 @@ its own evidence.
 | Singles and doubles match details | `match` | `MatchDeviceTest` |
 | Player profile and links to history and matches | `profile` | `ProfileDeviceTest` |
 | Dedicated singles rating history | `rating-history` | `RatingHistoryDeviceTest` |
-| Şəxsi turnirlər, Qoşa turnirlər, tournament results, and Duellər | `results` | `ResultsDeviceTest` |
+| Şəxsi turnirlər, Qoşa turnirlər, tournament results, tournament alerts, and Duellər | `results` | `ResultsDeviceTest` |
 | Doubles profile, rating and ranking histories, and linked partners | `doubles-profile` | `DoublesProfileDeviceTest` |
 | Rankings, app menu, or shared UI | `native-acceptance` | `NativeAcceptanceDeviceTest` |
 | Üz-üzə singles and doubles search and return from match details | `head-to-head` | `HeadToHeadDeviceTest` |
@@ -97,6 +97,37 @@ installation on an API 36 emulator with internet access and measures from
 **live-singles-index** or **live-doubles-index** artifact record the device,
 connection, source refresh date, score, and elapsed time. The artifact
 includes the result screenshot.
+
+## Live Firebase test alert
+
+Register `az.tabletennis` in a Firebase test project with the Cloud Messaging
+API enabled. Put the downloaded `google-services.json` in `app/` and build the
+debug APK. Add the test project's service account JSON to the repository's
+`FIREBASE_TEST_SERVICE_ACCOUNT` Actions secret. The service account needs
+`cloudmessaging.messages.create` and permission to mint its own access token
+(`roles/iam.serviceAccountTokenCreator` on the account).
+
+Install the APK on a Google Play compatible phone or a Google APIs emulator.
+Open **Turnir bildirişləri** from the app menu, turn the switch on, and grant
+notification permission if prompted. Wait for the switch to show that the
+subscription is active, then leave the app with Home or Back.
+
+Dispatch **Tournament catalogue** on `main` with a completed singles or doubles
+Results index ID in `firebase_test_event_id`. Pick an event whose match results
+are on tabletennis.az and whose entry has yet to appear in the live catalogue.
+The workflow deploys Pages, confirms the exact catalogue is live, and sends
+the newly verified event to `tournament-results-test`. The message uses the
+time the workflow confirms that deployment. Tap the Android notification and
+verify that the tournament
+heading and match results appear. Record the workflow URL, the notification
+and results screenshots, and the device or emulator image.
+[Tournament catalogue Actions](https://github.com/eshref/TableTennisAz/actions/workflows/tournament-catalogue.yml)
+
+The installed `results` fixture journey exercises opt-in and opens both formats
+through the actions on their posted Android notifications while the catalogue
+endpoint is unavailable. The
+`tournament-alerts-setting`, `singles-alert-results`, and
+`doubles-alert-results` checkpoints show the corresponding screens.
 
 ## Required check
 

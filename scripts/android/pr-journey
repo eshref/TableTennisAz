@@ -19,7 +19,8 @@ while IFS= read -r -d '' path; do
         app/src/main/java/az/tabletennis/SinglesTournamentsActivity.java|app/src/main/java/az/tabletennis/TournamentCatalogue.java|\
         app/src/main/java/az/tabletennis/DoublesTournamentsActivity.java|app/src/main/java/az/tabletennis/TournamentsActivity.java|\
         app/src/main/java/az/tabletennis/TournamentResultsActivity.java|app/src/main/java/az/tabletennis/TournamentPodiumView.java|\
-        app/src/main/res/values/tournament_podium_colors.xml|\
+        app/src/main/java/az/tabletennis/TournamentAlert*.java|app/src/main/java/az/tabletennis/TournamentMessagingService.java|\
+        app/src/main/res/values/tournament_alert_strings.xml|app/src/main/res/values/tournament_podium_colors.xml|\
         app/src/androidTest/java/az/tabletennis/ResultsDeviceTest.java)
             screens=(results) ;;
         app/src/main/java/az/tabletennis/PairResultsActivity.java|app/src/main/java/az/tabletennis/DoublesHistoryView.java|app/src/androidTest/java/az/tabletennis/DoublesProfileDeviceTest.java)

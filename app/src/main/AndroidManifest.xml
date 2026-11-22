@@ -1,10 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application android:name=".RankingsApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true"
         android:usesCleartextTraffic="false">
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <service android:name=".TournamentMessagingService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <activity android:name=".ProfileActivity" android:exported="false" />
         <activity android:name=".MatchActivity" android:exported="false" />
         <activity android:name=".ChartActivity" android:exported="false" />
@@ -12,6 +19,7 @@
         <activity android:name=".SinglesTournamentsActivity" android:exported="false" />
         <activity android:name=".DoublesTournamentsActivity" android:exported="false" />
         <activity android:name=".TournamentResultsActivity" android:exported="false" />
+        <activity android:name=".TournamentAlertsActivity" android:exported="false" />
         <activity android:name=".DuelsActivity" android:exported="false" />
         <activity android:name=".HeadToHeadActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".PairResultsActivity" android:exported="false" />

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Open **Turnir bildirişləri** from the menu to opt in to singles and doubles
+  test alerts in Firebase-configured builds. Tap an alert to open the
+  tournament's match results.
+
 ## 0.8.0 - 2026-11-22
 
 - Üz-üzə player suggestions show profile photos when available, making it easier
