@@ -1,32 +1,33 @@
 package az.tabletennis;
 
-import static androidx.test.espresso.Espresso.onData;
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.action.ViewActions.scrollTo;
-import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
-import static androidx.test.espresso.matcher.ViewMatchers.withId;
-import static androidx.test.espresso.matcher.ViewMatchers.withResourceName;
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anything;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Rect;
+import android.text.TextUtils;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ListView;
+import android.widget.TextView;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.FutureTask;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** Runs against both installed APKs, whose Android resource IDs can differ. */
+/** Uses platform views because both installed APKs can have different dependencies and resource IDs. */
 @RunWith(AndroidJUnit4.class)
 public class SavedHistoryUpgradeDeviceTest {
     private static final String FIRST = "Əlixan Əlizadə";
@@ -45,34 +46,39 @@ public class SavedHistoryUpgradeDeviceTest {
         if (!captures.isDirectory() && !captures.mkdirs()) throw new IOException("Cannot create upgrade evidence directory");
 
         // act
-        // The previous APK may omit AndroidX classes supplied by the candidate APK.
         var rankings = instrumentation.startActivitySync(new Intent(app, RankingsActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         try {
-            onView(withResourceName("doubles_mode")).perform(click());
-            onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
+            onScreen(root -> click(resourceView(root, "doubles_mode")));
+            onScreen(root -> {
+                ListView list = root.findViewById(android.R.id.list);
+                int position = 1;
+                View pair = list.getChildAt(position - list.getFirstVisiblePosition());
+                if (pair == null || !list.performItemClick(pair, position, list.getItemIdAtPosition(position)))
+                    throw new IllegalStateException("Cannot open the first doubles pair");
+            });
 
             // act & assert
-            onView(withText(FIRST)).perform(scrollTo()).check(matches(isDisplayed()));
-            onView(withText(SECOND)).perform(scrollTo()).check(matches(isDisplayed()));
+            thenNameVisible(FIRST);
+            thenNameVisible(SECOND);
             thenSelectedObservation(LATER, "858 xal");
 
             // act
-            onView(withContentDescription(EARLIER + " — 800 xal")).perform(scrollTo(), click());
+            selectObservation(EARLIER, "800 xal");
 
             // act & assert
             thenSelectedObservation(EARLIER, "800 xal");
             ScreenshotCheckpoint.captureWindow(new File(captures, phase + "-rating.png"));
 
             // act
-            onView(withResourceName("pair_chart_rank")).perform(scrollTo(), click());
+            onScreen(root -> click(resourceView(root, "pair_chart_rank")));
 
             // act & assert
             thenSelectedObservation(EARLIER, "#9");
             ScreenshotCheckpoint.captureWindow(new File(captures, phase + "-ranking.png"));
 
             // act
-            onView(withContentDescription(LATER + " — #2")).perform(scrollTo(), click());
+            selectObservation(LATER, "#2");
 
             // act & assert
             thenSelectedObservation(LATER, "#2");
@@ -81,9 +87,80 @@ public class SavedHistoryUpgradeDeviceTest {
         }
     }
 
-    private void thenSelectedObservation(String date, String value) {
-        onView(withResourceName("chart_selected_value")).perform(scrollTo()).check(matches(allOf(isDisplayed(), withText(value))));
-        onView(withResourceName("chart_selected_date")).check(matches(allOf(isDisplayed(), withText(date))));
+    private void selectObservation(String date, String value) throws Exception {
+        String label = date + " — " + value;
+        onScreen(root -> click(requireView(root, view -> TextUtils.equals(view.getContentDescription(), label), label)));
+    }
+
+    private void thenNameVisible(String name) throws Exception {
+        onScreen(root -> {
+            View label = requireView(root, view -> view instanceof TextView text && TextUtils.equals(text.getText(), name), name);
+            reveal(label);
+            assertTrue("Pair name should be visible: " + name, visible(label));
+        });
+    }
+
+    private void thenSelectedObservation(String date, String value) throws Exception {
+        onScreen(root -> {
+            TextView selectedValue = (TextView) resourceView(root, "chart_selected_value");
+            TextView selectedDate = (TextView) resourceView(root, "chart_selected_date");
+            reveal(selectedValue);
+            assertTrue("The selected date and value should be visible", visible(selectedDate) && visible(selectedValue));
+            assertEquals(date, selectedDate.getText().toString());
+            assertEquals(value, selectedValue.getText().toString());
+        });
+    }
+
+    private void onScreen(Consumer<View> action) throws Exception {
+        var instrumentation = InstrumentationRegistry.getInstrumentation();
+        instrumentation.waitForIdleSync();
+        var task = new FutureTask<Void>(() -> {
+            var activity = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+                    .stream().findFirst().orElseThrow(() -> new IllegalStateException("No resumed screen"));
+            action.accept(activity.getWindow().getDecorView());
+            return null;
+        });
+        instrumentation.runOnMainSync(task);
+        task.get();
+    }
+
+    private View resourceView(View root, String name) {
+        int id = root.getResources().getIdentifier(name, "id", root.getContext().getPackageName());
+        View found = root.findViewById(id);
+        if (found == null) throw new IllegalStateException("Cannot find screen control " + name);
+        return found;
+    }
+
+    private View requireView(View root, Predicate<View> matches, String label) {
+        View found = findView(root, matches);
+        if (found == null) throw new IllegalStateException("Cannot find screen label " + label);
+        return found;
+    }
+
+    private View findView(View view, Predicate<View> matches) {
+        if (matches.test(view)) return view;
+        if (view instanceof ViewGroup group) {
+            for (int index = 0; index < group.getChildCount(); index++) {
+                View found = findView(group.getChildAt(index), matches);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private void click(View view) {
+        reveal(view);
+        if (!visible(view) || !view.isEnabled() || !view.isClickable())
+            throw new IllegalStateException("Screen control is unavailable for a click");
+        view.performClick();
+    }
+
+    private void reveal(View view) {
+        view.requestRectangleOnScreen(new Rect(0, 0, view.getWidth(), view.getHeight()), true);
+    }
+
+    private boolean visible(View view) {
+        return view.isShown() && view.getGlobalVisibleRect(new Rect());
     }
 
     private void givenSavedHistory(Context app) throws IOException {
