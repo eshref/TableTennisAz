@@ -56,11 +56,11 @@ build to make alerts available to Play users.
 
 ## Catalogue schedule
 
-Run five automatic catalogue scans each day at 08:00, 12:00, 16:00, 20:00,
-and midnight Baku time. The next scan after midnight is at 08:00. Keep manual
-runs available for recovery and testing. This replaces the 30-minute schedule
-and the one-hour delivery target. Each scan rechecks all listed tournaments,
-so the new schedule reduces repeated requests to tabletennis.az.
+Run five automatic catalogue scans each day at 00:17, 08:17, 12:17, 16:17,
+and 20:17 in Asia/Baku. Each scan rechecks all listed tournaments, so the
+next scheduled scan can pick up the latest results if GitHub misses a run.
+This cadence replaces the 30-minute schedule and the one-hour delivery target
+and reduces repeated requests to tabletennis.az.
 
-Publish changes to the public site with the next scheduled run. Start a manual
-run when a site update needs to go out sooner.
+Publish changes to the public site with the next scheduled run. Dispatch the
+workflow on `main` when results or a site update need to go out sooner.
