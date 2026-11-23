@@ -16,11 +16,13 @@ the existing site from `docs/`, adds `tournaments-v1.json`, and deploys the
 whole site. After merging the workflow, set the repository's **Settings →
 Pages → Source** to **GitHub Actions** and dispatch **Tournament catalogue**
 on `main` for the first publication. The site URL and the privacy policy URL
-are preserved. The workflow scans and publishes at 08:00, 12:00, 16:00, 20:00,
-and 00:00 in Asia/Baku. A push to `main` can run fixture checks. Site changes go
-out on the next scheduled or manual deployment. The head-to-head indexes
-refresh daily. Builds reuse the last successful indexes between refreshes and
-when a refresh fails.
+are preserved. Catalogue scans are scheduled for 00:17, 08:17, 12:17, 16:17,
+and 20:17 in Asia/Baku. If GitHub misses a run, the next scheduled scan can
+pick up the latest results. For urgent publication, dispatch the workflow on
+`main`. A push to `main` can run fixture checks. Site changes go out on the
+next scheduled or manual deployment. The head-to-head indexes refresh daily.
+Builds reuse the last successful indexes between refreshes and when a refresh
+fails.
 
 The version 1 document contains a `tournaments` array. Each entry includes the
 numeric Results index ID, published name, `singles` or `doubles` format and ISO
