@@ -50,6 +50,7 @@ public class SavedHistoryUpgradeDeviceTest {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         try {
             onScreen(root -> click(resourceView(root, "doubles_mode")));
+            var profile = instrumentation.addMonitor(PairResultsActivity.class.getName(), null, false);
             onScreen(root -> {
                 ListView list = root.findViewById(android.R.id.list);
                 int position = 1;
@@ -57,6 +58,8 @@ public class SavedHistoryUpgradeDeviceTest {
                 if (pair == null || !list.performItemClick(pair, position, list.getItemIdAtPosition(position)))
                     throw new IllegalStateException("Cannot open the first doubles pair");
             });
+            if (instrumentation.waitForMonitorWithTimeout(profile, 10_000) == null)
+                throw new IllegalStateException("The doubles profile did not open");
 
             // act & assert
             thenNameVisible(FIRST);
