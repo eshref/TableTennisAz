@@ -71,9 +71,13 @@ def save_failure_evidence(evidence):
     logs = adb("logcat", "-d", "-v", "raw", "-s", "FirebaseMessaging:W", "Firebase-Installations:W").decode()
     # Record known error messages without retaining raw client logs.
     errors = set(re.findall(
-        r"SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
-        r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|UnknownHostException|SocketTimeoutException|"
-        r"SSLHandshakeException|Google Play services missing or without correct permission|Failed to sync topics", logs))
+        r"\b(?:SERVICE_NOT_AVAILABLE|MISSING_INSTANCEID_SERVICE|FIS_AUTH_ERROR|BAD_CONFIG|"
+        r"API_KEY_SERVICE_BLOCKED|API_KEY_ANDROID_APP_BLOCKED|AUTHENTICATION_FAILED|INVALID_SENDER|"
+        r"MISMATCH_SENDER_ID|INVALID_PARAMETERS|INVALID_ARGUMENT|INTERNAL_SERVER_ERROR|"
+        r"PHONE_REGISTRATION_ERROR|TOO_MANY_REGISTRATIONS|TOO_MANY_SUBSCRIBERS|TOO_MANY_TOPICS|"
+        r"TOO_MANY_REQUESTS|PERMISSION_DENIED|DEVELOPER_ERROR|RST|TIMEOUT|"
+        r"UnknownHostException|SocketTimeoutException|SSLHandshakeException|"
+        r"Google Play services missing or without correct permission|Failed to sync topics)\b", logs))
     if errors:
         print(f"Firebase client errors: {', '.join(sorted(errors))}", flush=True)
 
