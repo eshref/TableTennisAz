@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-- Open **Turnir bildirişləri** from the menu to opt in to singles and doubles
-  test alerts in Firebase-configured builds. Tap an alert to open the
+## 0.9.0 - 2026-11-23
+
+- Turn on **Turnir bildirişləri** from the menu to get alerts when new singles
+  or doubles tournament results are published. Tap an alert to open the
   tournament's match results.
 
 ## 0.8.0 - 2026-11-22

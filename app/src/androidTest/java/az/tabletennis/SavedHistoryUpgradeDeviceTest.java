@@ -15,7 +15,7 @@ import static org.hamcrest.Matchers.anything;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
-import androidx.test.core.app.ActivityScenario;
+import android.content.Intent;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
@@ -45,7 +45,10 @@ public class SavedHistoryUpgradeDeviceTest {
         if (!captures.isDirectory() && !captures.mkdirs()) throw new IOException("Cannot create upgrade evidence directory");
 
         // act
-        try (ActivityScenario<RankingsActivity> scenario = ActivityScenario.launch(RankingsActivity.class)) {
+        // The previous APK may omit AndroidX classes supplied by the candidate APK.
+        var rankings = instrumentation.startActivitySync(new Intent(app, RankingsActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
             onView(withResourceName("doubles_mode")).perform(click());
             onData(anything()).inAdapterView(withId(android.R.id.list)).atPosition(1).perform(click());
 
@@ -73,6 +76,8 @@ public class SavedHistoryUpgradeDeviceTest {
 
             // act & assert
             thenSelectedObservation(LATER, "#2");
+        } finally {
+            instrumentation.runOnMainSync(rankings::finish);
         }
     }
 
