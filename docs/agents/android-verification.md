@@ -144,9 +144,10 @@ upload key. Both release distributions subscribe to `tournament-results`.
 
 Add the production sender as `FIREBASE_TOURNAMENT_ALERTS_SERVICE_ACCOUNT`
 in repository secrets. It needs the Cloud Messaging and token permissions
-described for the test sender. After verifying live delivery and publishing the
-Firebase-configured signed GitHub APK, set the repository variable
-`TOURNAMENT_ALERTS_ENABLED` to `true`.
+described for the test sender. Store both secrets as compact, single-line JSON
+so GitHub Actions preserves the signed fixture matrix output. After verifying
+live delivery and publishing the Firebase-configured signed GitHub APK, set
+the repository variable `TOURNAMENT_ALERTS_ENABLED` to `true`.
 The next catalogue build seeds already published tournaments and subsequent
 publications are eligible for alerts. Clear the variable to pause sending.
 [Live privacy policy](https://eshref.github.io/TableTennisAz/privacy-policy.html)
