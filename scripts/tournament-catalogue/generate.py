@@ -2,7 +2,9 @@
 import argparse
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import datetime
+from http.client import HTTPException
 import json
 from pathlib import Path
 import re
@@ -26,6 +28,7 @@ TEAM_NAME = re.compile(r"\b(?:komanda(?:lar)?|teams?)\b", re.IGNORECASE)
 TEAM_MARKUP = ".team-ranking-list, .team-match-box, .team-matches-match"
 DOUBLES_NAME = re.compile(r"\b(?:qoşa(?:lar)?|doubles|cüt(?:lər|lük|lüklər)?)\b", re.IGNORECASE)
 DOUBLES_PODIUM = ".winners-div .rank-duo-box"
+DOUBLES_PODIUM_STATE = "doublesPodiumState"
 MEDALS = ("gold", "silver", "bronze")
 SINGLES_PLACES = (".first-place", ".second-place", ".third-place")
 PAIR_COUNT_LABELS = ("Qoşa sayı", "Qoşalar", "Cüt sayı", "Cütlük sayı", "Cütlüklər")
@@ -60,6 +63,10 @@ def fetch_body(source, path, accept, *, optional=False):
                 if optional:
                     return None
                 raise
+        except (OSError, HTTPException):
+            if optional:
+                return None
+            raise
         sleep(2 ** attempt)
 
 
@@ -98,19 +105,19 @@ def published_day(value):
         return None
 
 
-def individual_entrants(detail):
+def individual_roster(detail):
     # The player roster is also present for team and doubles events, so corroborate
     # it with the tournament standings and every published result page.
     players = {link["href"].rstrip("/") for link in detail.select(".tournament-players a[href]")
                if PLAYER_LINK.fullmatch(link["href"])}
-    return len(players) >= 2 or any(singles_place_links(detail, selector) for selector in SINGLES_PLACES)
+    return len(players) >= 2
 
 
 def singles_place_links(detail, selector):
     return detail.select(f".winners-div {selector} a[href^='/players/']")
 
 
-def published_results(source, event_id, side_size):
+def published_results(source, event_id, side_size, *, optional_first_page=False):
     path = f"{INDEX}/event/{event_id}"
     number = 1
     results = {}
@@ -118,7 +125,7 @@ def published_results(source, event_id, side_size):
     complete = True
     while True:
         page_path = path if number == 1 else f"{path}?page={number}"
-        page = fetch(source, page_path)
+        page = fetch(source, page_path, optional=optional_first_page and number == 1)
         if page is None:
             if number > 1:
                 raise ValueError(f"Advertised result page is unavailable: {page_path}")
@@ -261,8 +268,12 @@ def portrait_path(value):
     return url.path + ("?" + url.query if url.query else "")
 
 
+def valid_id(value):
+    return type(value) is int and value > 0
+
+
 def medalist(player_id, name, picture):
-    if type(player_id) is not int or player_id <= 0 or not isinstance(name, str) or not name.strip():
+    if not valid_id(player_id) or not isinstance(name, str) or not name.strip():
         return None
     player = {"id": player_id, "name": " ".join(name.split())}
     if photo := portrait_path(picture):
@@ -301,22 +312,33 @@ def singles_podium(source, detail):
     return podium
 
 
-def published_pair(source, pair_id):
-    body = fetch_body(source, f"/api/getDuoInfo?id={pair_id}", "application/json", optional=True)
-    if body is None:
-        return None
+@dataclass(frozen=True)
+class PairObservation:
+    pair_id: int
+    player_ids: frozenset[int] | None = None
+    medalists: list[dict] | None = None
+
+
+def observe_pair(source, pair_id):
+    unresolved = PairObservation(pair_id)
     try:
+        body = fetch_body(source, f"/api/getDuoInfo?id={pair_id}", "application/json", optional=True)
+        if body is None:
+            return unresolved
         pair = json.loads(body)
         if urlsplit(pair["resultsUrl"]).path.rstrip("/") != f"/matches/results/duo/{pair_id}":
-            return None
-        players = [medalist(pair[f"player{number}Id"], pair[f"player{number}FullName"],
-                            pair.get(f"player{number}PictureUrl")) for number in (1, 2)]
+            return unresolved
+        ids = [pair.get(f"player{number}Id") for number in (1, 2)]
+        if ids[0] == ids[1]:
+            return unresolved
+        players = [medalist(player_id, pair.get(f"player{number}FullName"), pair.get(f"player{number}PictureUrl"))
+                   for number, player_id in enumerate(ids, 1)]
     except (KeyError, TypeError, AttributeError, ValueError):
-        return None
-    return players if all(players) and players[0]["id"] != players[1]["id"] else None
+        return unresolved
+    return PairObservation(pair_id, frozenset(filter(valid_id, ids)), players if all(players) else None)
 
 
-def doubles_podium(source, detail):
+def doubles_podium_observations(source, detail):
     # The winners section lists gold, silver and bronze in order. The displayed
     # doubles ranking positions and career medal counts are unrelated to the event.
     rows = detail.select(DOUBLES_PODIUM)
@@ -325,14 +347,11 @@ def doubles_podium(source, detail):
     ids = [row.select_one(".duo-id") for row in rows]
     ids = [identity.get_text(strip=True) if identity else "" for identity in ids]
     known_ids = [identity for identity in ids if re.fullmatch(r"[1-9][0-9]*", identity)]
-    podium = {}
-    for medal, pair_id in zip(MEDALS, ids):
-        if known_ids.count(pair_id) == 1 and (players := published_pair(source, pair_id)):
-            podium[medal] = players
-    return podium
+    return {medal: observe_pair(source, int(pair_id))
+            for medal, pair_id in zip(MEDALS, ids) if known_ids.count(pair_id) == 1}
 
 
-def verified_tournament(source, event_id, event):
+def verified_tournament(source, event_id, event, *, previously_doubles=False):
     name, index_fields = event
     if TEAM_NAME.search(name):
         return None
@@ -360,44 +379,58 @@ def verified_tournament(source, event_id, event):
     pairs = published_count(event_fields, index_fields, PAIR_COUNT_LABELS, PAIR_COUNT_LABELS)
     doubles = (pairs is not None or DOUBLES_NAME.search(name) or DOUBLES_NAME.search(detail_name)
                or detail.select_one(f"{DOUBLES_PODIUM} .duo-id"))
-    if doubles:
-        published = published_results(source, event_id, side_size=2)
-        if published is None:
-            return None
+    side_sizes = (2,)
+    if not doubles and not detail.select_one(DOUBLES_PODIUM):
+        if any(singles_place_links(detail, selector) for selector in SINGLES_PLACES):
+            side_sizes = (1,)
+        elif individual_roster(detail):
+            side_sizes = (2, 1) if previously_doubles else (1, 2)
+    for side_size in side_sizes:
+        published = published_results(
+            source, event_id, side_size, optional_first_page=side_size == 2 and not (doubles or previously_doubles),
+        )
+        if published is not None:
+            break
+    else:
+        return None
+
+    if side_size == 2:
         results, complete = published
         tournament = {"id": event_id, "name": name, "format": "doubles", "start": start, "end": end}
         if pairs is None and players is not None and complete:
             pairs = distinct_pairs(source, detail, results, players)
         if pairs is not None:
             tournament["pairs"] = pairs
-        podium = doubles_podium(source, detail)
+        observations = doubles_podium_observations(source, detail)
     else:
-        if (detail.select_one(DOUBLES_PODIUM) or not individual_entrants(detail)
-                or published_results(source, event_id, side_size=1) is None):
-            return None
         tournament = {"id": event_id, "name": name, "format": "singles", "start": start, "end": end}
         if players is not None:
             tournament["players"] = players
-        podium = singles_podium(source, detail)
-    if podium:
-        tournament["podium"] = podium
+        if podium := singles_podium(source, detail):
+            tournament["podium"] = podium
+        observations = {}
     for prize in (event_fields.get("Priz", ""), index_fields.get("Priz", "")):
         if re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?\s+AZN", prize):
             tournament["prize"] = prize
             break
-    return tournament
+    return tournament, observations
 
 
-def previous_index(catalogue):
+def catalogue_tournaments(catalogue):
     if catalogue is None:
-        return {}
+        return []
     if not isinstance(catalogue, dict) or catalogue.get("version") != 1:
         raise ValueError("Unsupported previous catalogue")
     tournaments = catalogue.get("tournaments")
-    if not isinstance(tournaments, list) or any(
-        not isinstance(row, dict) or type(row.get("id")) is not int or row["id"] <= 0 for row in tournaments
-    ):
+    if not isinstance(tournaments, list) or any(not isinstance(row, dict) or not valid_id(row.get("id"))
+                                               for row in tournaments):
         raise ValueError("Invalid tournaments in previous catalogue")
+    return tournaments
+
+
+def previous_index(catalogue, tournaments):
+    if catalogue is None:
+        return {}
     if "firstListed" not in catalogue:
         # The first tracked publication establishes one observation for the legacy IDs and current index.
         return {str(row["id"]): 0 for row in tournaments}
@@ -410,20 +443,129 @@ def previous_index(catalogue):
     return observations
 
 
-def build_catalogue(source, first_listed):
+def doubles_podiums(tournaments):
+    podiums = {}
+    for tournament in tournaments:
+        if tournament.get("format") != "doubles":
+            continue
+        podium = podiums[tournament["id"]] = {}
+        placements = tournament.get("podium")
+        if not isinstance(placements, dict):
+            continue
+        for medal in MEDALS:
+            players = placements.get(medal)
+            if isinstance(players, list) and len(players) == 2 and all(isinstance(p, dict) for p in players):
+                verified = [medalist(p.get("id"), p.get("name"), p.get("photo")) for p in players]
+                if all(verified) and verified[0]["id"] != verified[1]["id"]:
+                    podium[medal] = verified
+    return podiums
+
+
+def placement_withheld(state, medal):
+    return medal in state and state[medal] is None
+
+
+def resolve_doubles_podium(observations, fallback, previous_state):
+    podium = {}
+    state = {}
+    observed_pair_ids = {pair.player_ids: pair.pair_id for pair in observations.values()
+                         if pair.player_ids and len(pair.player_ids) == 2}
+    known_pairs = {entry["pairId"]: frozenset(player["id"] for player in fallback[medal])
+                   for medal, entry in previous_state.items() if entry and "pairId" in entry and medal in fallback}
+    for medal in MEDALS:
+        pair = observations.get(medal)
+        if pair and pair.medalists:
+            podium[medal] = pair.medalists
+            state[medal] = {"pairId": pair.pair_id}
+            continue
+
+        if placement_withheld(previous_state, medal):
+            state[medal] = None
+            continue
+        if medal not in fallback:
+            continue
+
+        prior_players = fallback[medal]
+        prior_player_ids = frozenset(player["id"] for player in prior_players)
+        prior_pair_id = previous_state.get(medal, {}).get("pairId") or observed_pair_ids.get(prior_player_ids)
+        changed = False
+        if pair:
+            if pair.player_ids and not pair.player_ids.issubset(prior_player_ids):
+                changed = True
+            elif pair.player_ids == prior_player_ids:
+                prior_pair_id = pair.pair_id
+            elif pair.pair_id in known_pairs:
+                changed = known_pairs[pair.pair_id] != prior_player_ids
+                if not changed:
+                    prior_pair_id = pair.pair_id
+            elif prior_pair_id is not None:
+                changed = pair.pair_id != prior_pair_id
+        if changed:
+            # An explicit null remembers the correction through later failed lookups.
+            state[medal] = None
+        else:
+            podium[medal] = prior_players
+            if prior_pair_id is not None:
+                state[medal] = {"pairId": prior_pair_id}
+    return podium, state
+
+
+def build_catalogue(source, previous, recovery):
+    previous_tournaments = catalogue_tournaments(previous)
+    first_listed = previous_index(previous, previous_tournaments)
+    previous_podiums = doubles_podiums(previous_tournaments)
+    recovery_podiums = doubles_podiums(catalogue_tournaments(recovery))
+    previous_state = previous.get(DOUBLES_PODIUM_STATE, {}) if previous else {}
     events = published_events(source)
     observed_at = max(time_ns() // 1_000_000, max(first_listed.values(), default=0) + 1)
     first_listed = {key: value or observed_at for key, value in first_listed.items()}
     for event_id in events:
         first_listed.setdefault(str(event_id), observed_at)
+
+    def verify(item):
+        event_id, _ = item
+        return verified_tournament(
+            source, *item, previously_doubles=(
+                event_id in previous_podiums or event_id in recovery_podiums or str(event_id) in previous_state
+            ),
+        )
+
+    tournaments = []
+    state = previous_state.copy()
+    current_doubles = set()
     with ThreadPoolExecutor(max_workers=4) as fetchers:
-        verified = fetchers.map(lambda item: verified_tournament(source, *item), events.items())
-        tournaments = [tournament for tournament in verified if tournament is not None]
+        for result in fetchers.map(verify, events.items()):
+            if result is None:
+                continue
+            tournament, observations = result
+            tournaments.append(tournament)
+            if tournament["format"] == "doubles":
+                event_id = tournament["id"]
+                current_doubles.add(event_id)
+                key = str(event_id)
+                prior = previous_state.get(key, {})
+                archived = {medal: entry["medalists"] for medal, entry in prior.items()
+                            if entry is not None and "medalists" in entry}
+                fallback = recovery_podiums.get(event_id, {}) | archived | previous_podiums.get(event_id, {})
+                podium, state[key] = resolve_doubles_podium(observations, fallback, prior)
+                if podium:
+                    tournament["podium"] = podium
     if not tournaments:
         raise ValueError("No verified tournaments in the Results index")
+    # Remember the last verified placement if a tournament temporarily leaves the catalogue.
+    for event_id in previous_podiums.keys() - current_doubles:
+        key = str(event_id)
+        archived = state.get(key, {}).copy()
+        for medal, players in previous_podiums[event_id].items():
+            if not placement_withheld(archived, medal):
+                archived[medal] = {**archived.get(medal, {}), "medalists": players}
+        state[key] = archived
     tournaments.sort(key=lambda tournament: tournament["end"], reverse=True)
     print(f"Verified {len(tournaments)} singles and doubles tournaments from {len(events)} completed event entries")
-    return {"version": 1, "firstListed": first_listed, "tournaments": tournaments}
+    catalogue = {"version": 1, "firstListed": first_listed, "tournaments": tournaments}
+    if state := {key: medals for key, medals in state.items() if medals}:
+        catalogue[DOUBLES_PODIUM_STATE] = state
+    return catalogue
 
 
 def publish(output, catalogue):
@@ -444,12 +586,16 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--source", default=SITE, help="tabletennis.az or a source fixture server")
     parser.add_argument("--previous", type=Path, help="previously published catalogue, including first observations")
+    parser.add_argument("--recovery", type=Path, help="earlier verified catalogue for missing doubles placements")
     parser.add_argument("--previous-modified", help="Last-Modified header from the live catalogue response")
     parser.add_argument("--track-alerts", action="store_true", help="track first publication for tournament alerts")
     arguments = parser.parse_args()
     try:
         previous = json.loads(arguments.previous.read_bytes()) if arguments.previous else None
-        catalogue = build_catalogue(arguments.source.rstrip("/"), previous_index(previous))
+        recovery = json.loads(arguments.recovery.read_bytes()) if arguments.recovery else None
+        if arguments.recovery and previous is None:
+            raise ValueError("A live catalogue is required for podium recovery")
+        catalogue = build_catalogue(arguments.source.rstrip("/"), previous, recovery)
         if arguments.track_alerts or (previous and PUBLICATIONS in previous):
             if previous is None:
                 raise ValueError("A live catalogue is required to seed tournament alert history")

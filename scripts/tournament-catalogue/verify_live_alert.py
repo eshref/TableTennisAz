@@ -139,7 +139,8 @@ def main():
     evidence = Path(os.environ["FIREBASE_LIVE_EVIDENCE"])
     evidence.mkdir(parents=True, exist_ok=True)
     event = published_events(SITE).get(EVENT_ID)
-    tournament = verified_tournament(SITE, EVENT_ID, event) if event is not None else None
+    verified = verified_tournament(SITE, EVENT_ID, event) if event is not None else None
+    tournament, _ = verified if verified is not None else (None, None)
     if tournament is None or tournament["name"] != TOURNAMENT or tournament["format"] != "singles":
         raise RuntimeError(f"Completed singles tournament {EVENT_ID} is no longer available for verification")
 

@@ -14,7 +14,7 @@ import time
 import unittest
 
 from bs4 import BeautifulSoup
-from test_catalogue import ROOT, generate
+from test_catalogue import ROOT, generate, podium_ids
 
 
 class BatchAlertPublisher(unittest.TestCase):
@@ -67,8 +67,10 @@ class BatchAlertPublisher(unittest.TestCase):
             index.select_one(f'a[href="/matches/results/event/{event_id}"]').decompose()
         self.index.write_text(str(index), encoding="utf-8")
 
-    def build(self, track_alerts=True):
+    def build(self, track_alerts=True, recovery=None):
         options = ["--track-alerts"] if track_alerts else []
+        if recovery:
+            options += ["--recovery", str(recovery)]
         if self.live.exists():
             options += ["--previous-modified", format_datetime(self.modified, usegmt=True)]
         result = generate(
@@ -95,6 +97,65 @@ class BatchAlertPublisher(unittest.TestCase):
         if accepted.exists():
             accepted.replace(self.receipts)
         return result
+
+    def test_recovery_restores_only_unresolved_medals_and_alerts_only_on_new_results(self):
+        # arrange
+        self.build(track_alerts=False)
+        recovery = self.directory / "recovery.json"
+        snapshot = json.loads(self.catalogue.read_bytes())
+        snapshot.pop("doublesPodiumState", None)
+        recovery.write_text(json.dumps(snapshot), encoding="utf-8")
+        self.set_index(944, 993)
+        for pair_id in (447, 413, 883):
+            (self.fixtures / f"api/getDuoInfo-{pair_id}.json").unlink()
+        self.build(track_alerts=False)
+        published_at = self.modified - timedelta(minutes=5)
+        self.deploy(published_at)
+        self.build()
+        self.deploy(published_at)
+        baseline = json.loads(self.live.read_bytes())
+        affected = self.directory / "affected.json"
+        affected.write_bytes(self.live.read_bytes())
+
+        self.set_index(993)
+        event = self.fixtures / "events/941.html"
+        event.write_text(event.read_text(encoding="utf-8").replace("447", "1234"), encoding="utf-8")
+        (self.fixtures / "api/getDuoInfo-1234.json").write_text(json.dumps({
+            "player1Id": 40, "player1FullName": "Çingiz Nadirov",
+            "player2Id": 1118, "player2FullName": "Əli Şəhgəldiyev",
+            "resultsUrl": "/matches/results/duo/1234",
+        }), encoding="utf-8")
+        (self.fixtures / "api/getDuoInfo-413.json").write_text(json.dumps({
+            "player2Id": 20,
+            "resultsUrl": "/matches/results/duo/413",
+        }), encoding="utf-8")
+        (self.fixtures / "api/getDuoInfo-883.json").write_text(json.dumps({
+            "player1Id": 144, "player2Id": 457, "resultsUrl": "/matches/results/duo/883",
+        }), encoding="utf-8")
+
+        # act
+        self.build(recovery=recovery)
+        self.deploy(published_at + timedelta(minutes=1))
+        report = subprocess.run(
+            [sys.executable, str(ROOT / "report_recovery.py"), str(affected), str(recovery), str(self.live)],
+            capture_output=True, text=True, timeout=10,
+        )
+        result = self.send()
+
+        # assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(podium_ids(self.live, 941), {"gold": [40, 1118], "bronze": [457, 144]})
+        catalogue = json.loads(self.live.read_bytes())
+        self.assertEqual({entry["id"] for entry in catalogue["tournaments"]}, {7, 941, 944})
+        self.assertNotIn("993", catalogue["firstListed"])
+        self.assertEqual({key: catalogue["firstListed"][key] for key in baseline["firstListed"]},
+                         baseline["firstListed"])
+        self.assertEqual({key: catalogue["alertPublications"][key] for key in baseline["alertPublications"]},
+                         baseline["alertPublications"])
+        self.assertEqual([message["data"]["eventId"] for message in self.requests], ["944"])
+        self.assertEqual(report.returncode, 0, report.stderr)
+        self.assertIn("Withheld after a confirmed pair change — 1", report.stdout)
+        self.assertIn("Tournament 941 medalist IDs — gold 40/1118, bronze 144/457", report.stdout)
 
     def test_rollout_and_late_verification_survive_deployment_interruption_and_partial_firebase_failure(self):
         # arrange
