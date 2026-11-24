@@ -232,6 +232,7 @@ class CatalogueTest(unittest.TestCase):
             # act
             result = generate(fixtures, output, previous=previous, unavailable=(
                 "/api/getDuoInfo?id=447", "/api/getDuoInfo?id=413", "/api/getDuoInfo?id=883",
+                "/matches/results/event/990",
             ))
 
             # assert
@@ -432,3 +433,20 @@ class CatalogueTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             entries = json.loads(output.read_text(encoding="utf-8"))["tournaments"]
             self.assertEqual([entry["id"] for entry in entries], [944, 941, 993])
+
+    def test_a_doubles_match_page_does_not_reclassify_a_published_singles_podium(self):
+        # arrange
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = copytree(ROOT / "fixtures", root / "fixtures")
+            results = fixtures / "matches/results/event"
+            (results / "944.html").write_bytes((results / "993.html").read_bytes())
+            output = root / "tournaments-v1.json"
+
+            # act
+            result = generate(fixtures, output)
+
+            # assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entries = json.loads(output.read_bytes())["tournaments"]
+            self.assertEqual([entry["id"] for entry in entries], [941, 993, 7])

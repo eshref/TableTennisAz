@@ -63,6 +63,10 @@ def fetch_body(source, path, accept, *, optional=False):
                 if optional:
                     return None
                 raise
+        except (OSError, HTTPException):
+            if optional:
+                return None
+            raise
         sleep(2 ** attempt)
 
 
@@ -101,19 +105,19 @@ def published_day(value):
         return None
 
 
-def individual_entrants(detail):
+def individual_roster(detail):
     # The player roster is also present for team and doubles events, so corroborate
     # it with the tournament standings and every published result page.
     players = {link["href"].rstrip("/") for link in detail.select(".tournament-players a[href]")
                if PLAYER_LINK.fullmatch(link["href"])}
-    return len(players) >= 2 or any(singles_place_links(detail, selector) for selector in SINGLES_PLACES)
+    return len(players) >= 2
 
 
 def singles_place_links(detail, selector):
     return detail.select(f".winners-div {selector} a[href^='/players/']")
 
 
-def published_results(source, event_id, side_size):
+def published_results(source, event_id, side_size, *, optional_first_page=False):
     path = f"{INDEX}/event/{event_id}"
     number = 1
     results = {}
@@ -121,7 +125,7 @@ def published_results(source, event_id, side_size):
     complete = True
     while True:
         page_path = path if number == 1 else f"{path}?page={number}"
-        page = fetch(source, page_path)
+        page = fetch(source, page_path, optional=optional_first_page and number == 1)
         if page is None:
             if number > 1:
                 raise ValueError(f"Advertised result page is unavailable: {page_path}")
@@ -329,7 +333,7 @@ def observe_pair(source, pair_id):
             return unresolved
         players = [medalist(player_id, pair.get(f"player{number}FullName"), pair.get(f"player{number}PictureUrl"))
                    for number, player_id in enumerate(ids, 1)]
-    except (OSError, HTTPException, KeyError, TypeError, AttributeError, ValueError):
+    except (KeyError, TypeError, AttributeError, ValueError):
         return unresolved
     return PairObservation(pair_id, frozenset(filter(valid_id, ids)), players if all(players) else None)
 
@@ -376,10 +380,15 @@ def verified_tournament(source, event_id, event, *, previously_doubles=False):
     doubles = (pairs is not None or DOUBLES_NAME.search(name) or DOUBLES_NAME.search(detail_name)
                or detail.select_one(f"{DOUBLES_PODIUM} .duo-id"))
     side_sizes = (2,)
-    if not doubles and not detail.select_one(DOUBLES_PODIUM) and individual_entrants(detail):
-        side_sizes = (2, 1) if previously_doubles else (1, 2)
+    if not doubles and not detail.select_one(DOUBLES_PODIUM):
+        if any(singles_place_links(detail, selector) for selector in SINGLES_PLACES):
+            side_sizes = (1,)
+        elif individual_roster(detail):
+            side_sizes = (2, 1) if previously_doubles else (1, 2)
     for side_size in side_sizes:
-        published = published_results(source, event_id, side_size)
+        published = published_results(
+            source, event_id, side_size, optional_first_page=side_size == 2 and not (doubles or previously_doubles),
+        )
         if published is not None:
             break
     else:
