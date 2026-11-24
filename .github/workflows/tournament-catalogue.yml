@@ -4,6 +4,11 @@ on:
     - cron: '17 0,8,12,16,20 * * *'
       timezone: Asia/Baku
   workflow_dispatch:
+    inputs:
+      recover_doubles_podiums:
+        description: Recover missing doubles placements from the verified run 45130487896
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -61,6 +66,7 @@ jobs:
         env:
           CATALOGUE_URL: ${{ steps.pages.outputs.base_url }}/tournaments-v1.json
           ALERTS_ENABLED: ${{ vars.TOURNAMENT_ALERTS_ENABLED }}
+          RECOVER_DOUBLES_PODIUMS: ${{ inputs.recover_doubles_podiums }}
         run: |
           curl --fail --silent --show-error --retry 3 --max-time 30 \
             --header 'Cache-Control: no-cache' \
@@ -70,9 +76,18 @@ jobs:
             "$RUNNER_TEMP/previous-catalogue.headers")
           alerts=()
           if [[ "$ALERTS_ENABLED" == true ]]; then alerts+=(--track-alerts); fi
+          recovery=()
+          if [[ "$RECOVER_DOUBLES_PODIUMS" == true ]]; then
+            snapshot=scripts/tournament-catalogue/recovery/doubles-podiums-45130487896.json
+            recovery+=(--recovery "$snapshot")
+          fi
           cp -a docs pages-source
           python scripts/tournament-catalogue/generate.py --previous "$RUNNER_TEMP/previous-catalogue.json" \
-            --previous-modified "$modified" "${alerts[@]}" pages-source/tournaments-v1.json
+            --previous-modified "$modified" "${alerts[@]}" "${recovery[@]}" pages-source/tournaments-v1.json
+          if [[ "$RECOVER_DOUBLES_PODIUMS" == true ]]; then
+            python scripts/tournament-catalogue/report_recovery.py "$RUNNER_TEMP/previous-catalogue.json" \
+              "$snapshot" pages-source/tournaments-v1.json >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Choose the daily head-to-head refresh date
         id: head-to-head
         run: date -u '+date=%F' >> "$GITHUB_OUTPUT"
@@ -120,6 +135,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -144,6 +160,27 @@ jobs:
           fi
       - uses: actions/deploy-pages@v4
         if: steps.catalogue.outputs.deploy == 'true'
+      - uses: actions/checkout@v4
+        if: inputs.recover_doubles_podiums
+        with:
+          persist-credentials: false
+      - name: Verify Pages serves the reviewed recovery catalogue
+        if: inputs.recover_doubles_podiums
+        env:
+          PAGE_URL: ${{ needs.build.outputs.page_url }}
+          CANDIDATE_SHA256: ${{ needs.build.outputs.catalogue_sha256 }}
+          PYTHONPATH: scripts/tournament-catalogue
+        run: |
+          python3 - <<'PY'
+          import os
+          from publish_alerts import read_deployment
+
+          digest = os.environ["CANDIDATE_SHA256"]
+          catalogue_url = os.environ["PAGE_URL"].rstrip("/") + "/tournaments-v1.json"
+          read_deployment(catalogue_url, digest, wait=120)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"Verified the live recovery catalogue SHA-256 `{digest}`.\n")
+          PY
 
   firebase-alerts:
     if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && vars.TOURNAMENT_ALERTS_ENABLED == 'true' }}

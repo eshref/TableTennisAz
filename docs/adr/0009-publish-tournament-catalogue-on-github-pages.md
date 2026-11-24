@@ -49,3 +49,34 @@ come from the labeled event-page podium. Doubles placements come from the
 order of pairs in the event's winners section, with partner names and portraits
 resolved through the website's pair metadata. Older catalogue entries without
 a podium still provide the tournament facts and match results.
+
+Resolve gold, silver, and bronze separately for each verified doubles tournament.
+When a pair lookup is unavailable or unusable, carry forward the last verified
+medalists for the same Results index ID and medal while the source supplies no
+evidence of a change. When the website identifies a different pair, publish
+that medal once both players are verified. The generator records confirmed
+website pair IDs and withheld medals in the top-level `doublesPodiumState`.
+This lets later crawls keep a superseded medal hidden through further lookup
+failures and remember the last verified placement if a tournament temporarily
+leaves the catalogue. Legacy catalogues have player IDs but may lack pair IDs.
+The generator uses player IDs when it can establish pair identity without a
+stored pair ID. The version 1 podium still contains just the medalists for each medal.
+Tournament cards and verified match results continue to publish with incomplete
+podiums. Restoring or correcting a medal preserves the existing tournament
+results publication and alert history.
+
+For [issue #127](https://github.com/eshref/TableTennisAz/issues/127), dispatch
+**Tournament catalogue** from `main` with **recover_doubles_podiums** checked.
+The [recovery snapshot](../../scripts/tournament-catalogue/recovery/doubles-podiums-45130487896.json)
+contains the 219 verified doubles podiums extracted from
+[run 45130487896](https://github.com/eshref/TableTennisAz/actions/runs/45130487896).
+The original `tournaments-v1.json` SHA-256 was
+`d73ff63c05dcacadb8c3dd373ffc7436f92e64051e3530b71ad01e50abbfcb57`.
+The snapshot supplies missing placements after the current catalogue and website
+observations have been considered. The regular crawl verifies tournament
+membership and matches, and the live catalogue supplies first-listed and
+publication history. The recovery run summarizes coverage by format, accounts
+for every historical doubles placement, and reports medalist IDs for tournament
+941. Its publication job verifies the live JSON against that reviewed build.
+After publication, refresh **Qoşa turnirlər** and check that tournament 941
+shows the medalists reported in the run summary.
